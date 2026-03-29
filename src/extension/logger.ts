@@ -6,6 +6,7 @@ import * as vscode from 'vscode'
 
 // Module-level singleton: created at import time, reused everywhere
 const outputChannel = vscode.window.createOutputChannel('VibeSense')
+let disposed = false
 
 function formatMessage(level: string, message: string, args: unknown[]): string {
   const timestamp = new Date().toISOString()
@@ -13,41 +14,41 @@ function formatMessage(level: string, message: string, args: unknown[]): string 
   return `[${level}] ${timestamp} ${message}${suffix}`
 }
 
+/**
+ * Write a formatted log line to the VibeSense output channel.
+ * NFR-R1: logger must never throw — last-resort fallback only.
+ */
+function log(level: string, message: string, args: unknown[]): void {
+  try {
+    outputChannel.appendLine(formatMessage(level, message, args))
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error('[VibeSense logger fallback]', e)
+  }
+}
+
 export const logger = {
   info(message: string, ...args: unknown[]): void {
-    try {
-      outputChannel.appendLine(formatMessage('INFO', message, args))
-    } catch (e) {
-      // NFR-R1: logger must never throw — last-resort fallback only
-      // eslint-disable-next-line no-console
-      console.error('[VibeSense logger fallback]', e)
-    }
+    log('INFO', message, args)
   },
 
   warn(message: string, ...args: unknown[]): void {
-    try {
-      outputChannel.appendLine(formatMessage('WARN', message, args))
-    } catch (e) {
-      // NFR-R1: logger must never throw — last-resort fallback only
-      // eslint-disable-next-line no-console
-      console.error('[VibeSense logger fallback]', e)
-    }
+    log('WARN', message, args)
   },
 
   error(message: string, ...args: unknown[]): void {
-    try {
-      outputChannel.appendLine(formatMessage('ERROR', message, args))
-    } catch (e) {
-      // NFR-R1: logger must never throw — last-resort fallback only
-      // eslint-disable-next-line no-console
-      console.error('[VibeSense logger fallback]', e)
-    }
+    log('ERROR', message, args)
   },
 }
 
 /**
  * Dispose the output channel. Call in extension deactivate().
+ * Safe to call multiple times — subsequent calls are no-ops.
  */
 export function disposeLogger(): void {
+  if (disposed) {
+    return
+  }
+  disposed = true
   outputChannel.dispose()
 }

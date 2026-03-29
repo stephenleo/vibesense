@@ -38,6 +38,7 @@
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
+    "@types/mocha": "^10.0.10",
     "@types/node": "^20.0.0",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
@@ -50,6 +51,7 @@
     "eslint": "^8.0.0",
     "eslint-plugin-import": "^2.28.0",
     "jsdom": "^29.0.1",
+    "mocha": "^11.7.5",
     "style-loader": "^3.0.0",
     "ts-loader": "^9.0.0",
     "typescript": "^5.0.0",
