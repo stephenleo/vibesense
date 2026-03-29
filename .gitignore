@@ -1,6 +1,7 @@
 .claude/commands
 .claude/skills
 _bmad/
+_bmad-output/implementation-artifacts
 .DS_Store
 memory/
 
