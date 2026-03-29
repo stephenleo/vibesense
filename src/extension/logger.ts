@@ -19,6 +19,9 @@ function formatMessage(level: string, message: string, args: unknown[]): string 
  * NFR-R1: logger must never throw — last-resort fallback only.
  */
 function log(level: string, message: string, args: unknown[]): void {
+  if (disposed) {
+    return
+  }
   try {
     outputChannel.appendLine(formatMessage(level, message, args))
   } catch (e) {

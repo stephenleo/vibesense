@@ -14,7 +14,6 @@ export function activate(_context: vscode.ExtensionContext): void {
 
   // Placeholder: full HID setup in Story 1.2
   // Placeholder: IPC server in Story 1.3
-  // Placeholder: status bar in Story 1.5
 }
 
 /**

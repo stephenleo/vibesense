@@ -67,8 +67,17 @@ describe('logger singleton', () => {
     expect(line).toContain('42')
   })
 
-  it('disposeLogger() calls outputChannel.dispose()', () => {
-    disposeLogger()
-    expect(mockDispose).toHaveBeenCalledOnce()
+  // disposeLogger sets module-level `disposed = true` — must run last to avoid
+  // poisoning subsequent tests that call logger methods on the same module instance.
+  describe('disposeLogger', () => {
+    it('calls outputChannel.dispose() and is idempotent', () => {
+      disposeLogger()
+      expect(mockDispose).toHaveBeenCalledOnce()
+
+      // Second call should be a no-op — dispose is not called again
+      mockDispose.mockClear()
+      disposeLogger()
+      expect(mockDispose).not.toHaveBeenCalled()
+    })
   })
 })
