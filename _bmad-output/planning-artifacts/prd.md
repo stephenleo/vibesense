@@ -1,5 +1,11 @@
 ---
-stepsCompleted: [step-01-init, step-02-discovery, step-02b-vision, step-02c-executive-summary, step-03-success, step-04-journeys, step-05-domain, step-06-innovation, step-07-project-type, step-08-scoping, step-09-functional, step-10-nonfunctional, step-11-polish, step-12-complete]
+stepsCompleted: [step-01-init, step-02-discovery, step-02b-vision, step-02c-executive-summary, step-03-success, step-04-journeys, step-05-domain, step-06-innovation, step-07-project-type, step-08-scoping, step-09-functional, step-10-nonfunctional, step-11-polish, step-12-complete, step-e-01-discovery, step-e-02-review, step-e-03-edit]
+lastEdited: '2026-03-29'
+editHistory:
+  - date: '2026-03-29'
+    changes: 'Applied validation fixes (NFR-P5, NFR-I3, FR4, FR9, FR25, FR30, FR36, FR46, FR52, FR55); added FR57 session health bar, FR58 session quicksave/resume, FR59 progressive feature unlocking; updated Product Scope and Phase 2 scoping table'
+  - date: '2026-03-29'
+    changes: 'Post-validation polish: FR53 XP milestones specified (trigger events + level thresholds); FR38 segment count added (up to 8); FR56 recovery actions named; Windows scope-change note added to Project Scoping'
 inputDocuments:
   - '_bmad-output/planning-artifacts/product-brief-vibesense-2026-03-07.md'
   - '_bmad-output/planning-artifacts/research/domain-vibesense-agentic-coding-developer-tooling-research-2026-03-07.md'
@@ -130,6 +136,9 @@ Technical success is non-negotiable. The extension must never degrade the core I
 - **Streaming / Content Creator Mode** overlay
 - **Idle mini-game system** (Snake, Tetris) with auto-pause/resume on agent state
 - **Gamified stats dashboard** — XP, levels, streaks, achievement system (Bronze/Silver/Gold/Platinum), controller action ratio and trend charts, Controller-Only Session Completion Rate displayed per user
+- **Session health bar** — live in-session indicator (sidebar or HUD) showing controller action ratio, session duration, and XP earned this session
+- **Session state quicksave/resume** — save and restore open terminals, active agent sessions, and radial wheel configuration across VSCode restarts
+- **Progressive feature unlocking (Guided vs. Full mode)** — new users start in Guided mode with core bindings only; Full mode unlocks on onboarding tutorial completion or manual toggle
 - **Windows platform support**
 - **Cloud profile sync** via VSCode Settings Sync
 
@@ -549,6 +558,8 @@ Per-project binding profile. Committed with the project. Synced via VSCode Setti
 - WSL2 USB passthrough validation (USB/IP) — covers both wired and dongle connections
 - DualSense + Xbox confirmed on Linux
 
+**Note on Windows platform:** The original Product Brief included Windows in the pre-Marketplace gate. This PRD deliberately defers Windows to Phase 2, prioritizing Mac-first stability and reducing CI/CD surface area at launch.
+
 **Phase 2 — Growth (Post-Marketplace launch):**
 
 | Feature | Value |
@@ -559,6 +570,9 @@ Per-project binding profile. Committed with the project. Synced via VSCode Setti
 | Floating HUD overlay + Streaming Mode | Jordan persona; organic marketing asset |
 | Idle mini-game system (Snake, Tetris) | Completes the gestalt experience |
 | Gamified stats dashboard (XP, streaks, controller action ratio trend) | Retention driver; north star metric in-product |
+| Session health bar (live controller ratio, XP, duration) | At-a-glance session momentum without opening dashboard |
+| Session state quicksave/resume | Eliminates cold-start friction for multi-agent power users |
+| Progressive feature unlocking — Guided → Full mode | Lowers barrier for new users; reduces day-one overwhelm |
 | Windows x64 VSIX build + XInput/Xbox Wireless Adapter support | Expands TAM |
 | Cloud profile sync via VSCode Settings Sync | Reduces cross-device friction |
 | Opt-in anonymous telemetry + `vibesense.dev` stats page | KPI instrumentation |
@@ -609,12 +623,12 @@ Per-project binding profile. Committed with the project. Synced via VSCode Setti
 - **FR1:** The system can auto-detect a connected controller (wired USB, 2.4GHz dongle, Bluetooth) without user configuration on extension activation
 - **FR2:** The system can detect when a controller disconnects and immediately activate keyboard fallback without interrupting the active session
 - **FR3:** The system can auto-reconnect to a controller when it is re-plugged or re-pairs wirelessly
-- **FR4:** The system can detect low controller battery level and alert the user via a non-blocking status notification
+- **FR4:** The system can detect when controller battery level drops below 20% and alert the user via a non-blocking status bar notification
 - **FR5:** The user can manually select a HID device from a list of available devices when auto-detection fails
 - **FR6:** The user can map any controller button or input to any registered VSCode command or key sequence
 - **FR7:** The system provides pre-built binding profiles optimized for Claude Code and GitHub Copilot Chat workflows, active without manual configuration
 - **FR8:** The user can customize controller binding profiles through a settings interface
-- **FR9:** The system buffers controller inputs during state transitions to prevent dropped actions
+- **FR9:** The system buffers controller inputs during state transitions (200–300ms window) to prevent dropped actions
 
 ### VSCode Integration & Session Management
 
@@ -635,12 +649,12 @@ Per-project binding profile. Committed with the project. Synced via VSCode Setti
 - **FR21:** The system can detect when voice input mode is unavailable and surface a non-blocking fallback prompt
 - **FR22:** External Claude Code skills and scripts can call `vibeSense.notify()` to deliver agent state events to the extension
 - **FR23:** The `vibeSense.notify()` API accepts named haptic patterns, LED colors, audio tones, and notification priority as parameters
-- **FR56:** The user can access a quick-action menu from the controller when an agent session enters an error state, presenting common recovery actions
+- **FR56:** The user can access a quick-action menu from the controller when an agent session enters an error state, presenting at minimum: Retry last command, Clear terminal output, Open new agent session, and View error log
 
 ### Ambient Feedback
 
 - **FR24:** The system can emit distinct haptic patterns on the controller for different agent state events (processing, complete, needs input, error)
-- **FR25:** The system can set the controller LED color to reflect the current agent or session state
+- **FR25:** The system can set the controller LED color to reflect the current agent or session state (blue=processing, amber=needs input, green=complete, red=error)
 - **FR26:** The system can emit audio tones through the controller speaker for agent state events
 - **FR27:** The system displays a persistent controller connection and state indicator in the VSCode status bar at all times
 - **FR28:** The user can configure a Do Not Disturb mode that suppresses ambient feedback below a specified priority threshold
@@ -648,7 +662,7 @@ Per-project binding profile. Committed with the project. Synced via VSCode Setti
 
 ### Idle Gaming
 
-- **FR30:** The system can detect when an agent session is idle/processing and automatically present a mini-game
+- **FR30:** The system can detect when an agent session enters idle/processing state and display a visible 5-second countdown, then automatically launch the mini-game when the countdown completes; the countdown duration is user-configurable via VSCode settings
 - **FR31:** The system can automatically pause an active mini-game when an agent requires user attention
 - **FR32:** The system can resume a paused mini-game when the agent returns to idle/processing state
 - **FR33:** The system persists mini-game state (score, progress level) across VSCode sessions
@@ -657,11 +671,14 @@ Per-project binding profile. Committed with the project. Synced via VSCode Setti
 ### User Configuration & Profiles
 
 - **FR35:** The system stores per-project binding profiles in `.vscode/vibesense.json`, committable to version control and readable as plain JSON
-- **FR36:** Binding profiles synchronize across devices using VSCode's built-in Settings Sync (GitHub-backed), requiring no additional account
+- **FR36:** The user can synchronize binding profiles across devices using VSCode's built-in Settings Sync (GitHub-backed), requiring no additional account
 - **FR37:** The user can complete an interactive onboarding flow that establishes a working controller configuration within 60 seconds of first launch
-- **FR38:** The user can configure radial wheel segments with custom prompt text, accessible and triggerable from the controller
+- **FR38:** The user can configure up to 8 radial wheel segments with custom prompt text, accessible and triggerable from the controller
 - **FR39:** The system detects missing platform permissions (macOS Input Monitoring, Linux udev rules) on first launch and provides inline copy-paste remediation steps
 - **FR40:** The user can configure all VibeSense settings through the standard VSCode Settings UI
+- **FR57:** The user can view a persistent session health bar showing live controller action ratio, session duration, and XP earned in the current session, displayed in the sidebar or HUD without opening the stats dashboard
+- **FR58:** The user can quicksave the current session state (open terminals, active agent sessions, radial wheel segment configuration) and restore it on next VSCode launch via a controller input
+- **FR59:** The system starts new users in Guided mode exposing only core bindings (approve, deny, scroll, session switch); the user can switch to Full mode at any time via VSCode settings, and Full mode auto-unlocks upon completing the onboarding tutorial
 
 ### Analytics & Stats
 
@@ -670,8 +687,8 @@ Per-project binding profile. Committed with the project. Synced via VSCode Setti
 - **FR43:** The user can view their Controller-Only Session Completion Rate (sessions completed with zero keyboard touches) in the stats dashboard
 - **FR44:** The system can collect anonymous usage telemetry when the user has explicitly opted in via VSCode settings
 - **FR45:** The user can change their telemetry opt-in preference at any time through VSCode settings
-- **FR46:** Telemetry payloads contain only aggregate counts and ratios — no keystrokes, terminal content, file names, project names, or any identifiable data
-- **FR53:** The user earns XP, progresses through levels, and maintains usage streaks based on controller session milestones, tracked locally
+- **FR46:** The system can transmit telemetry payloads containing only aggregate counts and ratios — no keystrokes, terminal content, file names, project names, or any identifiable data
+- **FR53:** The user earns XP, progresses through levels, and maintains usage streaks based on controller session milestones (completing a controller-only session: +100 XP; achieving ≥80% controller action ratio in a session: +50 XP; using 3+ distinct features in a session: +25 XP; consecutive daily sessions: +streak bonus), with level thresholds starting at 500 XP for Level 2 and doubling each level; all data tracked locally on device
 - **FR54:** The system delivers a celebration feedback signature (haptic pattern + LED color + audio tone) when the user unlocks an achievement
 
 ### Streaming & Creator Mode
@@ -684,8 +701,8 @@ Per-project binding profile. Committed with the project. Synced via VSCode Setti
 
 - **FR50:** The extension installs from the VSCode Marketplace with the correct platform-native binaries without requiring local compilation on the user's machine
 - **FR51:** The extension activates lazily — only upon controller detection or explicit user trigger — not on every VSCode startup
-- **FR52:** Pre-release builds are available as downloadable `.vsix` files on GitHub Releases for testing prior to Marketplace publish
-- **FR55:** Aggregated anonymous usage statistics from opted-in users are published publicly on `vibesense.dev`
+- **FR52:** Developers can download pre-release builds as `.vsix` files from GitHub Releases for testing prior to Marketplace publish
+- **FR55:** Any user can view aggregated anonymous usage statistics from opted-in users published publicly on `vibesense.dev`
 
 ## Non-Functional Requirements
 
@@ -695,7 +712,7 @@ Per-project binding profile. Committed with the project. Synced via VSCode Setti
 - **NFR-P2:** Total end-to-end latency (controller input → visible terminal response) is expected to be 16–26ms; the 5–10ms above NFR-P1 is VSCode platform-owned rendering overhead and is not a VibeSense responsibility
 - **NFR-P3:** Extension activation must complete within 500ms of controller detection — the status bar indicator must be visible and the controller responsive within this window
 - **NFR-P4:** The VibeSense extension host process must add no more than 50MB to VSCode's baseline memory footprint during an active session
-- **NFR-P5:** HID polling must not measurably degrade VSCode editor performance (typing responsiveness, file rendering, extension host CPU) during active coding
+- **NFR-P5:** HID polling must not increase VSCode extension host CPU usage by more than 5% above baseline during active coding, as measured by the Node.js performance profiler under normal load (single workspace, 10+ open files)
 
 ### Reliability
 
@@ -724,7 +741,7 @@ Per-project binding profile. Committed with the project. Synced via VSCode Setti
 
 - **NFR-I1:** Claude Code hooks integration must degrade gracefully if Claude Code is not installed, hooks are disabled, or the `~/.claude/settings.json` file is inaccessible — terminal output stream parsing activates as automatic fallback
 - **NFR-I2:** Voice PTT integration must degrade gracefully if VS Code Speech extension or Claude Code voice mode is not available — the controller button surfaces a non-blocking status message and the radial wheel opens as fallback
-- **NFR-I3:** VibeSense must not interfere with the functionality of other VSCode extensions, including Claude Code, GitHub Copilot, and any extension that registers terminal or keyboard handlers
+- **NFR-I3:** VibeSense must not prevent other VSCode extensions from receiving keyboard events, registering commands, or processing terminal input — verified by running VibeSense alongside Claude Code, GitHub Copilot, and GitLens with all features of each extension fully operational
 
 ### Accessibility
 
