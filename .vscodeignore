@@ -1,0 +1,41 @@
+# .vscodeignore
+# Files excluded from the VSIX package
+
+# Source files — only dist/ is needed
+src/
+test/
+scripts/
+
+# Config and tooling files
+.eslintrc.json
+.prettierrc
+tsconfig*.json
+webpack.config.js
+.github/
+
+# Node modules
+node_modules/
+
+# TypeScript source maps (nosources mode used)
+**/*.ts
+**/*.tsx
+**/*.map
+
+# Raw native binary files — platform-specific binaries bundled via
+# `vsce package --target <platform>` in Story 1.4
+**/*.node
+**/*.dylib
+**/*.so
+**/*.dll
+
+# Development files
+.vscode/
+*.vsix
+*.log
+
+# Keep these in the package:
+# dist/
+# resources/
+# profiles/
+# package.json
+# LICENSE

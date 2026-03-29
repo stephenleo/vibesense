@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "outDir": "./dist",
+    "types": ["node"],
+    "paths": {
+      "*": ["./src/shared/*"]
+    }
+  },
+  "include": [
+    "src/extension/**/*",
+    "src/shared/**/*"
+  ],
+  "exclude": [
+    "src/webview/**/*",
+    "node_modules",
+    "dist"
+  ]
+}
