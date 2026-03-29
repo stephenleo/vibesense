@@ -3,10 +3,7 @@
   "compilerOptions": {
     "module": "commonjs",
     "outDir": "./dist",
-    "types": ["node"],
-    "paths": {
-      "*": ["./src/shared/*"]
-    }
+    "types": ["node"]
   },
   "include": [
     "src/extension/**/*",

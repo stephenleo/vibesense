@@ -1,6 +1,6 @@
 # Story 1.1: Extension Scaffold & Dual-Target Build System
 
-Status: review
+Status: done
 
 ## Story
 
@@ -90,6 +90,12 @@ so that the extension host and Webview panel contexts are properly isolated from
   - [x] Verify `package.json` scripts include: `build`, `watch`, `lint`, `typecheck`
   - [x] Ensure `build` compiles both webpack targets
   - [x] Ensure `engines.vscode` is `"^1.85.0"` or higher
+
+### Review Findings
+
+- [x] [Review][Patch] Remove wildcard `paths` mapping `"*": ["./src/shared/*"]` from tsconfig.node.json and tsconfig.webview.json — catch-all path alias could mask import resolution errors and conflicts with bare module imports [tsconfig.node.json:8, tsconfig.webview.json:12] — FIXED
+- [x] [Review][Patch] Fix Extension Tests launch config: path `dist/test/suite/index` does not match project test structure (`test/unit/`, `test/integration/`, `test/webview/`); added missing `sourceMaps: true` for consistency [.vscode/launch.json:22] — FIXED
+- [x] [Review][Defer] `VIBESENSE_SOCKET_PATH = '/tmp/vibesense.sock'` is Unix-only [src/shared/constants.ts:5] — deferred, architecture specifies macOS MVP; Windows support is Growth phase
 
 ## Dev Notes
 

@@ -7,10 +7,7 @@
     "types": ["react", "react-dom"],
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "paths": {
-      "*": ["./src/shared/*"]
-    }
+    "lib": ["ES2020", "DOM", "DOM.Iterable"]
   },
   "include": [
     "src/webview/**/*",
