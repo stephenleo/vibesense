@@ -499,7 +499,7 @@ Per-project binding profile. Committed with the project. Synced via VSCode Setti
 
 - **No `vscode.window.showInputBox` for controller input** — all text input must route through voice PTT or radial wheel to maintain keyboard-free sessions
 - **Extension activation** must be lazy — activate only on HID device detection or explicit user command, never on all VSCode starts (Marketplace policy + performance)
-- **Webview UI Toolkit is deprecated** (January 2025) — use React + shadcn/ui for all Webview panels
+- **Webview UI Toolkit is deprecated** (January 2025) — use React with Tailwind CSS utility layer for standard layout surfaces (settings, stats, onboarding) and custom CSS with `--vs-*` design tokens for gaming aesthetic surfaces (HUD, radial wheel, streaming overlay); no CSS-in-JS
 - **`terminal.sendText` has no completion callback** — agent state detection must use output stream parsing or Claude Code hooks, not terminal send confirmation
 - **`prebuild-install` fallback** — if prebuilt binary unavailable for a platform, `node-gyp` builds from source; document build tool prerequisites (Xcode CLT on Mac, `build-essential` on Linux)
 

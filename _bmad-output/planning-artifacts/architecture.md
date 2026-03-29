@@ -384,8 +384,8 @@ stats dashboard only. No network calls for telemetry at MVP.
 |---------|------------|---------|
 | TypeScript variables/functions | `camelCase` | `activeController`, `getSessionState()` |
 | TypeScript types/interfaces/enums | `PascalCase` | `ControllerType`, `AgentState`, `HapticPattern` |
-| React components | `PascalCase` | `RadialWheel`, `SessionPanel` |
-| React component files | `PascalCase.tsx` | `RadialWheel.tsx`, `SessionPanel.tsx` |
+| React components | `PascalCase` | `RadialWheel`, `SlidePanel` |
+| React component files | `PascalCase.tsx` | `RadialWheel.tsx`, `SlidePanel.tsx` |
 | Non-component TS files | `kebab-case.ts` | `hid-hal.ts`, `agent-fsm.ts`, `message-protocol.ts` |
 | CSS custom properties | `--vs-*` prefix | `--vs-accent`, `--vs-bg`, `--vs-glow` |
 | VSCode command IDs | `vibesense.camelCase` | `vibesense.openRadialWheel`, `vibesense.approve` |
@@ -640,7 +640,7 @@ vibesense/
 │   │   │   └── onboarding.css
 │   │   ├── session/
 │   │   │   ├── index.tsx             # React root
-│   │   │   ├── SessionPanel.tsx      # Multi-session quick panel
+│   │   │   ├── SlidePanel.tsx      # Multi-session quick panel
 │   │   │   ├── SessionCard.tsx       # Per-session status card
 │   │   │   └── session.css
 │   │   └── shared-ui/
@@ -673,7 +673,7 @@ vibesense/
 │   └── webview/
 │       ├── RadialWheel.test.tsx
 │       ├── HUDOverlay.test.tsx
-│       └── SessionPanel.test.tsx
+│       └── SlidePanel.test.tsx
 ├── resources/
 │   ├── icons/
 │   │   ├── dualsense/               # Per-button SVG glyphs
@@ -806,7 +806,7 @@ handling.
 
 | Gap | Severity | Resolution Applied |
 |-----|----------|-------------------|
-| Missing `src/webview/session/` for multi-session panel Webview | Important | Added `session/` folder with `SessionPanel.tsx`, `SessionCard.tsx` |
+| Missing `src/webview/session/` for multi-session panel Webview | Important | Added `session/` folder with `SlidePanel.tsx`, `SessionCard.tsx` |
 | Streaming Mode had no explicit location | Important | Added `StreamingOverlay.tsx` in `src/webview/hud/`; mode driven by `STREAMING_MODE_TOGGLED` host message |
 | Status bar controller buried in `extension.ts` | Minor | Added dedicated `src/extension/status-bar.ts` |
 
@@ -828,7 +828,7 @@ handling.
 | Stats dashboard | `src/webview/stats/` |
 | HUD overlay | `src/webview/hud/HUDOverlay.tsx` |
 | Streaming Mode | `src/webview/hud/StreamingOverlay.tsx` (mode of HUD panel) |
-| Multi-session panel | `src/webview/session/SessionPanel.tsx` |
+| Multi-session panel | `src/webview/session/SlidePanel.tsx` |
 | Onboarding tutorial | `src/webview/onboarding/` |
 | Settings UI | `src/webview/settings/` |
 | Per-project binding profiles | `profiles/` (bundled) + `.vscode/vibesense.json` (per-project) |
