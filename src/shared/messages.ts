@@ -3,6 +3,14 @@
 // DO NOT import vscode, Node.js built-ins, DOM APIs, or any runtime-specific module
 
 import { z } from 'zod'
+import type { AgentState, ControllerType, Session } from './types'
+
+// ─── Compile-time drift guards ───────────────────────────────────────────────
+// These assertions ensure Zod schemas stay in sync with the canonical
+// TypeScript types in types.ts. A mismatch causes a compile error here,
+// not a silent runtime bug.
+
+type AssertEqual<T, U> = [T] extends [U] ? ([U] extends [T] ? true : never) : never
 
 // ─── Domain type Zod schemas (mirroring src/shared/types.ts) ─────────────────
 
@@ -15,6 +23,12 @@ export const SessionSchema = z.object({
   agentState: AgentStateSchema,
   label: z.string().optional(),
 })
+
+// Drift guards — break the build if schemas diverge from types.ts
+const _agentStateOk: AssertEqual<z.infer<typeof AgentStateSchema>, AgentState> = true
+const _controllerTypeOk: AssertEqual<z.infer<typeof ControllerTypeSchema>, ControllerType> = true
+const _sessionOk: AssertEqual<z.infer<typeof SessionSchema>, Session> = true
+void _agentStateOk; void _controllerTypeOk; void _sessionOk
 
 // ─── Host → Webview messages ─────────────────────────────────────────────────
 
