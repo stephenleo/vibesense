@@ -319,8 +319,11 @@ None.
 - [x] [Review][Patch] Add lint-and-typecheck gate to Release workflow [package.yml:12-22] — fixed
 - [x] [Review][Defer] ci.yml missing explicit `permissions` block — deferred, not a bug with default permissions
 - [x] [Review][Defer] Duplicate matrix definition across ci.yml and package.yml — deferred, acceptable for workflow clarity
+- [x] [Review][Patch] Fix darwin-x64 runner from `macos-latest` to `macos-13` [ci.yml:30, package.yml:31] — fixed
+- [x] [Review][Defer] Duplicate `electron-rebuild` and `@electron/rebuild` in devDependencies — deferred, cross-story dependency (Story 1.2)
 
 ## Change Log
 
+- 2026-03-30: Code review — fixed darwin-x64 runner to macos-13 in both workflows. 1 patch applied, 1 deferred, 2 dismissed.
 - 2026-03-29: Code review — added fail-fast: false to both matrix strategies, added lint-and-typecheck gate to release workflow. 3 patches applied, 2 deferred, 3 dismissed.
 - 2026-03-29: Story 1.4 implemented — created ci.yml and package.yml GitHub Actions workflows, added @vscode/vsce and electron-rebuild devDependencies, removed .gitkeep placeholder.
