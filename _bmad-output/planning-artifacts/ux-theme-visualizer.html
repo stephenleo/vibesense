@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VibeSense — Visual Theme Explorer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #050508;
+    color: #fff;
+    min-height: 100vh;
+  }
+
+  .page-header {
+    text-align: center;
+    padding: 48px 24px 32px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .page-header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: #fff;
+  }
+  .page-header p {
+    margin-top: 8px;
+    font-size: 14px;
+    color: rgba(255,255,255,0.45);
+  }
+
+  .theme-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 32px 24px 0;
+  }
+  .theme-tab {
+    padding: 10px 24px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.5);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    transition: all 0.2s;
+  }
+  .theme-tab:hover { color: rgba(255,255,255,0.8); border-color: rgba(255,255,255,0.2); }
+  .theme-tab.active { color: #fff; }
+
+  .theme-panel { display: none; padding: 32px 24px 64px; max-width: 1100px; margin: 0 auto; }
+  .theme-panel.active { display: block; }
+
+  /* ── THEME COLORS injected per theme ── */
+
+  /* VOID */
+  .void { --bg: #09090F; --surface: #0E0E1C; --surface2: #13132A; --border: rgba(0,200,255,0.18); --accent: #00C8FF; --accent2: #7B5CFA; --text: #EFF4FF; --text2: #7A8BAA; --glow: rgba(0,200,255,0.35); --glow2: rgba(123,92,250,0.35); --tab-active-bg: rgba(0,200,255,0.12); }
+  /* PULSE */
+  .pulse { --bg: #080808; --surface: #111111; --surface2: #191919; --border: rgba(0,255,120,0.2); --accent: #00FF88; --accent2: #FF2D78; --text: #F5F5F5; --text2: #777777; --glow: rgba(0,255,136,0.35); --glow2: rgba(255,45,120,0.35); --tab-active-bg: rgba(0,255,136,0.1); }
+  /* FORGE */
+  .forge { --bg: #070710; --surface: #0D0D1E; --surface2: #12152A; --border: rgba(255,107,53,0.2); --accent: #FF6B35; --accent2: #9B59FF; --text: #EEEEFF; --text2: #6677AA; --glow: rgba(255,107,53,0.35); --glow2: rgba(155,89,255,0.35); --tab-active-bg: rgba(255,107,53,0.1); }
+
+  .theme-wrap {
+    background: var(--bg);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  /* ── THEME HEADER ── */
+  .theme-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .theme-name { font-size: 18px; font-weight: 700; color: var(--text); }
+  .theme-tagline { font-size: 12px; color: var(--text2); margin-top: 3px; }
+  .color-swatches { display: flex; gap: 8px; }
+  .swatch {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.1);
+  }
+
+  /* ── GRID LAYOUT ── */
+  .theme-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 1px;
+    background: var(--border);
+  }
+  .theme-grid > * { background: var(--bg); }
+
+  /* ── PANEL BASE ── */
+  .ui-panel {
+    padding: 24px;
+  }
+  .panel-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--text2);
+    margin-bottom: 16px;
+  }
+
+  /* ── RADIAL WHEEL ── */
+  .radial-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 24px;
+    position: relative;
+    min-height: 320px;
+  }
+  .wheel-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .wheel-bg {
+    position: absolute;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--surface2) 30%, transparent 70%);
+    filter: blur(2px);
+  }
+  .wheel-svg { position: relative; z-index: 1; }
+
+  /* inactive wheel shown behind */
+  .wheel-inactive {
+    position: absolute;
+    opacity: 0.45;
+    transform: scale(0.82) translateX(80px);
+    filter: blur(1px);
+    z-index: 0;
+  }
+
+  /* ── HUD OVERLAY ── */
+  .hud-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .hud-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    backdrop-filter: blur(8px);
+  }
+  .hud-card.active-agent {
+    box-shadow: 0 0 16px var(--glow);
+    border-color: var(--accent);
+  }
+  .agent-info { display: flex; align-items: center; gap: 10px; }
+  .agent-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--glow);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+  .agent-dot.idle { background: var(--text2); box-shadow: none; animation: none; }
+  @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .agent-name { font-size: 12px; font-weight: 600; color: var(--text); }
+  .agent-status { font-size: 10px; color: var(--text2); margin-top: 2px; }
+  .agent-action {
+    font-size: 10px; font-weight: 700;
+    color: var(--accent);
+    background: var(--tab-active-bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 4px 10px;
+    letter-spacing: 0.5px;
+  }
+
+  .button-map {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .button-map-title { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text2); margin-bottom: 10px; }
+  .button-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn-binding {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 10px;
+  }
+  .btn-glyph {
+    width: 18px; height: 18px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 900; color: #000;
+  }
+  .btn-glyph.cross { background: #4A90D9; }
+  .btn-glyph.circle { background: #E05555; }
+  .btn-glyph.square { background: #D45FC9; }
+  .btn-glyph.triangle { background: #4DB89A; }
+  .btn-label { font-size: 10px; color: var(--text2); }
+
+  /* ── STATS / GAMIFICATION ── */
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .stat-value {
+    font-size: 28px; font-weight: 800;
+    color: var(--accent);
+    line-height: 1;
+    text-shadow: 0 0 20px var(--glow);
+  }
+  .stat-label { font-size: 10px; color: var(--text2); margin-top: 4px; font-weight: 500; }
+  .stat-trend {
+    font-size: 10px; color: var(--accent);
+    margin-top: 6px;
+    display: flex; align-items: center; gap: 3px;
+  }
+
+  .xp-bar-wrap { margin-top: 12px; }
+  .xp-label { display: flex; justify-content: space-between; font-size: 10px; color: var(--text2); margin-bottom: 6px; }
+  .xp-bar { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+  .xp-fill {
+    height: 100%; width: 68%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 3px;
+    box-shadow: 0 0 8px var(--glow);
+  }
+
+  .achievement {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex; align-items: center; gap: 12px;
+    margin-top: 10px;
+    box-shadow: 0 0 20px var(--glow2);
+    border-color: var(--accent2);
+  }
+  .achievement-icon {
+    width: 36px; height: 36px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  .achievement-title { font-size: 12px; font-weight: 700; color: var(--text); }
+  .achievement-desc { font-size: 10px; color: var(--text2); margin-top: 2px; }
+  .achievement-badge {
+    margin-left: auto; font-size: 9px; font-weight: 700;
+    padding: 3px 8px; border-radius: 4px;
+    background: var(--tab-active-bg);
+    color: var(--accent2);
+    border: 1px solid var(--accent2);
+    white-space: nowrap;
+    text-shadow: 0 0 8px var(--glow2);
+  }
+
+  /* ── STATUS BAR ── */
+  .status-bar-preview {
+    grid-column: 1 / -1;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 0 16px;
+    height: 40px;
+    display: flex; align-items: center;
+    justify-content: space-between;
+    font-size: 11px; color: var(--text2);
+  }
+  .status-item { display: flex; align-items: center; gap: 6px; }
+  .status-dot-green { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.6); }
+  .status-accent { color: var(--accent); font-weight: 600; }
+  .status-item + .status-item::before { content: '·'; margin-right: 6px; opacity: 0.3; }
+
+  /* ── TYPOGRAPHY SAMPLE ── */
+  .type-sample {
+    grid-column: 1 / -1;
+  }
+  .type-row { display: flex; align-items: baseline; gap: 16px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .type-meta { font-size: 10px; color: var(--text2); width: 80px; flex-shrink: 0; }
+  .type-h1 { font-size: 32px; font-weight: 800; color: var(--text); letter-spacing: -1px; }
+  .type-h2 { font-size: 20px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
+  .type-h3 { font-size: 14px; font-weight: 700; color: var(--text); }
+  .type-body { font-size: 13px; color: var(--text); line-height: 1.5; }
+  .type-caption { font-size: 11px; color: var(--text2); }
+  .type-accent-text { color: var(--accent); font-weight: 700; font-size: 13px; text-shadow: 0 0 12px var(--glow); }
+
+  /* ── MINI GAME PREVIEW ── */
+  .mini-game-frame {
+    background: #000;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    height: 120px;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 10px;
+  }
+  .mini-game-canvas { display: grid; grid-template-columns: repeat(16,1fr); gap: 2px; padding: 8px; width: 100%; }
+  .cell { aspect-ratio: 1; border-radius: 2px; }
+  .cell.empty { background: rgba(255,255,255,0.03); }
+  .cell.snake { background: var(--accent); box-shadow: 0 0 4px var(--glow); }
+  .cell.snake-head { background: var(--text); box-shadow: 0 0 8px rgba(255,255,255,0.5); }
+  .cell.food { background: var(--accent2); box-shadow: 0 0 6px var(--glow2); border-radius: 50%; }
+  .game-overlay {
+    position: absolute; top: 8px; right: 10px;
+    font-size: 10px; font-weight: 700; color: var(--accent);
+    background: rgba(0,0,0,0.6); padding: 2px 8px; border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+
+  /* ── COLOR PALETTE ── */
+  .palette-row { display: flex; gap: 6px; margin-top: 12px; }
+  .palette-chip {
+    flex: 1; height: 40px; border-radius: 6px;
+    display: flex; align-items: flex-end; padding: 4px 6px;
+  }
+  .palette-chip span { font-size: 9px; font-weight: 700; color: rgba(0,0,0,0.7); }
+  .palette-chip.light span { color: rgba(255,255,255,0.6); }
+
+  /* bottom spacing */
+  .spacer { height: 32px; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>VibeSense — Visual Theme Explorer</h1>
+  <p>Three distinct aesthetic directions. Same UI components. Pick the one that feels right.</p>
+</div>
+
+<div class="theme-tabs">
+  <button class="theme-tab active" onclick="showTheme('void', this)" style="border-color: rgba(0,200,255,0.4); color: #00C8FF;">A — VOID</button>
+  <button class="theme-tab" onclick="showTheme('pulse', this)" style="">B — PULSE</button>
+  <button class="theme-tab" onclick="showTheme('forge', this)" style="">C — FORGE</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     THEME A: VOID
+════════════════════════════════════════════════════ -->
+<div id="theme-void" class="theme-panel active">
+  <div class="theme-wrap void">
+
+    <div class="theme-header">
+      <div>
+        <div class="theme-name">VOID</div>
+        <div class="theme-tagline">PS5-inspired · Deep navy blacks · Electric cyan · Premium & sleek</div>
+      </div>
+      <div class="color-swatches">
+        <div class="swatch" style="background:#09090F"></div>
+        <div class="swatch" style="background:#0E0E1C"></div>
+        <div class="swatch" style="background:#00C8FF"></div>
+        <div class="swatch" style="background:#7B5CFA"></div>
+        <div class="swatch" style="background:#EFF4FF"></div>
+      </div>
+    </div>
+
+    <div class="theme-grid void">
+
+      <!-- RADIAL WHEEL -->
+      <div class="ui-panel">
+        <div class="panel-label">Dual Radial Wheel</div>
+        <div class="radial-container">
+          <!-- Inactive R2 wheel behind -->
+          <div class="wheel-inactive">
+            <svg width="180" height="180" viewBox="-90 -90 180 180">
+              <circle cx="0" cy="0" r="85" fill="none" stroke="rgba(123,92,250,0.25)" stroke-width="1"/>
+              <circle cx="0" cy="0" r="28" fill="#13132A" stroke="rgba(123,92,250,0.3)" stroke-width="1.5"/>
+              <text x="0" y="5" text-anchor="middle" fill="rgba(123,92,250,0.7)" font-size="8" font-weight="700">R2</text>
+              <g opacity="0.6">
+                <path d="M0,-85 A85,85 0 0,1 60.1,-60.1 L42.4,-42.4 A60,60 0 0,0 0,-60 Z" fill="rgba(123,92,250,0.12)" stroke="rgba(123,92,250,0.2)" stroke-width="0.5"/>
+                <path d="M60.1,-60.1 A85,85 0 0,1 85,0 L60,0 A60,60 0 0,0 42.4,-42.4 Z" fill="rgba(123,92,250,0.12)" stroke="rgba(123,92,250,0.2)" stroke-width="0.5"/>
+                <path d="M85,0 A85,85 0 0,1 60.1,60.1 L42.4,42.4 A60,60 0 0,0 60,0 Z" fill="rgba(123,92,250,0.12)" stroke="rgba(123,92,250,0.2)" stroke-width="0.5"/>
+                <path d="M60.1,60.1 A85,85 0 0,1 0,85 L0,60 A60,60 0 0,0 42.4,42.4 Z" fill="rgba(123,92,250,0.12)" stroke="rgba(123,92,250,0.2)" stroke-width="0.5"/>
+                <path d="M0,85 A85,85 0 0,1 -60.1,60.1 L-42.4,42.4 A60,60 0 0,0 0,60 Z" fill="rgba(123,92,250,0.12)" stroke="rgba(123,92,250,0.2)" stroke-width="0.5"/>
+                <path d="M-60.1,60.1 A85,85 0 0,1 -85,0 L-60,0 A60,60 0 0,0 -42.4,42.4 Z" fill="rgba(123,92,250,0.12)" stroke="rgba(123,92,250,0.2)" stroke-width="0.5"/>
+                <path d="M-85,0 A85,85 0 0,1 -60.1,-60.1 L-42.4,-42.4 A60,60 0 0,0 -60,0 Z" fill="rgba(123,92,250,0.12)" stroke="rgba(123,92,250,0.2)" stroke-width="0.5"/>
+                <path d="M-60.1,-60.1 A85,85 0 0,1 0,-85 L0,-60 A60,60 0 0,0 -42.4,-42.4 Z" fill="rgba(123,92,250,0.12)" stroke="rgba(123,92,250,0.2)" stroke-width="0.5"/>
+              </g>
+              <text x="0" y="-70" text-anchor="middle" fill="rgba(123,92,250,0.5)" font-size="7">fix tests</text>
+              <text x="70" y="4" text-anchor="middle" fill="rgba(123,92,250,0.5)" font-size="7">commit</text>
+              <text x="0" y="78" text-anchor="middle" fill="rgba(123,92,250,0.5)" font-size="7">review</text>
+              <text x="-70" y="4" text-anchor="middle" fill="rgba(123,92,250,0.5)" font-size="7">explain</text>
+            </svg>
+          </div>
+          <!-- Active L2 wheel front -->
+          <svg class="wheel-svg" width="200" height="200" viewBox="-100 -100 200 200">
+            <defs>
+              <filter id="glow-void">
+                <feGaussianBlur stdDeviation="3" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <radialGradient id="active-seg-void" cx="50%" cy="50%">
+                <stop offset="0%" stop-color="rgba(0,200,255,0.35)"/>
+                <stop offset="100%" stop-color="rgba(0,200,255,0.08)"/>
+              </radialGradient>
+            </defs>
+            <!-- Ring glow -->
+            <circle cx="0" cy="0" r="93" fill="none" stroke="rgba(0,200,255,0.12)" stroke-width="6"/>
+            <circle cx="0" cy="0" r="90" fill="none" stroke="rgba(0,200,255,0.25)" stroke-width="1"/>
+            <!-- Segments -->
+            <!-- Active segment (top - voice) -->
+            <path d="M0,-90 A90,90 0 0,1 63.6,-63.6 L44.7,-44.7 A63,63 0 0,0 0,-63 Z" fill="url(#active-seg-void)" stroke="#00C8FF" stroke-width="1.5" filter="url(#glow-void)"/>
+            <!-- Other segments -->
+            <path d="M63.6,-63.6 A90,90 0 0,1 90,0 L63,0 A63,63 0 0,0 44.7,-44.7 Z" fill="rgba(0,200,255,0.06)" stroke="rgba(0,200,255,0.2)" stroke-width="0.5"/>
+            <path d="M90,0 A90,90 0 0,1 63.6,63.6 L44.7,44.7 A63,63 0 0,0 63,0 Z" fill="rgba(0,200,255,0.06)" stroke="rgba(0,200,255,0.2)" stroke-width="0.5"/>
+            <path d="M63.6,63.6 A90,90 0 0,1 0,90 L0,63 A63,63 0 0,0 44.7,44.7 Z" fill="rgba(0,200,255,0.06)" stroke="rgba(0,200,255,0.2)" stroke-width="0.5"/>
+            <path d="M0,90 A90,90 0 0,1 -63.6,63.6 L-44.7,44.7 A63,63 0 0,0 0,63 Z" fill="rgba(0,200,255,0.06)" stroke="rgba(0,200,255,0.2)" stroke-width="0.5"/>
+            <path d="M-63.6,63.6 A90,90 0 0,1 -90,0 L-63,0 A63,63 0 0,0 -44.7,44.7 Z" fill="rgba(0,200,255,0.06)" stroke="rgba(0,200,255,0.2)" stroke-width="0.5"/>
+            <path d="M-90,0 A90,90 0 0,1 -63.6,-63.6 L-44.7,-44.7 A63,63 0 0,0 -63,0 Z" fill="rgba(0,200,255,0.06)" stroke="rgba(0,200,255,0.2)" stroke-width="0.5"/>
+            <path d="M-63.6,-63.6 A90,90 0 0,1 0,-90 L0,-63 A63,63 0 0,0 -44.7,-44.7 Z" fill="rgba(0,200,255,0.06)" stroke="rgba(0,200,255,0.2)" stroke-width="0.5"/>
+            <!-- Center -->
+            <circle cx="0" cy="0" r="30" fill="#0E0E1C" stroke="rgba(0,200,255,0.35)" stroke-width="1.5"/>
+            <text x="0" y="-4" text-anchor="middle" fill="#00C8FF" font-size="8" font-weight="800">L2</text>
+            <text x="0" y="8" text-anchor="middle" fill="rgba(0,200,255,0.5)" font-size="7">SMART</text>
+            <!-- Labels -->
+            <text x="0" y="-72" text-anchor="middle" fill="#EFF4FF" font-size="8" font-weight="700">🎙 VOICE</text>
+            <text x="72" y="-55" text-anchor="middle" fill="rgba(239,244,255,0.5)" font-size="7">approve</text>
+            <text x="76" y="4" text-anchor="middle" fill="rgba(239,244,255,0.5)" font-size="7">deny</text>
+            <text x="72" y="58" text-anchor="middle" fill="rgba(239,244,255,0.5)" font-size="7">interrupt</text>
+            <text x="0" y="79" text-anchor="middle" fill="rgba(239,244,255,0.5)" font-size="7">explain</text>
+            <text x="-72" y="58" text-anchor="middle" fill="rgba(239,244,255,0.5)" font-size="7">summarise</text>
+            <text x="-76" y="4" text-anchor="middle" fill="rgba(239,244,255,0.5)" font-size="7">retry</text>
+            <text x="-72" y="-55" text-anchor="middle" fill="rgba(239,244,255,0.5)" font-size="7">context</text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- HUD + BUTTON MAP -->
+      <div class="ui-panel void">
+        <div class="panel-label">HUD Overlay + Button Map</div>
+        <div class="hud-preview">
+          <div class="hud-card active-agent void">
+            <div class="agent-info">
+              <div class="agent-dot"></div>
+              <div>
+                <div class="agent-name">Claude Code · Terminal 1</div>
+                <div class="agent-status">Processing · 1m 23s</div>
+              </div>
+            </div>
+            <div class="agent-action">ACTIVE</div>
+          </div>
+          <div class="hud-card void">
+            <div class="agent-info">
+              <div class="agent-dot idle"></div>
+              <div>
+                <div class="agent-name">Copilot · Terminal 2</div>
+                <div class="agent-status">Waiting for input</div>
+              </div>
+            </div>
+            <div class="agent-action" style="color: var(--text2); border-color: var(--border);">IDLE</div>
+          </div>
+          <div class="button-map void">
+            <div class="button-map-title">Current Bindings</div>
+            <div class="button-row">
+              <div class="btn-binding void"><div class="btn-glyph cross">✕</div><span class="btn-label">Approve</span></div>
+              <div class="btn-binding void"><div class="btn-glyph circle">○</div><span class="btn-label">Deny</span></div>
+              <div class="btn-binding void"><div class="btn-glyph square">□</div><span class="btn-label">Interrupt</span></div>
+              <div class="btn-binding void"><div class="btn-glyph triangle">△</div><span class="btn-label">Context</span></div>
+            </div>
+          </div>
+
+          <!-- Mini game preview -->
+          <div>
+            <div class="panel-label" style="margin-bottom:8px">Idle Mini-Game (Snake)</div>
+            <div class="mini-game-frame void">
+              <div class="mini-game-canvas void" id="snake-void"></div>
+              <div class="game-overlay void">Score: 42</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STATS / GAMIFICATION -->
+      <div class="ui-panel void">
+        <div class="panel-label">Stats & Gamification</div>
+        <div class="stats-grid void">
+          <div class="stat-card void">
+            <div class="stat-value void">7</div>
+            <div class="stat-label void">Day Streak 🔥</div>
+            <div class="stat-trend void">↑ Best: 12</div>
+          </div>
+          <div class="stat-card void">
+            <div class="stat-value void">94%</div>
+            <div class="stat-label void">Controller-Only</div>
+            <div class="stat-trend void">↑ +6% this week</div>
+          </div>
+        </div>
+        <div class="xp-bar-wrap void">
+          <div class="xp-label void"><span>Level 8 · Vibe Coder</span><span>2,340 / 3,000 XP</span></div>
+          <div class="xp-bar void"><div class="xp-fill void"></div></div>
+        </div>
+        <div class="achievement void">
+          <div class="achievement-icon void">🏆</div>
+          <div>
+            <div class="achievement-title void">Untethered</div>
+            <div class="achievement-desc void">Complete a 2hr session keyboard-free</div>
+          </div>
+          <div class="achievement-badge void">GOLD</div>
+        </div>
+      </div>
+
+      <!-- TYPOGRAPHY -->
+      <div class="ui-panel void type-sample">
+        <div class="panel-label">Typography · Inter / System UI</div>
+        <div class="type-row void"><span class="type-meta void">Display</span><span class="type-h1 void">VibeSense</span></div>
+        <div class="type-row void"><span class="type-meta void">H2</span><span class="type-h2 void">Controller Session Active</span></div>
+        <div class="type-row void"><span class="type-meta void">H3</span><span class="type-h3 void">Agent Processing · Terminal 1</span></div>
+        <div class="type-row void"><span class="type-meta void">Body</span><span class="type-body void">Assign your most-used prompts to the R2 wheel. Prompts dispatch instantly on trigger release.</span></div>
+        <div class="type-row void"><span class="type-meta void">Caption</span><span class="type-caption void">Last session · 2h 14m · 0 keyboard events</span></div>
+        <div class="type-row void"><span class="type-meta void">Accent</span><span class="type-accent-text void">KEYBOARD-FREE SESSION COMPLETE</span></div>
+        <div class="palette-row void">
+          <div class="palette-chip" style="background:#09090F"><span class="light">BG</span></div>
+          <div class="palette-chip" style="background:#0E0E1C"><span class="light">Surface</span></div>
+          <div class="palette-chip" style="background:#13132A"><span class="light">Surface2</span></div>
+          <div class="palette-chip" style="background:#00C8FF"><span>Cyan</span></div>
+          <div class="palette-chip" style="background:#7B5CFA"><span>Purple</span></div>
+          <div class="palette-chip" style="background:#EFF4FF"><span class="light">Text</span></div>
+          <div class="palette-chip" style="background:#7A8BAA"><span class="light">Text2</span></div>
+        </div>
+      </div>
+
+      <!-- STATUS BAR -->
+      <div class="status-bar-preview void" style="grid-column: 1/-1;">
+        <div class="status-item void"><div class="status-dot-green"></div><span class="status-accent void">DualSense</span><span> · Connected</span></div>
+        <div class="status-item void">Sessions: <span class="status-accent void" style="margin-left:4px">2 active</span></div>
+        <div class="status-item void">Streak: <span class="status-accent void" style="margin-left:4px">7 days 🔥</span></div>
+        <div class="status-item void">Controller: <span class="status-accent void" style="margin-left:4px">94%</span></div>
+      </div>
+
+    </div><!-- /grid -->
+  </div><!-- /wrap -->
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     THEME B: PULSE
+════════════════════════════════════════════════════ -->
+<div id="theme-pulse" class="theme-panel">
+  <div class="theme-wrap pulse">
+    <div class="theme-header">
+      <div>
+        <div class="theme-name">PULSE</div>
+        <div class="theme-tagline">Cyberpunk hacker · Pure black · Neon green + hot pink · Raw & electric</div>
+      </div>
+      <div class="color-swatches">
+        <div class="swatch" style="background:#080808"></div>
+        <div class="swatch" style="background:#111111"></div>
+        <div class="swatch" style="background:#00FF88"></div>
+        <div class="swatch" style="background:#FF2D78"></div>
+        <div class="swatch" style="background:#F5F5F5"></div>
+      </div>
+    </div>
+    <div class="theme-grid pulse">
+      <div class="ui-panel pulse">
+        <div class="panel-label">Dual Radial Wheel</div>
+        <div class="radial-container">
+          <div class="wheel-inactive" style="transform: scale(0.82) translateX(80px);">
+            <svg width="180" height="180" viewBox="-90 -90 180 180">
+              <circle cx="0" cy="0" r="85" fill="none" stroke="rgba(255,45,120,0.25)" stroke-width="1"/>
+              <circle cx="0" cy="0" r="28" fill="#191919" stroke="rgba(255,45,120,0.3)" stroke-width="1.5"/>
+              <text x="0" y="5" text-anchor="middle" fill="rgba(255,45,120,0.7)" font-size="8" font-weight="700">R2</text>
+              <g opacity="0.6">
+                <path d="M0,-85 A85,85 0 0,1 60.1,-60.1 L42.4,-42.4 A60,60 0 0,0 0,-60 Z" fill="rgba(255,45,120,0.1)" stroke="rgba(255,45,120,0.2)" stroke-width="0.5"/>
+                <path d="M60.1,-60.1 A85,85 0 0,1 85,0 L60,0 A60,60 0 0,0 42.4,-42.4 Z" fill="rgba(255,45,120,0.1)" stroke="rgba(255,45,120,0.2)" stroke-width="0.5"/>
+                <path d="M85,0 A85,85 0 0,1 60.1,60.1 L42.4,42.4 A60,60 0 0,0 60,0 Z" fill="rgba(255,45,120,0.1)" stroke="rgba(255,45,120,0.2)" stroke-width="0.5"/>
+                <path d="M60.1,60.1 A85,85 0 0,1 0,85 L0,60 A60,60 0 0,0 42.4,42.4 Z" fill="rgba(255,45,120,0.1)" stroke="rgba(255,45,120,0.2)" stroke-width="0.5"/>
+                <path d="M0,85 A85,85 0 0,1 -60.1,60.1 L-42.4,42.4 A60,60 0 0,0 0,60 Z" fill="rgba(255,45,120,0.1)" stroke="rgba(255,45,120,0.2)" stroke-width="0.5"/>
+                <path d="M-60.1,60.1 A85,85 0 0,1 -85,0 L-60,0 A60,60 0 0,0 -42.4,42.4 Z" fill="rgba(255,45,120,0.1)" stroke="rgba(255,45,120,0.2)" stroke-width="0.5"/>
+                <path d="M-85,0 A85,85 0 0,1 -60.1,-60.1 L-44.7,-44.7 A60,60 0 0,0 -60,0 Z" fill="rgba(255,45,120,0.1)" stroke="rgba(255,45,120,0.2)" stroke-width="0.5"/>
+                <path d="M-60.1,-60.1 A85,85 0 0,1 0,-85 L0,-60 A60,60 0 0,0 -42.4,-42.4 Z" fill="rgba(255,45,120,0.1)" stroke="rgba(255,45,120,0.2)" stroke-width="0.5"/>
+              </g>
+            </svg>
+          </div>
+          <svg class="wheel-svg" width="200" height="200" viewBox="-100 -100 200 200">
+            <defs>
+              <filter id="glow-pulse"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+              <radialGradient id="active-seg-pulse" cx="50%" cy="50%"><stop offset="0%" stop-color="rgba(0,255,136,0.3)"/><stop offset="100%" stop-color="rgba(0,255,136,0.06)"/></radialGradient>
+            </defs>
+            <circle cx="0" cy="0" r="93" fill="none" stroke="rgba(0,255,136,0.1)" stroke-width="6"/>
+            <circle cx="0" cy="0" r="90" fill="none" stroke="rgba(0,255,136,0.3)" stroke-width="1"/>
+            <path d="M0,-90 A90,90 0 0,1 63.6,-63.6 L44.7,-44.7 A63,63 0 0,0 0,-63 Z" fill="url(#active-seg-pulse)" stroke="#00FF88" stroke-width="1.5" filter="url(#glow-pulse)"/>
+            <path d="M63.6,-63.6 A90,90 0 0,1 90,0 L63,0 A63,63 0 0,0 44.7,-44.7 Z" fill="rgba(0,255,136,0.05)" stroke="rgba(0,255,136,0.2)" stroke-width="0.5"/>
+            <path d="M90,0 A90,90 0 0,1 63.6,63.6 L44.7,44.7 A63,63 0 0,0 63,0 Z" fill="rgba(0,255,136,0.05)" stroke="rgba(0,255,136,0.2)" stroke-width="0.5"/>
+            <path d="M63.6,63.6 A90,90 0 0,1 0,90 L0,63 A63,63 0 0,0 44.7,44.7 Z" fill="rgba(0,255,136,0.05)" stroke="rgba(0,255,136,0.2)" stroke-width="0.5"/>
+            <path d="M0,90 A90,90 0 0,1 -63.6,63.6 L-44.7,44.7 A63,63 0 0,0 0,63 Z" fill="rgba(0,255,136,0.05)" stroke="rgba(0,255,136,0.2)" stroke-width="0.5"/>
+            <path d="M-63.6,63.6 A90,90 0 0,1 -90,0 L-63,0 A63,63 0 0,0 -44.7,44.7 Z" fill="rgba(0,255,136,0.05)" stroke="rgba(0,255,136,0.2)" stroke-width="0.5"/>
+            <path d="M-90,0 A90,90 0 0,1 -63.6,-63.6 L-44.7,-44.7 A63,63 0 0,0 -63,0 Z" fill="rgba(0,255,136,0.05)" stroke="rgba(0,255,136,0.2)" stroke-width="0.5"/>
+            <path d="M-63.6,-63.6 A90,90 0 0,1 0,-90 L0,-63 A63,63 0 0,0 -44.7,-44.7 Z" fill="rgba(0,255,136,0.05)" stroke="rgba(0,255,136,0.2)" stroke-width="0.5"/>
+            <circle cx="0" cy="0" r="30" fill="#111111" stroke="rgba(0,255,136,0.4)" stroke-width="1.5"/>
+            <text x="0" y="-4" text-anchor="middle" fill="#00FF88" font-size="8" font-weight="800">L2</text>
+            <text x="0" y="8" text-anchor="middle" fill="rgba(0,255,136,0.5)" font-size="7">SMART</text>
+            <text x="0" y="-72" text-anchor="middle" fill="#F5F5F5" font-size="8" font-weight="700">🎙 VOICE</text>
+            <text x="72" y="-55" text-anchor="middle" fill="rgba(245,245,245,0.4)" font-size="7">approve</text>
+            <text x="76" y="4" text-anchor="middle" fill="rgba(245,245,245,0.4)" font-size="7">deny</text>
+            <text x="72" y="58" text-anchor="middle" fill="rgba(245,245,245,0.4)" font-size="7">interrupt</text>
+            <text x="0" y="79" text-anchor="middle" fill="rgba(245,245,245,0.4)" font-size="7">explain</text>
+            <text x="-72" y="58" text-anchor="middle" fill="rgba(245,245,245,0.4)" font-size="7">summarise</text>
+            <text x="-76" y="4" text-anchor="middle" fill="rgba(245,245,245,0.4)" font-size="7">retry</text>
+            <text x="-72" y="-55" text-anchor="middle" fill="rgba(245,245,245,0.4)" font-size="7">context</text>
+          </svg>
+        </div>
+      </div>
+
+      <div class="ui-panel pulse">
+        <div class="panel-label">HUD Overlay + Button Map</div>
+        <div class="hud-preview">
+          <div class="hud-card active-agent pulse">
+            <div class="agent-info"><div class="agent-dot" style="background:#00FF88;box-shadow:0 0 8px rgba(0,255,136,0.5)"></div><div><div class="agent-name pulse">Claude Code · Terminal 1</div><div class="agent-status pulse">Processing · 1m 23s</div></div></div>
+            <div class="agent-action pulse">ACTIVE</div>
+          </div>
+          <div class="hud-card pulse">
+            <div class="agent-info"><div class="agent-dot idle"></div><div><div class="agent-name pulse">Copilot · Terminal 2</div><div class="agent-status pulse">Waiting for input</div></div></div>
+            <div class="agent-action" style="color: var(--text2); border-color: var(--border);">IDLE</div>
+          </div>
+          <div class="button-map pulse">
+            <div class="button-map-title pulse">Current Bindings</div>
+            <div class="button-row">
+              <div class="btn-binding pulse"><div class="btn-glyph cross">✕</div><span class="btn-label pulse">Approve</span></div>
+              <div class="btn-binding pulse"><div class="btn-glyph circle">○</div><span class="btn-label pulse">Deny</span></div>
+              <div class="btn-binding pulse"><div class="btn-glyph square">□</div><span class="btn-label pulse">Interrupt</span></div>
+              <div class="btn-binding pulse"><div class="btn-glyph triangle">△</div><span class="btn-label pulse">Context</span></div>
+            </div>
+          </div>
+          <div>
+            <div class="panel-label" style="margin-bottom:8px">Idle Mini-Game (Snake)</div>
+            <div class="mini-game-frame pulse"><div class="mini-game-canvas pulse" id="snake-pulse"></div><div class="game-overlay pulse">Score: 42</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ui-panel pulse">
+        <div class="panel-label">Stats & Gamification</div>
+        <div class="stats-grid pulse">
+          <div class="stat-card pulse"><div class="stat-value pulse">7</div><div class="stat-label pulse">Day Streak 🔥</div><div class="stat-trend pulse">↑ Best: 12</div></div>
+          <div class="stat-card pulse"><div class="stat-value pulse">94%</div><div class="stat-label pulse">Controller-Only</div><div class="stat-trend pulse">↑ +6% this week</div></div>
+        </div>
+        <div class="xp-bar-wrap pulse"><div class="xp-label pulse"><span>Level 8 · Vibe Coder</span><span>2,340 / 3,000 XP</span></div><div class="xp-bar pulse"><div class="xp-fill pulse"></div></div></div>
+        <div class="achievement pulse" style="border-color: var(--accent2); box-shadow: 0 0 20px var(--glow2);">
+          <div class="achievement-icon pulse">🏆</div>
+          <div><div class="achievement-title pulse">Untethered</div><div class="achievement-desc pulse">Complete a 2hr session keyboard-free</div></div>
+          <div class="achievement-badge pulse">GOLD</div>
+        </div>
+      </div>
+
+      <div class="ui-panel pulse type-sample">
+        <div class="panel-label">Typography</div>
+        <div class="type-row pulse"><span class="type-meta pulse">Display</span><span class="type-h1 pulse">VibeSense</span></div>
+        <div class="type-row pulse"><span class="type-meta pulse">H2</span><span class="type-h2 pulse">Controller Session Active</span></div>
+        <div class="type-row pulse"><span class="type-meta pulse">Body</span><span class="type-body pulse">Assign your most-used prompts to the R2 wheel.</span></div>
+        <div class="type-row pulse"><span class="type-meta pulse">Accent</span><span class="type-accent-text pulse">KEYBOARD-FREE SESSION COMPLETE</span></div>
+        <div class="palette-row pulse">
+          <div class="palette-chip" style="background:#080808"><span class="light">BG</span></div>
+          <div class="palette-chip" style="background:#111111"><span class="light">Surface</span></div>
+          <div class="palette-chip" style="background:#00FF88"><span>Green</span></div>
+          <div class="palette-chip" style="background:#FF2D78"><span>Pink</span></div>
+          <div class="palette-chip" style="background:#F5F5F5"><span class="light">Text</span></div>
+          <div class="palette-chip" style="background:#777777"><span class="light">Text2</span></div>
+        </div>
+      </div>
+
+      <div class="status-bar-preview pulse" style="grid-column:1/-1;">
+        <div class="status-item pulse"><div class="status-dot-green"></div><span class="status-accent pulse">DualSense</span><span> · Connected</span></div>
+        <div class="status-item pulse">Sessions: <span class="status-accent pulse" style="margin-left:4px">2 active</span></div>
+        <div class="status-item pulse">Streak: <span class="status-accent pulse" style="margin-left:4px">7 days 🔥</span></div>
+        <div class="status-item pulse">Controller: <span class="status-accent pulse" style="margin-left:4px">94%</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     THEME C: FORGE
+════════════════════════════════════════════════════ -->
+<div id="theme-forge" class="theme-panel">
+  <div class="theme-wrap forge">
+    <div class="theme-header">
+      <div>
+        <div class="theme-name">FORGE</div>
+        <div class="theme-tagline">Xbox energy · Dark navy · Electric orange + violet · Warm & powerful</div>
+      </div>
+      <div class="color-swatches">
+        <div class="swatch" style="background:#070710"></div>
+        <div class="swatch" style="background:#0D0D1E"></div>
+        <div class="swatch" style="background:#FF6B35"></div>
+        <div class="swatch" style="background:#9B59FF"></div>
+        <div class="swatch" style="background:#EEEEFF"></div>
+      </div>
+    </div>
+    <div class="theme-grid forge">
+      <div class="ui-panel forge">
+        <div class="panel-label">Dual Radial Wheel</div>
+        <div class="radial-container">
+          <div class="wheel-inactive" style="transform: scale(0.82) translateX(80px);">
+            <svg width="180" height="180" viewBox="-90 -90 180 180">
+              <circle cx="0" cy="0" r="85" fill="none" stroke="rgba(155,89,255,0.25)" stroke-width="1"/>
+              <circle cx="0" cy="0" r="28" fill="#12152A" stroke="rgba(155,89,255,0.3)" stroke-width="1.5"/>
+              <text x="0" y="5" text-anchor="middle" fill="rgba(155,89,255,0.7)" font-size="8" font-weight="700">R2</text>
+              <g opacity="0.6">
+                <path d="M0,-85 A85,85 0 0,1 60.1,-60.1 L42.4,-42.4 A60,60 0 0,0 0,-60 Z" fill="rgba(155,89,255,0.1)" stroke="rgba(155,89,255,0.2)" stroke-width="0.5"/>
+                <path d="M60.1,-60.1 A85,85 0 0,1 85,0 L60,0 A60,60 0 0,0 42.4,-42.4 Z" fill="rgba(155,89,255,0.1)" stroke="rgba(155,89,255,0.2)" stroke-width="0.5"/>
+                <path d="M85,0 A85,85 0 0,1 60.1,60.1 L42.4,42.4 A60,60 0 0,0 60,0 Z" fill="rgba(155,89,255,0.1)" stroke="rgba(155,89,255,0.2)" stroke-width="0.5"/>
+                <path d="M60.1,60.1 A85,85 0 0,1 0,85 L0,60 A60,60 0 0,0 42.4,42.4 Z" fill="rgba(155,89,255,0.1)" stroke="rgba(155,89,255,0.2)" stroke-width="0.5"/>
+                <path d="M0,85 A85,85 0 0,1 -60.1,60.1 L-42.4,42.4 A60,60 0 0,0 0,60 Z" fill="rgba(155,89,255,0.1)" stroke="rgba(155,89,255,0.2)" stroke-width="0.5"/>
+                <path d="M-60.1,60.1 A85,85 0 0,1 -85,0 L-60,0 A60,60 0 0,0 -42.4,42.4 Z" fill="rgba(155,89,255,0.1)" stroke="rgba(155,89,255,0.2)" stroke-width="0.5"/>
+                <path d="M-85,0 A85,85 0 0,1 -60.1,-60.1 L-44.7,-44.7 A60,60 0 0,0 -60,0 Z" fill="rgba(155,89,255,0.1)" stroke="rgba(155,89,255,0.2)" stroke-width="0.5"/>
+                <path d="M-60.1,-60.1 A85,85 0 0,1 0,-85 L0,-60 A60,60 0 0,0 -42.4,-42.4 Z" fill="rgba(155,89,255,0.1)" stroke="rgba(155,89,255,0.2)" stroke-width="0.5"/>
+              </g>
+            </svg>
+          </div>
+          <svg class="wheel-svg" width="200" height="200" viewBox="-100 -100 200 200">
+            <defs>
+              <filter id="glow-forge"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+              <radialGradient id="active-seg-forge" cx="50%" cy="50%"><stop offset="0%" stop-color="rgba(255,107,53,0.3)"/><stop offset="100%" stop-color="rgba(255,107,53,0.06)"/></radialGradient>
+            </defs>
+            <circle cx="0" cy="0" r="93" fill="none" stroke="rgba(255,107,53,0.1)" stroke-width="6"/>
+            <circle cx="0" cy="0" r="90" fill="none" stroke="rgba(255,107,53,0.3)" stroke-width="1"/>
+            <path d="M0,-90 A90,90 0 0,1 63.6,-63.6 L44.7,-44.7 A63,63 0 0,0 0,-63 Z" fill="url(#active-seg-forge)" stroke="#FF6B35" stroke-width="1.5" filter="url(#glow-forge)"/>
+            <path d="M63.6,-63.6 A90,90 0 0,1 90,0 L63,0 A63,63 0 0,0 44.7,-44.7 Z" fill="rgba(255,107,53,0.05)" stroke="rgba(255,107,53,0.2)" stroke-width="0.5"/>
+            <path d="M90,0 A90,90 0 0,1 63.6,63.6 L44.7,44.7 A63,63 0 0,0 63,0 Z" fill="rgba(255,107,53,0.05)" stroke="rgba(255,107,53,0.2)" stroke-width="0.5"/>
+            <path d="M63.6,63.6 A90,90 0 0,1 0,90 L0,63 A63,63 0 0,0 44.7,44.7 Z" fill="rgba(255,107,53,0.05)" stroke="rgba(255,107,53,0.2)" stroke-width="0.5"/>
+            <path d="M0,90 A90,90 0 0,1 -63.6,63.6 L-44.7,44.7 A63,63 0 0,0 0,63 Z" fill="rgba(255,107,53,0.05)" stroke="rgba(255,107,53,0.2)" stroke-width="0.5"/>
+            <path d="M-63.6,63.6 A90,90 0 0,1 -90,0 L-63,0 A63,63 0 0,0 -44.7,44.7 Z" fill="rgba(255,107,53,0.05)" stroke="rgba(255,107,53,0.2)" stroke-width="0.5"/>
+            <path d="M-90,0 A90,90 0 0,1 -63.6,-63.6 L-44.7,-44.7 A63,63 0 0,0 -63,0 Z" fill="rgba(255,107,53,0.05)" stroke="rgba(255,107,53,0.2)" stroke-width="0.5"/>
+            <path d="M-63.6,-63.6 A90,90 0 0,1 0,-90 L0,-63 A63,63 0 0,0 -44.7,-44.7 Z" fill="rgba(255,107,53,0.05)" stroke="rgba(255,107,53,0.2)" stroke-width="0.5"/>
+            <circle cx="0" cy="0" r="30" fill="#0D0D1E" stroke="rgba(255,107,53,0.4)" stroke-width="1.5"/>
+            <text x="0" y="-4" text-anchor="middle" fill="#FF6B35" font-size="8" font-weight="800">L2</text>
+            <text x="0" y="8" text-anchor="middle" fill="rgba(255,107,53,0.5)" font-size="7">SMART</text>
+            <text x="0" y="-72" text-anchor="middle" fill="#EEEEFF" font-size="8" font-weight="700">🎙 VOICE</text>
+            <text x="72" y="-55" text-anchor="middle" fill="rgba(238,238,255,0.4)" font-size="7">approve</text>
+            <text x="76" y="4" text-anchor="middle" fill="rgba(238,238,255,0.4)" font-size="7">deny</text>
+            <text x="72" y="58" text-anchor="middle" fill="rgba(238,238,255,0.4)" font-size="7">interrupt</text>
+            <text x="0" y="79" text-anchor="middle" fill="rgba(238,238,255,0.4)" font-size="7">explain</text>
+            <text x="-72" y="58" text-anchor="middle" fill="rgba(238,238,255,0.4)" font-size="7">summarise</text>
+            <text x="-76" y="4" text-anchor="middle" fill="rgba(238,238,255,0.4)" font-size="7">retry</text>
+            <text x="-72" y="-55" text-anchor="middle" fill="rgba(238,238,255,0.4)" font-size="7">context</text>
+          </svg>
+        </div>
+      </div>
+
+      <div class="ui-panel forge">
+        <div class="panel-label">HUD Overlay + Button Map</div>
+        <div class="hud-preview">
+          <div class="hud-card active-agent forge">
+            <div class="agent-info"><div class="agent-dot" style="background:#FF6B35;box-shadow:0 0 8px rgba(255,107,53,0.5)"></div><div><div class="agent-name forge">Claude Code · Terminal 1</div><div class="agent-status forge">Processing · 1m 23s</div></div></div>
+            <div class="agent-action forge">ACTIVE</div>
+          </div>
+          <div class="hud-card forge">
+            <div class="agent-info"><div class="agent-dot idle"></div><div><div class="agent-name forge">Copilot · Terminal 2</div><div class="agent-status forge">Waiting for input</div></div></div>
+            <div class="agent-action" style="color: var(--text2); border-color: var(--border);">IDLE</div>
+          </div>
+          <div class="button-map forge">
+            <div class="button-map-title forge">Current Bindings</div>
+            <div class="button-row">
+              <div class="btn-binding forge"><div class="btn-glyph cross">✕</div><span class="btn-label forge">Approve</span></div>
+              <div class="btn-binding forge"><div class="btn-glyph circle">○</div><span class="btn-label forge">Deny</span></div>
+              <div class="btn-binding forge"><div class="btn-glyph square">□</div><span class="btn-label forge">Interrupt</span></div>
+              <div class="btn-binding forge"><div class="btn-glyph triangle">△</div><span class="btn-label forge">Context</span></div>
+            </div>
+          </div>
+          <div>
+            <div class="panel-label" style="margin-bottom:8px">Idle Mini-Game (Snake)</div>
+            <div class="mini-game-frame forge"><div class="mini-game-canvas forge" id="snake-forge"></div><div class="game-overlay forge">Score: 42</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ui-panel forge">
+        <div class="panel-label">Stats & Gamification</div>
+        <div class="stats-grid forge">
+          <div class="stat-card forge"><div class="stat-value forge">7</div><div class="stat-label forge">Day Streak 🔥</div><div class="stat-trend forge">↑ Best: 12</div></div>
+          <div class="stat-card forge"><div class="stat-value forge">94%</div><div class="stat-label forge">Controller-Only</div><div class="stat-trend forge">↑ +6% this week</div></div>
+        </div>
+        <div class="xp-bar-wrap forge"><div class="xp-label forge"><span>Level 8 · Vibe Coder</span><span>2,340 / 3,000 XP</span></div><div class="xp-bar forge"><div class="xp-fill forge"></div></div></div>
+        <div class="achievement forge">
+          <div class="achievement-icon forge">🏆</div>
+          <div><div class="achievement-title forge">Untethered</div><div class="achievement-desc forge">Complete a 2hr session keyboard-free</div></div>
+          <div class="achievement-badge forge">GOLD</div>
+        </div>
+      </div>
+
+      <div class="ui-panel forge type-sample">
+        <div class="panel-label">Typography</div>
+        <div class="type-row forge"><span class="type-meta forge">Display</span><span class="type-h1 forge">VibeSense</span></div>
+        <div class="type-row forge"><span class="type-meta forge">H2</span><span class="type-h2 forge">Controller Session Active</span></div>
+        <div class="type-row forge"><span class="type-meta forge">Body</span><span class="type-body forge">Assign your most-used prompts to the R2 wheel.</span></div>
+        <div class="type-row forge"><span class="type-meta forge">Accent</span><span class="type-accent-text forge">KEYBOARD-FREE SESSION COMPLETE</span></div>
+        <div class="palette-row forge">
+          <div class="palette-chip" style="background:#070710"><span class="light">BG</span></div>
+          <div class="palette-chip" style="background:#0D0D1E"><span class="light">Surface</span></div>
+          <div class="palette-chip" style="background:#12152A"><span class="light">Surface2</span></div>
+          <div class="palette-chip" style="background:#FF6B35"><span>Orange</span></div>
+          <div class="palette-chip" style="background:#9B59FF"><span>Violet</span></div>
+          <div class="palette-chip" style="background:#EEEEFF"><span class="light">Text</span></div>
+          <div class="palette-chip" style="background:#6677AA"><span class="light">Text2</span></div>
+        </div>
+      </div>
+
+      <div class="status-bar-preview forge" style="grid-column:1/-1;">
+        <div class="status-item forge"><div class="status-dot-green"></div><span class="status-accent forge">DualSense</span><span> · Connected</span></div>
+        <div class="status-item forge">Sessions: <span class="status-accent forge" style="margin-left:4px">2 active</span></div>
+        <div class="status-item forge">Streak: <span class="status-accent forge" style="margin-left:4px">7 days 🔥</span></div>
+        <div class="status-item forge">Controller: <span class="status-accent forge" style="margin-left:4px">94%</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="spacer"></div>
+
+<script>
+function showTheme(name, btn) {
+  document.querySelectorAll('.theme-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.theme-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('theme-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// Generate snake grid for all themes
+function makeSnake(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const snake = [38, 39, 40, 41, 42, 58, 74];
+  const food = [55];
+  for (let i = 0; i < 96; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    if (i === snake[snake.length - 1]) cell.classList.add('snake-head');
+    else if (snake.includes(i)) cell.classList.add('snake');
+    else if (food.includes(i)) cell.classList.add('food');
+    else cell.classList.add('empty');
+    el.appendChild(cell);
+  }
+}
+makeSnake('snake-void');
+makeSnake('snake-pulse');
+makeSnake('snake-forge');
+</script>
+</body>
+</html>
