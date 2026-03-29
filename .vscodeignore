@@ -13,8 +13,12 @@ tsconfig*.json
 webpack.config.js
 .github/
 
-# Node modules
-node_modules/
+# Build tooling devDependencies — exclude from VSIX (not needed at runtime)
+# Note: vsce automatically excludes packages listed in devDependencies from the VSIX.
+# Do NOT add node_modules/ here — runtime dependencies (node-hid, dualsense-ts, react)
+# must be present in the VSIX. Only devDependency tool folders are listed below.
+node_modules/@electron/rebuild/
+node_modules/prebuild-install/
 
 # TypeScript source maps (nosources mode used)
 **/*.ts

@@ -14,7 +14,11 @@ const extensionConfig = {
     filename: 'extension.js',
     libraryTarget: 'commonjs2',
   },
-  externals: { vscode: 'commonjs vscode' },
+  externals: {
+    vscode: 'commonjs vscode',
+    'node-hid': 'commonjs node-hid',
+    'dualsense-ts': 'commonjs dualsense-ts',
+  },
   resolve: { extensions: ['.ts', '.js'] },
   module: {
     rules: [
