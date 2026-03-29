@@ -1,6 +1,6 @@
 # Story 1.2: Native Module Setup (node-hid + electron-rebuild)
 
-Status: review
+Status: done
 
 ## Story
 
@@ -69,6 +69,11 @@ so that the extension can read raw HID device input without requiring users to c
   - [x] Run `npm run typecheck` and confirm zero TypeScript errors
   - [x] Run `npm run lint` and confirm zero ESLint errors
   - [x] Confirm `dist/extension.js` does NOT contain inline `node-hid` native code
+
+### Review Findings
+
+- [x] [Review][Defer] `**/*.node` in `.vscodeignore` excludes native binaries from VSIX [.vscodeignore:30] — deferred, pre-existing from Story 1.1; spec explicitly says not to modify; resolution belongs in Story 1.4 (CI/packaging matrix)
+- [x] [Review][Defer] `postinstall` script runs unconditionally in CI environments [package.json:33] — deferred, pre-existing design; CI guard logic belongs in Story 1.4
 
 ## Dev Notes
 
