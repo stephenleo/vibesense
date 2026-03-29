@@ -321,9 +321,14 @@ None.
 - [x] [Review][Defer] Duplicate matrix definition across ci.yml and package.yml — deferred, acceptable for workflow clarity
 - [x] [Review][Patch] Fix darwin-x64 runner from `macos-latest` to `macos-13` [ci.yml:30, package.yml:31] — fixed
 - [x] [Review][Defer] Duplicate `electron-rebuild` and `@electron/rebuild` in devDependencies — deferred, cross-story dependency (Story 1.2)
+- [x] [Review][Patch] Remove `continue-on-error: true` from electron-rebuild step — Story 1.2 is merged [ci.yml:44, package.yml:46] — fixed
+- [x] [Review][Patch] Remove redundant `electron-rebuild` (^3.2.9) devDependency — `@electron/rebuild` already provides CLI [package.json] — fixed
+- [x] [Review][Patch] Use `npx @electron/rebuild` instead of `npx electron-rebuild` for consistency with installed package [ci.yml:44, package.yml:46] — fixed
+- [x] [Review][Defer] `macos-13` deprecation risk for darwin-x64 — deferred, correct choice today with no better alternative
 
 ## Change Log
 
+- 2026-03-30: Code review — removed continue-on-error (Story 1.2 merged), removed redundant electron-rebuild dep, switched to @electron/rebuild in CI. 3 patches applied, 1 deferred, 2 dismissed.
 - 2026-03-30: Code review — fixed darwin-x64 runner to macos-13 in both workflows. 1 patch applied, 1 deferred, 2 dismissed.
 - 2026-03-29: Code review — added fail-fast: false to both matrix strategies, added lint-and-typecheck gate to release workflow. 3 patches applied, 2 deferred, 3 dismissed.
 - 2026-03-29: Story 1.4 implemented — created ci.yml and package.yml GitHub Actions workflows, added @vscode/vsce and electron-rebuild devDependencies, removed .gitkeep placeholder.

@@ -43,8 +43,7 @@ jobs:
           node-version: '20.x'
           cache: 'npm'
       - run: npm ci
-      - run: npx electron-rebuild -f -w node-hid
-        continue-on-error: true   # TODO: remove continue-on-error after Story 1.2 (node-hid) merges
+      - run: npx @electron/rebuild -f -w node-hid
       - run: npx @vscode/vsce package --target ${{ matrix.target }} --no-dependencies
       - uses: actions/upload-artifact@v4
         with:
