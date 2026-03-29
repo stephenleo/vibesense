@@ -1,6 +1,6 @@
 # Story 1.4: GitHub Actions CI Matrix (4 Platforms)
 
-Status: review
+Status: done
 
 ## Story
 
@@ -312,6 +312,15 @@ None.
 - `_bmad-output/implementation-artifacts/1-4-github-actions-ci-matrix-4-platforms.md` (modified — story tracking)
 - `_bmad-output/implementation-artifacts/sprint-status.yaml` (modified — status updated)
 
+### Review Findings
+
+- [x] [Review][Patch] Add `fail-fast: false` to CI matrix strategy [ci.yml:24] — fixed
+- [x] [Review][Patch] Add `fail-fast: false` to Release matrix strategy [package.yml:26] — fixed
+- [x] [Review][Patch] Add lint-and-typecheck gate to Release workflow [package.yml:12-22] — fixed
+- [x] [Review][Defer] ci.yml missing explicit `permissions` block — deferred, not a bug with default permissions
+- [x] [Review][Defer] Duplicate matrix definition across ci.yml and package.yml — deferred, acceptable for workflow clarity
+
 ## Change Log
 
+- 2026-03-29: Code review — added fail-fast: false to both matrix strategies, added lint-and-typecheck gate to release workflow. 3 patches applied, 2 deferred, 3 dismissed.
 - 2026-03-29: Story 1.4 implemented — created ci.yml and package.yml GitHub Actions workflows, added @vscode/vsce and electron-rebuild devDependencies, removed .gitkeep placeholder.
