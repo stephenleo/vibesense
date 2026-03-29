@@ -3,3 +3,9 @@
 _bmad/
 .DS_Store
 memory/
+
+# Extension build artifacts
+node_modules/
+dist/
+*.vsix
+*.log

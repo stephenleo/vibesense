@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "jsx": "react",
+    "outDir": "./dist/webview",
+    "types": ["react", "react-dom"],
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"]
+  },
+  "include": [
+    "src/webview/**/*",
+    "src/shared/**/*"
+  ],
+  "exclude": [
+    "src/extension/**/*",
+    "node_modules",
+    "dist"
+  ]
+}

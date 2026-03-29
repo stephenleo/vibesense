@@ -1,0 +1,35 @@
+/* src/webview/shared-ui/tokens.css */
+/* VibeSense design system CSS custom properties */
+/* Uses --vs-* prefix convention per Architecture naming patterns */
+/* Full token definitions in Story 2.4 (Void Design System) */
+
+:root {
+  /* Color tokens — mapped from VSCode theme variables */
+  --vs-color-primary: var(--vscode-button-background, #0078d4);
+  --vs-color-primary-text: var(--vscode-button-foreground, #ffffff);
+  --vs-color-surface: var(--vscode-editor-background, #1e1e1e);
+  --vs-color-surface-alt: var(--vscode-sideBar-background, #252526);
+  --vs-color-border: var(--vscode-panel-border, #454545);
+  --vs-color-text: var(--vscode-editor-foreground, #d4d4d4);
+  --vs-color-text-muted: var(--vscode-descriptionForeground, #8b8b8b);
+
+  /* Spacing tokens */
+  --vs-space-1: 4px;
+  --vs-space-2: 8px;
+  --vs-space-3: 12px;
+  --vs-space-4: 16px;
+  --vs-space-6: 24px;
+  --vs-space-8: 32px;
+
+  /* Radius tokens */
+  --vs-radius-sm: 2px;
+  --vs-radius-md: 4px;
+  --vs-radius-lg: 8px;
+  --vs-radius-full: 9999px;
+
+  /* Typography tokens */
+  --vs-font-family: var(--vscode-font-family, 'Segoe UI', sans-serif);
+  --vs-font-size-sm: 11px;
+  --vs-font-size-md: 13px;
+  --vs-font-size-lg: 16px;
+}
