@@ -20,13 +20,14 @@
       "request": "launch",
       "args": [
         "--extensionDevelopmentPath=${workspaceFolder}",
-        "--extensionTestsPath=${workspaceFolder}/dist/test"
+        "--extensionTestsPath=${workspaceFolder}/out/test/integration/suite/index"
       ],
       "outFiles": [
-        "${workspaceFolder}/dist/**/*.js"
+        "${workspaceFolder}/out/**/*.js"
       ],
       "preLaunchTask": "${defaultBuildTask}",
-      "sourceMaps": true
+      "sourceMaps": true,
+      "runtimeExecutable": "${execPath}"
     }
   ]
 }

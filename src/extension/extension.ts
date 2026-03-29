@@ -3,15 +3,14 @@
 // Full implementation across Stories 1.2 – 1.5
 
 import * as vscode from 'vscode'
+import { logger, disposeLogger } from './logger'
 
 /**
  * Called when the extension is activated.
  * Activation is lazy: triggered by onStartupFinished or HID events (FR51).
  */
 export function activate(_context: vscode.ExtensionContext): void {
-  // TODO Story 1.5: Replace with logger singleton using vscode.window.createOutputChannel('VibeSense')
-  // eslint-disable-next-line no-console
-  console.log('VibeSense activating')
+  logger.info('VibeSense activating')
 
   // Placeholder: full HID setup in Story 1.2
   // Placeholder: IPC server in Story 1.3
@@ -22,5 +21,6 @@ export function activate(_context: vscode.ExtensionContext): void {
  * Called when the extension is deactivated.
  */
 export function deactivate(): void {
+  disposeLogger()
   // Cleanup resources — implementation in later stories
 }
