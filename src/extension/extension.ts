@@ -12,7 +12,7 @@ import { logger, disposeLogger } from './logger'
 export function activate(_context: vscode.ExtensionContext): void {
   logger.info('VibeSense activating')
 
-  // Placeholder: full HID setup in Story 1.2
+  // TODO Story 2.2: wire HidManager here — auto-reconnect lifecycle
   // Placeholder: IPC server in Story 1.3
 }
 
