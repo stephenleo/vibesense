@@ -173,6 +173,25 @@ describe('ControllerLifecycleManager', () => {
       mgr.stop()
     })
 
+    it('calls stop() on the old driver when disconnect event fires (releases HID device handle)', () => {
+      vi.useFakeTimers()
+      const driver = makeMockDriver()
+      const onConnected = vi.fn()
+      const onDisconnected = vi.fn()
+
+      const mgr = new ControllerLifecycleManager(driver, onConnected, onDisconnected)
+
+      // stop() should NOT have been called yet
+      expect(driver.stop).not.toHaveBeenCalled()
+
+      driver._emit({ kind: 'disconnected' })
+
+      // stop() must be called to release the HID device file handle
+      expect(driver.stop).toHaveBeenCalledTimes(1)
+
+      mgr.stop()
+    })
+
     it('does not invoke onConnected callback on connected event (only reconnect loop does)', () => {
       const driver = makeMockDriver()
       const onConnected = vi.fn()
@@ -303,6 +322,35 @@ describe('ControllerLifecycleManager', () => {
       vi.advanceTimersByTime(3000) // 6 × 500ms
       expect(onConnected).toHaveBeenCalledTimes(1)
       expect(pollCount).toBe(6)
+
+      mgr.stop()
+    })
+
+    it('stops polling after MAX_RECONNECT_POLLS (60 × 500ms = 30s) when controller not found', () => {
+      vi.useFakeTimers()
+      const driver = makeMockDriver()
+      const onConnected = vi.fn()
+      const onDisconnected = vi.fn()
+
+      // createDriver always returns null
+      mockCreateDriver.mockReturnValue(null)
+
+      const mgr = new ControllerLifecycleManager(driver, onConnected, onDisconnected)
+      driver._emit({ kind: 'disconnected' })
+
+      // Advance well past the 30s cap
+      vi.advanceTimersByTime(60000)
+
+      // Should have polled at most 60 times, then stopped
+      expect(mockCreateDriver.mock.calls.length).toBeLessThanOrEqual(61)
+      // After cap, no more polls even with more time
+      const callsAtCap = mockCreateDriver.mock.calls.length
+      vi.advanceTimersByTime(10000)
+      expect(mockCreateDriver.mock.calls.length).toBe(callsAtCap)
+
+      // State should still be disconnected (no reconnect found)
+      expect(mgr.getConnectionState()).toBe('disconnected')
+      expect(onConnected).not.toHaveBeenCalled()
 
       mgr.stop()
     })
