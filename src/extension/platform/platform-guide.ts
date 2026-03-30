@@ -50,7 +50,6 @@ export function showLinuxUdevGuide(): void {
     .showWarningMessage(
       `Controller requires a udev rule. ${LINUX_UDEV_INSTRUCTIONS}`,
       'Copy Rule',
-      'Reconnect Controller',
     )
     .then((selection) => {
       if (selection === 'Copy Rule') {

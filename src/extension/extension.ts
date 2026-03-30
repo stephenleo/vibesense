@@ -40,6 +40,9 @@ export function activate(context: vscode.ExtensionContext): void {
   const hidManager = new HidManager()
   const driver = hidManager.start()
 
+  // Track manually-selected driver so it is stopped on deactivation
+  let manualDriver: import('./hid/hal').ControllerHAL | null = null
+
   if (driver !== null) {
     statusBarItem.text = '⊙ Controller'
     statusBarItem.tooltip = 'VibeSense: Controller connected'
@@ -71,6 +74,7 @@ export function activate(context: vscode.ExtensionContext): void {
           try {
             const result = await showDeviceSelector()
             if (result) {
+              manualDriver = result.driver
               const label = controllerLabel(result.controllerType)
               statusBarItem.text = `⊙ ${label}`
               statusBarItem.tooltip = `VibeSense: ${label} connected`
@@ -82,7 +86,15 @@ export function activate(context: vscode.ExtensionContext): void {
       })
   }
 
-  context.subscriptions.push({ dispose: () => hidManager.stop() })
+  context.subscriptions.push({
+    dispose: () => {
+      hidManager.stop()
+      if (manualDriver) {
+        manualDriver.stop()
+        manualDriver = null
+      }
+    },
+  })
 }
 
 /**

@@ -100,12 +100,11 @@ describe('showLinuxUdevGuide', () => {
     mockShowInformationMessage.mockResolvedValue(undefined)
   })
 
-  it('calls showWarningMessage with Copy Rule and Reconnect Controller buttons', () => {
+  it('calls showWarningMessage with Copy Rule button', () => {
     showLinuxUdevGuide()
     expect(mockShowWarningMessage).toHaveBeenCalledWith(
       expect.stringContaining('udev rule'),
       'Copy Rule',
-      'Reconnect Controller',
     )
   })
 
@@ -149,7 +148,6 @@ describe('handleHidPermissionError', () => {
     expect(mockShowWarningMessage).toHaveBeenCalledWith(
       expect.stringContaining('udev rule'),
       'Copy Rule',
-      'Reconnect Controller',
     )
   })
 

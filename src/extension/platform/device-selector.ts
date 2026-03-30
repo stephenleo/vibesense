@@ -63,17 +63,19 @@ function resolveControllerType(d: Device): ControllerType {
 
 /**
  * Returns the appropriate ControllerHAL driver for the given Device
- * by matching against known VID/PID constants.
+ * by delegating to resolveControllerType for VID/PID matching.
  * Priority: DualSense > Xbox > Generic HID.
  */
 function createDriverForDevice(d: Device): ControllerHAL {
-  if (d.vendorId === DUALSENSE_VID && DUALSENSE_PIDS.includes(d.productId)) {
-    return new DualSenseDriver()
+  const type = resolveControllerType(d)
+  switch (type) {
+    case 'dualsense':
+      return new DualSenseDriver()
+    case 'xbox':
+      return new XboxDriver(d.vendorId, d.productId)
+    case 'generic-hid':
+      return new GenericHidDriver(d.vendorId, d.productId)
   }
-  if (d.vendorId === XBOX_VID && XBOX_PIDS.includes(d.productId)) {
-    return new XboxDriver(d.vendorId, d.productId)
-  }
-  return new GenericHidDriver(d.vendorId, d.productId)
 }
 
 /**
