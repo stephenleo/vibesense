@@ -6,7 +6,7 @@ import { EventEmitter } from 'events'
 import { HID } from 'node-hid'
 import { logger } from '../logger'
 import type { ControllerHAL } from './hal'
-import type { ControllerEvent, ButtonId, AxisId, HapticPattern } from '../../shared/types'
+import type { ControllerEvent, ControllerType, ButtonId, AxisId, HapticPattern } from '../../shared/types'
 
 /**
  * Parse a generic HID gamepad report using best-effort standard USB gamepad layout.
@@ -83,6 +83,8 @@ function parseGenericReport(data: Buffer): ControllerEvent[] {
  * No haptic or LED output (NFR-C2).
  */
 export class GenericHidDriver extends EventEmitter implements ControllerHAL {
+  readonly controllerType: ControllerType = 'generic-hid'
+
   private device: HID | null = null
   private previousButtonState = new Map<ButtonId, boolean>()
   private previousAxisState = new Map<AxisId, number>()
