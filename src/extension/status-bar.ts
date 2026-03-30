@@ -16,11 +16,11 @@ export type StatusBarState =
   | { kind: 'low-battery'; controllerType: ControllerType; level: number }
 
 /** Human-readable labels for each controller type */
-const CONTROLLER_LABELS: Record<ControllerType, string> = {
+const CONTROLLER_LABELS: Record<ControllerType, string> = Object.freeze({
   dualsense: 'DualSense',
   xbox: 'Xbox',
   'generic-hid': 'Controller',
-}
+})
 
 /**
  * StatusBarController — wraps a VSCode StatusBarItem and exposes a typed
@@ -63,8 +63,9 @@ export class StatusBarController implements vscode.Disposable {
       }
       case 'low-battery': {
         const label = CONTROLLER_LABELS[state.controllerType]
+        const level = Math.max(0, Math.min(100, state.level))
         this.item.text = `⚠ ${label}: low battery`
-        this.item.tooltip = `VibeSense: ${label} battery at ${state.level}% — connect charger`
+        this.item.tooltip = `VibeSense: ${label} battery at ${level}% — connect charger`
         this.item.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground')
         break
       }

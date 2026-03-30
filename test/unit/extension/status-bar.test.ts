@@ -35,6 +35,7 @@ describe('StatusBarController', () => {
     mockStatusBarItem.text = ''
     mockStatusBarItem.tooltip = ''
     mockStatusBarItem.backgroundColor = undefined
+    mockStatusBarItem.color = undefined
   })
 
   describe('constructor', () => {
@@ -151,6 +152,14 @@ describe('StatusBarController', () => {
       const controller = new StatusBarController()
       controller.update({ kind: 'low-battery', controllerType: 'dualsense', level: 19 })
       expect(mockStatusBarItem.text).toBe('⚠ DualSense: low battery')
+      expect(mockStatusBarItem.backgroundColor).toEqual({ id: 'statusBarItem.warningBackground' })
+    })
+
+    it('handles level 0 (dead battery) — clamps to 0 in tooltip', () => {
+      const controller = new StatusBarController()
+      controller.update({ kind: 'low-battery', controllerType: 'dualsense', level: 0 })
+      expect(mockStatusBarItem.text).toBe('⚠ DualSense: low battery')
+      expect(mockStatusBarItem.tooltip).toBe('VibeSense: DualSense battery at 0% — connect charger')
       expect(mockStatusBarItem.backgroundColor).toEqual({ id: 'statusBarItem.warningBackground' })
     })
   })

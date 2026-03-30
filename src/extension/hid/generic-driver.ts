@@ -83,6 +83,7 @@ function parseGenericReport(data: Buffer): ControllerEvent[] {
  * No haptic or LED output (NFR-C2).
  */
 export class GenericHidDriver extends EventEmitter implements ControllerHAL {
+  readonly controllerType = 'generic-hid' as const
   private device: HID | null = null
   private previousButtonState = new Map<ButtonId, boolean>()
   private previousAxisState = new Map<AxisId, number>()

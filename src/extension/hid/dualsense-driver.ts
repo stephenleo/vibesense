@@ -16,6 +16,7 @@ import type { ControllerEvent, ButtonId, AxisId, HapticPattern } from '../../sha
  * Emits normalized ControllerEvents on the 'data' event.
  */
 export class DualSenseDriver extends EventEmitter implements ControllerHAL {
+  readonly controllerType = 'dualsense' as const
   private controller: Dualsense | null = null
   private hapticTimers: ReturnType<typeof setTimeout>[] = []
 

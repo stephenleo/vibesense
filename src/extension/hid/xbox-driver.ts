@@ -109,6 +109,7 @@ function parseXboxReport(data: Buffer): ControllerEvent[] {
  * setHaptic and setLED are no-ops (Xbox haptics deferred to Story 6.X).
  */
 export class XboxDriver extends EventEmitter implements ControllerHAL {
+  readonly controllerType = 'xbox' as const
   private device: HID | null = null
 
   constructor(

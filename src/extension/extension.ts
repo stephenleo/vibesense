@@ -15,7 +15,7 @@ import type { ControllerEvent, ControllerType } from '../shared/types'
 export function activate(context: vscode.ExtensionContext): void {
   logger.info('VibeSense activating')
 
-  // Instantiate status bar immediately so it's always visible (FR27, NFR-P3)
+  // Instantiate status bar immediately so it's always visible (FR27)
   const statusBar = new StatusBarController()
   context.subscriptions.push(statusBar)
 
@@ -26,6 +26,12 @@ export function activate(context: vscode.ExtensionContext): void {
   // Track current controller type for battery event correlation.
   // Note: ControllerHAL.controllerType is Story 2.2; derive it from the 'connected' event here.
   let currentControllerType: ControllerType | null = null
+
+  // If a controller is already plugged in at startup, reflect that immediately (FR27)
+  if (driver !== null) {
+    statusBar.update({ kind: 'connected', controllerType: driver.controllerType })
+    currentControllerType = driver.controllerType
+  }
 
   if (driver !== null) {
     // Subscribe to HAL events and map to status bar states
