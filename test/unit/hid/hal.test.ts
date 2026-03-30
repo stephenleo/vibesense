@@ -4,6 +4,7 @@
 // available in the Vitest Node.js test environment.
 
 import { vi, describe, it, expect, beforeEach } from 'vitest'
+import { Dualsense } from 'dualsense-ts'
 import type { ControllerEvent } from '../../../src/shared/types'
 
 // ── Mock vscode (required by logger) ────────────────────────────────────────
@@ -298,6 +299,29 @@ describe('DualSenseDriver', () => {
     expect(() => driver.setHaptic('slow_rumble')).not.toThrow()
     expect(() => driver.setHaptic('none')).not.toThrow()
   })
+
+  it('emits connected and battery events immediately when controller is already connected at start()', () => {
+    vi.clearAllMocks()
+    dsListeners = {}
+
+    // Build a mock instance with connection.state = true (already plugged in)
+    const alreadyConnectedMock = buildMockDualsense()
+    alreadyConnectedMock.connection.state = true
+
+    vi.mocked(Dualsense).mockImplementationOnce(function () {
+      mockDualsenseInstance = alreadyConnectedMock
+      return mockDualsenseInstance as unknown as Dualsense
+    })
+
+    const freshDriver = new DualSenseDriver()
+    const freshReceived: ControllerEvent[] = []
+    freshDriver.on('data', (e) => freshReceived.push(e as ControllerEvent))
+    freshDriver.start()
+
+    // No 'change' event emitted — connected + battery should still fire from initial state check
+    expect(freshReceived.some((e) => e.kind === 'connected')).toBe(true)
+    expect(freshReceived.some((e) => e.kind === 'battery')).toBe(true)
+  })
 })
 
 // ── XboxDriver tests ──────────────────────────────────────────────────────────
@@ -487,5 +511,18 @@ describe('GenericHidDriver', () => {
     // Valid report after error condition
     const validReport = Buffer.alloc(6, 128)
     expect(() => emitHidData(validReport)).not.toThrow()
+  })
+
+  it('does not re-emit button or axis events when HID report state has not changed', () => {
+    received = []
+    const report = Buffer.alloc(6, 128)
+    report[0] = 0x01 // button 'a' pressed
+
+    emitHidData(report) // First report — emits initial state
+    received = []
+
+    emitHidData(report) // Identical report — nothing should re-emit
+    expect(received.filter((e) => e.kind === 'button')).toHaveLength(0)
+    expect(received.filter((e) => e.kind === 'axis')).toHaveLength(0)
   })
 })

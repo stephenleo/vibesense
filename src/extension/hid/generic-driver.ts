@@ -84,6 +84,8 @@ function parseGenericReport(data: Buffer): ControllerEvent[] {
  */
 export class GenericHidDriver extends EventEmitter implements ControllerHAL {
   private device: HID | null = null
+  private previousButtonState = new Map<ButtonId, boolean>()
+  private previousAxisState = new Map<AxisId, number>()
 
   constructor(
     private readonly vendorId: number,
@@ -110,7 +112,21 @@ export class GenericHidDriver extends EventEmitter implements ControllerHAL {
         try {
           const events = parseGenericReport(data)
           for (const event of events) {
-            this.emit('data', event)
+            if (event.kind === 'button') {
+              const prev = this.previousButtonState.get(event.button)
+              if (prev !== event.pressed) {
+                this.previousButtonState.set(event.button, event.pressed)
+                this.emit('data', event)
+              }
+            } else if (event.kind === 'axis') {
+              const prev = this.previousAxisState.get(event.axis)
+              if (prev !== event.value) {
+                this.previousAxisState.set(event.axis, event.value)
+                this.emit('data', event)
+              }
+            } else {
+              this.emit('data', event)
+            }
           }
         } catch (err) {
           logger.error('Generic HID data parse error', err)
@@ -137,6 +153,8 @@ export class GenericHidDriver extends EventEmitter implements ControllerHAL {
         this.device.close()
         this.device = null
       }
+      this.previousButtonState.clear()
+      this.previousAxisState.clear()
       logger.info('GenericHidDriver stopped')
     } catch (err) {
       logger.error('GenericHidDriver stop failed', err)

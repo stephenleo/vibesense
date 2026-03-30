@@ -45,6 +45,13 @@ export class DualSenseDriver extends EventEmitter implements ControllerHAL {
         }
       })
 
+      // Emit connected immediately if already plugged in — 'change' only fires on transitions
+      if (this.controller.connection.state) {
+        this.emit('data', { kind: 'connected', controllerType: 'dualsense' } satisfies ControllerEvent)
+        logger.info('DualSense connected (already connected at start)')
+        this.startBatteryPolling()
+      }
+
       this.setupButtonListeners()
       this.setupAxisListeners()
 
