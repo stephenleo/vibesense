@@ -162,6 +162,18 @@ describe('StatusBarController', () => {
       expect(mockStatusBarItem.tooltip).toBe('VibeSense: DualSense battery at 0% — connect charger')
       expect(mockStatusBarItem.backgroundColor).toEqual({ id: 'statusBarItem.warningBackground' })
     })
+
+    it('clamps negative battery level to 0 in tooltip', () => {
+      const controller = new StatusBarController()
+      controller.update({ kind: 'low-battery', controllerType: 'xbox', level: -5 })
+      expect(mockStatusBarItem.tooltip).toBe('VibeSense: Xbox battery at 0% — connect charger')
+    })
+
+    it('clamps battery level above 100 to 100 in tooltip', () => {
+      const controller = new StatusBarController()
+      controller.update({ kind: 'low-battery', controllerType: 'xbox', level: 150 })
+      expect(mockStatusBarItem.tooltip).toBe('VibeSense: Xbox battery at 100% — connect charger')
+    })
   })
 
   describe('battery level threshold — no warning at >= 20%', () => {

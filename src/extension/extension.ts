@@ -24,16 +24,13 @@ export function activate(context: vscode.ExtensionContext): void {
   const driver = hidManager.start()
 
   // Track current controller type for battery event correlation.
-  // Note: ControllerHAL.controllerType is Story 2.2; derive it from the 'connected' event here.
   let currentControllerType: ControllerType | null = null
 
-  // If a controller is already plugged in at startup, reflect that immediately (FR27)
   if (driver !== null) {
+    // If a controller is already plugged in at startup, reflect that immediately (FR27)
     statusBar.update({ kind: 'connected', controllerType: driver.controllerType })
     currentControllerType = driver.controllerType
-  }
 
-  if (driver !== null) {
     // Subscribe to HAL events and map to status bar states
     driver.on('data', (raw: unknown) => {
       try {

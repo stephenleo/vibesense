@@ -69,6 +69,11 @@ export class StatusBarController implements vscode.Disposable {
         this.item.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground')
         break
       }
+      default: {
+        // Exhaustive check — TypeScript will error if a new StatusBarState variant is added
+        const exhaustiveCheck: never = state
+        void exhaustiveCheck
+      }
     }
   }
 
