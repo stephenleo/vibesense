@@ -22,13 +22,6 @@ function normalizeAxis(raw: number): number {
 }
 
 /**
- * Normalize a trigger byte (0–255) to 0.0..1.0
- */
-function normalizeTrigger(raw: number): number {
-  return Math.max(0, Math.min(255, raw)) / 255
-}
-
-/**
  * Parse an Xbox Series HID report buffer into ControllerEvents.
  *
  * Xbox Series X|S USB HID report layout (64 bytes):
@@ -185,4 +178,4 @@ export class XboxDriver extends EventEmitter implements ControllerHAL {
 }
 
 // Export for use by HidManager and tests
-export { normalizeTrigger, normalizeAxis, parseXboxReport }
+export { normalizeAxis, parseXboxReport }

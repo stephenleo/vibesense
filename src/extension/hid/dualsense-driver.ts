@@ -9,15 +9,6 @@ import { logger } from '../logger'
 import type { ControllerHAL } from './hal'
 import type { ControllerEvent, ButtonId, AxisId, HapticPattern } from '../../shared/types'
 
-// Hex color string to RGB components
-function hexToRGB(hex: string): { r: number; g: number; b: number } {
-  const clean = hex.replace('#', '')
-  const r = parseInt(clean.substring(0, 2), 16) || 0
-  const g = parseInt(clean.substring(2, 4), 16) || 0
-  const b = parseInt(clean.substring(4, 6), 16) || 0
-  return { r, g, b }
-}
-
 /**
  * DualSense controller driver.
  *
@@ -26,6 +17,7 @@ function hexToRGB(hex: string): { r: number; g: number; b: number } {
  */
 export class DualSenseDriver extends EventEmitter implements ControllerHAL {
   private controller: Dualsense | null = null
+  private hapticTimers: ReturnType<typeof setTimeout>[] = []
 
   // Typed overload for 'data' event
   // eslint-disable-next-line @typescript-eslint/unified-signatures
@@ -64,6 +56,10 @@ export class DualSenseDriver extends EventEmitter implements ControllerHAL {
 
   stop(): void {
     try {
+      for (const timer of this.hapticTimers) {
+        clearTimeout(timer)
+      }
+      this.hapticTimers = []
       if (this.controller) {
         this.controller = null
       }
@@ -81,25 +77,25 @@ export class DualSenseDriver extends EventEmitter implements ControllerHAL {
       switch (pattern) {
         case 'single_pulse':
           this.controller.rumble(0.5)
-          setTimeout(() => this.controller?.rumble(0), 80)
+          this.scheduleHaptic(() => this.controller?.rumble(0), 80)
           break
         case 'double_pulse':
           this.controller.rumble(0.5)
-          setTimeout(() => this.controller?.rumble(0), 60)
-          setTimeout(() => this.controller?.rumble(0.5), 120)
-          setTimeout(() => this.controller?.rumble(0), 200)
+          this.scheduleHaptic(() => this.controller?.rumble(0), 60)
+          this.scheduleHaptic(() => this.controller?.rumble(0.5), 120)
+          this.scheduleHaptic(() => this.controller?.rumble(0), 200)
           break
         case 'triple_pulse':
           this.controller.rumble(0.5)
-          setTimeout(() => this.controller?.rumble(0), 50)
-          setTimeout(() => this.controller?.rumble(0.5), 100)
-          setTimeout(() => this.controller?.rumble(0), 150)
-          setTimeout(() => this.controller?.rumble(0.5), 200)
-          setTimeout(() => this.controller?.rumble(0), 260)
+          this.scheduleHaptic(() => this.controller?.rumble(0), 50)
+          this.scheduleHaptic(() => this.controller?.rumble(0.5), 100)
+          this.scheduleHaptic(() => this.controller?.rumble(0), 150)
+          this.scheduleHaptic(() => this.controller?.rumble(0.5), 200)
+          this.scheduleHaptic(() => this.controller?.rumble(0), 260)
           break
         case 'slow_rumble':
           this.controller.rumble(0.3)
-          setTimeout(() => this.controller?.rumble(0), 500)
+          this.scheduleHaptic(() => this.controller?.rumble(0), 500)
           break
         case 'none':
           this.controller.rumble(0)
@@ -110,12 +106,16 @@ export class DualSenseDriver extends EventEmitter implements ControllerHAL {
     }
   }
 
-  setLED(color: string): void {
+  setLED(_color: string): void {
     // dualsense-ts does not currently expose lightbar RGB directly in the public API.
     // This is a no-op stub — lightbar color control will be implemented in Story 6.2
     // using the raw HID command layer when the LED controller story is implemented.
-    void hexToRGB(color)
-    logger.info('DualSense setLED called (stub)', color)
+    logger.info('DualSense setLED called (stub)')
+  }
+
+  private scheduleHaptic(fn: () => void, delayMs: number): void {
+    const timer = setTimeout(fn, delayMs)
+    this.hapticTimers.push(timer)
   }
 
   private setupButtonListeners(): void {
