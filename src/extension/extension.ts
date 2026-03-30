@@ -8,8 +8,7 @@ import { HidManager } from './hid/hid-manager'
 import { checkHidAccess, isHidPermissionError } from './platform/permission-checker'
 import { handleHidPermissionError } from './platform/platform-guide'
 import { showDeviceSelector } from './platform/device-selector'
-import type { ControllerEvent } from '../shared/types'
-import type { ControllerType } from '../shared/types'
+import type { ControllerEvent, ControllerType } from '../shared/types'
 
 function controllerLabel(type: ControllerType): string {
   if (type === 'dualsense') return 'DualSense'
@@ -70,10 +69,11 @@ export function activate(context: vscode.ExtensionContext): void {
       .then(async (selection) => {
         if (selection === 'Select Device') {
           try {
-            const selectedDriver = await showDeviceSelector()
-            if (selectedDriver) {
-              statusBarItem.text = '⊙ Controller'
-              statusBarItem.tooltip = 'VibeSense: Controller connected'
+            const result = await showDeviceSelector()
+            if (result) {
+              const label = controllerLabel(result.controllerType)
+              statusBarItem.text = `⊙ ${label}`
+              statusBarItem.tooltip = `VibeSense: ${label} connected`
             }
           } catch (err) {
             logger.error('extension: showDeviceSelector failed', err)

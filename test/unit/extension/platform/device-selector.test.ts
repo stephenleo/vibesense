@@ -164,11 +164,18 @@ describe('formatDeviceLabel', () => {
 
 describe('showDeviceSelector', () => {
   beforeEach(() => {
-    // Use clearAllMocks (resets call counts) but NOT resetAllMocks (which clears implementations)
+    // Use clearAllMocks (resets call counts) but NOT resetAllMocks (which clears implementations).
+    // Explicitly restore driver method mocks to no-ops so test-specific implementations
+    // set via .mockImplementation() in one test do not bleed into subsequent tests.
     vi.clearAllMocks()
     mockHidDevices.mockReturnValue([])
     mockShowQuickPick.mockResolvedValue(undefined)
     mockShowInformationMessage.mockResolvedValue(undefined)
+    mockDualSenseStart.mockImplementation(() => undefined)
+    mockDualSenseSetHaptic.mockImplementation(() => undefined)
+    mockDualSenseStop.mockImplementation(() => undefined)
+    mockXboxStart.mockImplementation(() => undefined)
+    mockGenericStart.mockImplementation(() => undefined)
   })
 
   it('returns null when device list is empty', async () => {
@@ -192,6 +199,7 @@ describe('showDeviceSelector', () => {
     const result = await showDeviceSelector()
     expect(MockDualSenseDriver).toHaveBeenCalled()
     expect(result).not.toBeNull()
+    expect(result?.controllerType).toBe('dualsense')
   })
 
   it('calls driver.start() after selection', async () => {
@@ -214,17 +222,19 @@ describe('showDeviceSelector', () => {
     const xbox = makeDevice({ vendorId: 0x045e, productId: 0x0b12, product: 'Xbox Controller' })
     mockHidDevices.mockReturnValue([xbox])
     mockShowQuickPick.mockResolvedValue({ label: formatDeviceLabel(xbox), device: xbox })
-    await showDeviceSelector()
+    const result = await showDeviceSelector()
     expect(MockXboxDriver).toHaveBeenCalledWith(0x045e, 0x0b12)
     expect(mockXboxSetHaptic).not.toHaveBeenCalled()
+    expect(result?.controllerType).toBe('xbox')
   })
 
   it('instantiates GenericHidDriver for unknown VID/PID', async () => {
     const generic = makeDevice({ vendorId: 0xaaaa, productId: 0xbbbb, product: 'Generic' })
     mockHidDevices.mockReturnValue([generic])
     mockShowQuickPick.mockResolvedValue({ label: formatDeviceLabel(generic), device: generic })
-    await showDeviceSelector()
+    const result = await showDeviceSelector()
     expect(MockGenericHidDriver).toHaveBeenCalledWith(0xaaaa, 0xbbbb)
+    expect(result?.controllerType).toBe('generic-hid')
   })
 
   it('returns null and logs error when driver.start() throws', async () => {
@@ -235,5 +245,16 @@ describe('showDeviceSelector', () => {
     const result = await showDeviceSelector()
     expect(result).toBeNull()
     expect(mockLoggerError).toHaveBeenCalled()
+  })
+
+  it('stops driver and returns null when setHaptic throws for DualSense', async () => {
+    const ds = makeDevice({ vendorId: 0x054c, productId: 0x0ce6, product: 'DualSense' })
+    mockHidDevices.mockReturnValue([ds])
+    mockShowQuickPick.mockResolvedValue({ label: formatDeviceLabel(ds), device: ds })
+    mockDualSenseSetHaptic.mockImplementation(() => { throw new Error('haptic failed') })
+    const result = await showDeviceSelector()
+    expect(result).toBeNull()
+    expect(mockDualSenseStop).toHaveBeenCalled()
+    expect(mockLoggerWarn).toHaveBeenCalled()
   })
 })
