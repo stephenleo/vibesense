@@ -4,6 +4,7 @@
 
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { EventEmitter } from 'events'
+import type { ControllerType } from '../../../src/extension/hid/hal'
 
 // ── Mock vscode (required by logger) ────────────────────────────────────────
 const mockAppendLine = vi.fn()
@@ -83,7 +84,7 @@ const { ControllerLifecycleManager } = await import(
  * Build a mock ControllerHAL driver backed by a real EventEmitter
  * so that `.on('data', ...)` wiring actually works.
  */
-function makeMockDriver(controllerType: string = 'dualsense') {
+function makeMockDriver(controllerType: ControllerType = 'dualsense') {
   const emitter = new EventEmitter()
   const driver = {
     controllerType,
@@ -342,7 +343,7 @@ describe('ControllerLifecycleManager', () => {
       vi.advanceTimersByTime(60000)
 
       // Should have polled at most 60 times, then stopped
-      expect(mockCreateDriver.mock.calls.length).toBeLessThanOrEqual(61)
+      expect(mockCreateDriver.mock.calls.length).toBeLessThanOrEqual(60)
       // After cap, no more polls even with more time
       const callsAtCap = mockCreateDriver.mock.calls.length
       vi.advanceTimersByTime(10000)

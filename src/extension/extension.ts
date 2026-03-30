@@ -7,8 +7,9 @@ import { logger, disposeLogger } from './logger'
 import { HidManager } from './hid/hid-manager'
 import { ControllerLifecycleManager } from './hid/controller-lifecycle-manager'
 
-// Module-level lifecycle manager reference — accessible for deactivate()
+// Module-level references — accessible for deactivate() and subscription dispose
 let lifecycleManager: ControllerLifecycleManager | undefined
+let hidManager: HidManager | undefined
 
 /**
  * Called when the extension is activated.
@@ -17,7 +18,7 @@ let lifecycleManager: ControllerLifecycleManager | undefined
 export function activate(context: vscode.ExtensionContext): void {
   logger.info('VibeSense activating')
 
-  const hidManager = new HidManager()
+  hidManager = new HidManager()
   const initialDriver = hidManager.start()
 
   lifecycleManager = new ControllerLifecycleManager(
@@ -34,7 +35,8 @@ export function activate(context: vscode.ExtensionContext): void {
     dispose: () => {
       lifecycleManager?.stop()
       lifecycleManager = undefined
-      hidManager.stop()
+      hidManager?.stop()
+      hidManager = undefined
     },
   })
 }
@@ -45,5 +47,7 @@ export function activate(context: vscode.ExtensionContext): void {
 export function deactivate(): void {
   lifecycleManager?.stop()
   lifecycleManager = undefined
+  hidManager?.stop()
+  hidManager = undefined
   disposeLogger()
 }

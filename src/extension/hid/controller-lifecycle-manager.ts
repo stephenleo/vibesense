@@ -141,7 +141,7 @@ export class ControllerLifecycleManager {
       this.reconnectPollCount++
 
       // Cap polling at MAX_RECONNECT_POLLS to avoid indefinite resource use
-      if (this.reconnectPollCount > MAX_RECONNECT_POLLS) {
+      if (this.reconnectPollCount >= MAX_RECONNECT_POLLS) {
         logger.warn(
           `ControllerLifecycleManager: reconnect polling stopped after ${MAX_RECONNECT_POLLS} attempts — controller not found`,
         )
@@ -152,8 +152,10 @@ export class ControllerLifecycleManager {
       try {
         const driver = createDriver()
         if (driver) {
-          this.clearReconnectLoop()
           driver.start()
+          // Only clear the interval after successful start — if start() throws,
+          // polling continues so a subsequent poll can retry (NFR-R1)
+          this.clearReconnectLoop()
           this.currentDriver = driver
           this.connectionState = 'connected'
           this.attachDriver(driver)
