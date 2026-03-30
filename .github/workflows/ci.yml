@@ -18,6 +18,8 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run lint
       - run: npm run typecheck
+      - run: npm test
+        # TODO: add test:integration to CI once headless VSCode runner is configured
 
   build-and-package:
     needs: lint-and-typecheck
