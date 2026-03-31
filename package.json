@@ -16,7 +16,20 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
-    "commands": [],
+    "commands": [
+      {
+        "command": "vibesense.openTerminal",
+        "title": "VibeSense: Open Terminal"
+      },
+      {
+        "command": "vibesense.launchClaudeCode",
+        "title": "VibeSense: Launch Claude Code"
+      },
+      {
+        "command": "vibesense.launchCopilotChat",
+        "title": "VibeSense: Launch Copilot Chat"
+      }
+    ],
     "configuration": {
       "title": "VibeSense",
       "properties": {}

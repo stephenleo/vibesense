@@ -15,6 +15,7 @@ import { loadBindings } from './input/binding-loader'
 import { ensureWorkspaceProfile } from './input/profile-writer'
 import { CLAUDE_CODE_DEFAULT_PROFILE } from './input/profile-schema'
 import { SlidePanelManager } from './panels/slide-panel-manager'
+import { registerCommands } from './commands/register'
 import type { ControllerEvent, ControllerType } from '../shared/types'
 
 // Module-level references — accessible for deactivate() and subscription dispose
@@ -31,6 +32,9 @@ export function activate(context: vscode.ExtensionContext): void {
   // Instantiate status bar immediately so it's always visible (FR27)
   const statusBar = new StatusBarController()
   context.subscriptions.push(statusBar)
+
+  // Story 3.1: Register controller-triggered terminal and agent launch commands (FR10, FR11, FR12)
+  registerCommands(context)
 
   // Instantiate SlidePanel manager (Story 3.4)
   const slidePanelManager = new SlidePanelManager(context)
