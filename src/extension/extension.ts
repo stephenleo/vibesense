@@ -10,6 +10,8 @@ import { StatusBarController } from './status-bar'
 import { checkHidAccess, isHidPermissionError } from './platform/permission-checker'
 import { handleHidPermissionError } from './platform/platform-guide'
 import { showDeviceSelector } from './platform/device-selector'
+import { InputRouter } from './input/input-router'
+import { loadBindings } from './input/binding-loader'
 import type { ControllerEvent, ControllerType } from '../shared/types'
 
 // Module-level references — accessible for deactivate() and subscription dispose
@@ -26,6 +28,13 @@ export function activate(context: vscode.ExtensionContext): void {
   // Instantiate status bar immediately so it's always visible (FR27)
   const statusBar = new StatusBarController()
   context.subscriptions.push(statusBar)
+
+  // Load binding profile and create input router (Story 2.5)
+  const workspaceRoot =
+    vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? context.extensionUri.fsPath
+  const bindings = loadBindings(workspaceRoot)
+  const inputRouter = new InputRouter(bindings)
+  context.subscriptions.push(inputRouter)
 
   // Check HID access before enumeration — surfaces macOS/Linux permission guides (Story 2.6)
   const accessCheck = checkHidAccess()
@@ -80,9 +89,27 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   }
 
+  /**
+   * Attach input-router event listener to a HAL driver.
+   * Called on initial connect and on every reconnect (Story 2.5).
+   */
+  function attachInputListeners(driver: {
+    on: (event: string | symbol, listener: (...args: unknown[]) => void) => unknown
+  }): void {
+    driver.on('data', (raw: unknown) => {
+      try {
+        const event = raw as ControllerEvent
+        inputRouter.handleEvent(event)
+      } catch (err) {
+        logger.error('InputRouter: data handler error', err)
+      }
+    })
+  }
+
   // Attach status-bar listeners to the initial driver (if any)
   if (initialDriver !== null) {
     attachStatusBarListeners(initialDriver)
+    attachInputListeners(initialDriver)
   }
 
   // Auto-detection failed — offer manual device selection (Story 2.6, FR5)
@@ -100,6 +127,7 @@ export function activate(context: vscode.ExtensionContext): void {
               currentControllerType = result.controllerType
               statusBar.update({ kind: 'connected', controllerType: result.controllerType })
               attachStatusBarListeners(result.driver)
+              attachInputListeners(result.driver)
             }
           } catch (err) {
             logger.error('extension: showDeviceSelector failed', err)
@@ -115,6 +143,7 @@ export function activate(context: vscode.ExtensionContext): void {
       currentControllerType = driver.controllerType
       statusBar.update({ kind: 'connected', controllerType: driver.controllerType })
       attachStatusBarListeners(driver)
+      attachInputListeners(driver)
     },
     () => {
       logger.info('VibeSense: controller disconnected — keyboard fallback active')

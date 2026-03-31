@@ -1,0 +1,279 @@
+// test/unit/input/input-router.test.ts
+// Unit tests for InputRouter — all VSCode APIs and logger mocked
+
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
+
+// ── Hoisted mocks (must be declared before vi.mock calls) ─────────────────────
+const { mockExecuteCommand, mockLogger } = vi.hoisted(() => {
+  return {
+    mockExecuteCommand: vi.fn(),
+    mockLogger: {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    },
+  }
+})
+
+// ── Mock vscode ────────────────────────────────────────────────────────────────
+vi.mock('vscode', () => ({
+  commands: {
+    executeCommand: mockExecuteCommand,
+  },
+}))
+
+// ── Mock logger ────────────────────────────────────────────────────────────────
+vi.mock('../../../src/extension/logger', () => ({
+  logger: mockLogger,
+}))
+
+// ── Imports after mocks ────────────────────────────────────────────────────────
+import { InputRouter } from '../../../src/extension/input/input-router'
+import { INPUT_BUFFER_WINDOW_MS } from '../../../src/shared/constants'
+import type { BindingMap } from '../../../src/extension/input/default-bindings'
+import type { ControllerEvent } from '../../../src/shared/types'
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+const testBindings: BindingMap = {
+  cross: 'vibesense.approve',
+  circle: 'vibesense.deny',
+  up: 'workbench.action.terminal.scrollUp',
+}
+
+function buttonPress(button: string): ControllerEvent {
+  return { kind: 'button', button: button as never, pressed: true }
+}
+
+function buttonRelease(button: string): ControllerEvent {
+  return { kind: 'button', button: button as never, pressed: false }
+}
+
+function axisEvent(value: number): ControllerEvent {
+  return { kind: 'axis', axis: 'left_y', value }
+}
+
+// ── Tests ──────────────────────────────────────────────────────────────────────
+describe('InputRouter', () => {
+  let router: InputRouter
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.clearAllMocks()
+    router = new InputRouter(testBindings)
+  })
+
+  afterEach(() => {
+    router.dispose()
+    vi.useRealTimers()
+  })
+
+  // ── AC 1: Button press with binding ───────────────────────────────────────
+  describe('button press with binding', () => {
+    it('calls executeCommand with the correct command ID', () => {
+      router.handleEvent(buttonPress('cross'))
+      expect(mockExecuteCommand).toHaveBeenCalledOnce()
+      expect(mockExecuteCommand).toHaveBeenCalledWith('vibesense.approve')
+    })
+
+    it('logs the button→command mapping at debug level (AC 1)', () => {
+      router.handleEvent(buttonPress('cross'))
+      expect(mockLogger.debug).toHaveBeenCalledOnce()
+      expect(mockLogger.debug).toHaveBeenCalledWith('InputRouter: cross → vibesense.approve')
+    })
+
+    it('routes circle to vibesense.deny', () => {
+      router.handleEvent(buttonPress('circle'))
+      expect(mockExecuteCommand).toHaveBeenCalledWith('vibesense.deny')
+    })
+  })
+
+  // ── AC 3: Button press with no binding ────────────────────────────────────
+  describe('button press with no binding', () => {
+    it('does NOT call executeCommand (silently ignored)', () => {
+      router.handleEvent(buttonPress('square'))
+      expect(mockExecuteCommand).not.toHaveBeenCalled()
+    })
+
+    it('does NOT log an error for unbound buttons', () => {
+      router.handleEvent(buttonPress('square'))
+      expect(mockLogger.error).not.toHaveBeenCalled()
+    })
+  })
+
+  // ── Button release (only fire on press) ───────────────────────────────────
+  describe('button release', () => {
+    it('does NOT call executeCommand on button release (pressed: false)', () => {
+      router.handleEvent(buttonRelease('cross'))
+      expect(mockExecuteCommand).not.toHaveBeenCalled()
+    })
+  })
+
+  // ── AC 4: Axis dead zone ──────────────────────────────────────────────────
+  describe('axis dead zone (AC 4)', () => {
+    it('does NOT execute any command when axis value is below dead zone (0.10)', () => {
+      router.handleEvent(axisEvent(0.10))
+      expect(mockExecuteCommand).not.toHaveBeenCalled()
+    })
+
+    it('does NOT execute any command when axis value is negative but below dead zone (-0.10)', () => {
+      router.handleEvent(axisEvent(-0.10))
+      expect(mockExecuteCommand).not.toHaveBeenCalled()
+    })
+
+    it('does NOT execute any command at exactly 0.14 (boundary — still below dead zone)', () => {
+      router.handleEvent(axisEvent(0.14))
+      expect(mockExecuteCommand).not.toHaveBeenCalled()
+    })
+
+    it('does NOT throw when axis value is above dead zone (0.20) — handler in place', () => {
+      expect(() => router.handleEvent(axisEvent(0.20))).not.toThrow()
+    })
+
+    it('does NOT throw when axis value is above dead zone in negative direction (-0.20)', () => {
+      expect(() => router.handleEvent(axisEvent(-0.20))).not.toThrow()
+    })
+  })
+
+  // ── AC 2: Input buffering ─────────────────────────────────────────────────
+  describe('startBuffering() — AC 2', () => {
+    it('buffers events and does NOT call executeCommand during buffering', () => {
+      router.startBuffering()
+      router.handleEvent(buttonPress('cross'))
+      router.handleEvent(buttonPress('circle'))
+      expect(mockExecuteCommand).not.toHaveBeenCalled()
+    })
+
+    it('replays buffered events in order after buffer window expires', () => {
+      router.startBuffering()
+      router.handleEvent(buttonPress('cross'))
+      router.handleEvent(buttonPress('circle'))
+
+      vi.advanceTimersByTime(INPUT_BUFFER_WINDOW_MS + 10)
+
+      expect(mockExecuteCommand).toHaveBeenCalledTimes(2)
+      expect(mockExecuteCommand).toHaveBeenNthCalledWith(1, 'vibesense.approve')
+      expect(mockExecuteCommand).toHaveBeenNthCalledWith(2, 'vibesense.deny')
+    })
+
+    it('does not lose any buffered events (no silent drops — AC 2)', () => {
+      router.startBuffering()
+      for (let i = 0; i < 5; i++) {
+        router.handleEvent(buttonPress('cross'))
+      }
+      vi.advanceTimersByTime(INPUT_BUFFER_WINDOW_MS + 10)
+      expect(mockExecuteCommand).toHaveBeenCalledTimes(5)
+    })
+
+    it('resets the timer if startBuffering() is called again before expiry', () => {
+      router.startBuffering()
+      router.handleEvent(buttonPress('cross'))
+
+      // Re-trigger buffering before timeout
+      vi.advanceTimersByTime(INPUT_BUFFER_WINDOW_MS - 50)
+      router.startBuffering()
+      router.handleEvent(buttonPress('circle'))
+
+      // At original expiry + a little: should NOT have flushed yet
+      vi.advanceTimersByTime(60)
+      expect(mockExecuteCommand).not.toHaveBeenCalled()
+
+      // Full new window passes
+      vi.advanceTimersByTime(INPUT_BUFFER_WINDOW_MS)
+      expect(mockExecuteCommand).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  // ── stopBuffering() immediately flushes ───────────────────────────────────
+  describe('stopBuffering()', () => {
+    it('immediately flushes buffered events', () => {
+      router.startBuffering()
+      router.handleEvent(buttonPress('cross'))
+      router.handleEvent(buttonPress('circle'))
+
+      router.stopBuffering()
+
+      expect(mockExecuteCommand).toHaveBeenCalledTimes(2)
+      expect(mockExecuteCommand).toHaveBeenNthCalledWith(1, 'vibesense.approve')
+      expect(mockExecuteCommand).toHaveBeenNthCalledWith(2, 'vibesense.deny')
+    })
+
+    it('does not call executeCommand again when timer naturally expires after stopBuffering()', () => {
+      router.startBuffering()
+      router.handleEvent(buttonPress('cross'))
+      router.stopBuffering()
+
+      vi.clearAllMocks()
+      vi.advanceTimersByTime(INPUT_BUFFER_WINDOW_MS + 10)
+
+      expect(mockExecuteCommand).not.toHaveBeenCalled()
+    })
+
+    it('after stopBuffering(), new events are dispatched immediately', () => {
+      router.startBuffering()
+      router.stopBuffering()
+      router.handleEvent(buttonPress('cross'))
+      expect(mockExecuteCommand).toHaveBeenCalledOnce()
+    })
+  })
+
+  // ── dispose() ─────────────────────────────────────────────────────────────
+  describe('dispose()', () => {
+    it('clears the buffer', () => {
+      router.startBuffering()
+      router.handleEvent(buttonPress('cross'))
+      router.dispose()
+
+      // Timer would have fired — but buffer was cleared on dispose
+      vi.advanceTimersByTime(INPUT_BUFFER_WINDOW_MS + 10)
+      expect(mockExecuteCommand).not.toHaveBeenCalled()
+    })
+
+    it('cancels the pending timer on dispose()', () => {
+      router.startBuffering()
+      router.dispose()
+      // Advancing time should not cause any errors or command execution
+      expect(() => vi.advanceTimersByTime(INPUT_BUFFER_WINDOW_MS + 10)).not.toThrow()
+      expect(mockExecuteCommand).not.toHaveBeenCalled()
+    })
+  })
+
+  // ── Error resilience (NFR-R1) ─────────────────────────────────────────────
+  describe('error handling', () => {
+    it('does not throw when executeCommand throws', () => {
+      mockExecuteCommand.mockImplementationOnce(() => {
+        throw new Error('vscode API error')
+      })
+      expect(() => router.handleEvent(buttonPress('cross'))).not.toThrow()
+    })
+
+    it('logs error when executeCommand throws', () => {
+      mockExecuteCommand.mockImplementationOnce(() => {
+        throw new Error('vscode API error')
+      })
+      router.handleEvent(buttonPress('cross'))
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'InputRouter: executeCommand error',
+        expect.any(Error),
+      )
+    })
+  })
+
+  // ── Non-button/axis events are ignored ────────────────────────────────────
+  describe('non-button/axis events', () => {
+    it('ignores connected events (handled by StatusBarController)', () => {
+      router.handleEvent({ kind: 'connected', controllerType: 'dualsense' })
+      expect(mockExecuteCommand).not.toHaveBeenCalled()
+    })
+
+    it('ignores disconnected events', () => {
+      router.handleEvent({ kind: 'disconnected' })
+      expect(mockExecuteCommand).not.toHaveBeenCalled()
+    })
+
+    it('ignores battery events', () => {
+      router.handleEvent({ kind: 'battery', level: 10 })
+      expect(mockExecuteCommand).not.toHaveBeenCalled()
+    })
+  })
+})
