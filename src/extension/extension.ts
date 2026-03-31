@@ -25,7 +25,9 @@ import { registerHooks } from './ipc/hook-writer'
 import { PipeServer } from './ipc/pipe-server'
 import { TerminalOutputParser } from './session/terminal-parser'
 import { LastCommandTracker } from './session/last-command-tracker'
+import { HapticController } from './output/haptic-controller'
 import type { ControllerEvent, ControllerType } from '../shared/types'
+import type { ControllerHAL } from './hid/hal'
 import type { AggregateGameState } from './fsm/states'
 import type { AgentState } from '../shared/types'
 
@@ -70,6 +72,15 @@ export function activate(context: vscode.ExtensionContext): void {
       lastCommandTracker = undefined
     },
   })
+
+  // Story 6.1: Track the currently active HAL driver for haptic routing
+  // Set/cleared in ControllerLifecycleManager connect/disconnect callbacks below
+  let currentDriver: ControllerHAL | null = null
+
+  // Story 6.1: Instantiate HapticController BEFORE visual panel managers (UX-DR14 haptic-first)
+  // EventEmitter fires listeners in registration order — haptic must subscribe first.
+  const hapticController = new HapticController(sessionManager, () => currentDriver)
+  context.subscriptions.push({ dispose: () => hapticController.dispose() })
 
   // Story 5.1: Log aggregateGameStateChanged events (haptic/LED/game integrations come in later epics)
   sessionManager.on('aggregateGameStateChanged', (state: AggregateGameState) => {
@@ -202,6 +213,7 @@ export function activate(context: vscode.ExtensionContext): void {
   if (initialDriver !== null) {
     statusBar.update({ kind: 'connected', controllerType: initialDriver.controllerType })
     currentControllerType = initialDriver.controllerType
+    currentDriver = initialDriver  // Story 6.1: make HAL available to HapticController
     slidePanelManager.notifyControllerConnected(initialDriver.controllerType)
   }
 
@@ -320,6 +332,7 @@ export function activate(context: vscode.ExtensionContext): void {
     (driver) => {
       logger.info('VibeSense: controller connected', driver.controllerType)
       currentControllerType = driver.controllerType
+      currentDriver = driver  // Story 6.1: make new HAL available to HapticController
       statusBar.update({ kind: 'connected', controllerType: driver.controllerType })
       slidePanelManager.notifyControllerConnected(driver.controllerType)
       settingsPanelManager.notifyControllerConnected(driver.controllerType)
@@ -330,6 +343,7 @@ export function activate(context: vscode.ExtensionContext): void {
     () => {
       logger.info('VibeSense: controller disconnected — keyboard fallback active')
       currentControllerType = null
+      currentDriver = null  // Story 6.1: clear HAL ref on disconnect
       statusBar.update({ kind: 'disconnected' })
     },
   )
