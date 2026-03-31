@@ -495,7 +495,7 @@ describe('registerCommands', () => {
         { name: 'VibeSense', show: vi.fn() },
         { name: 'Agent', show: vi.fn() },
       ]
-      Object.defineProperty(mockState, 'terminals', { get: () => terms, configurable: true })
+      mockState.terminals = terms
       fakeSlidePanelManager.notifyQuickPanelClose = vi.fn()
       const handlers = captureHandlers()
       handlers['vibesense.switchToSession'](1)
@@ -505,7 +505,7 @@ describe('registerCommands', () => {
 
     it('does not call show when index is out of bounds — no error propagated (NFR-R1)', () => {
       const terms = [{ name: 'VibeSense', show: vi.fn() }]
-      Object.defineProperty(mockState, 'terminals', { get: () => terms, configurable: true })
+      mockState.terminals = terms
       fakeSlidePanelManager.notifyQuickPanelClose = vi.fn()
       const handlers = captureHandlers()
       expect(() => handlers['vibesense.switchToSession'](99)).not.toThrow()
@@ -515,7 +515,7 @@ describe('registerCommands', () => {
     })
 
     it('catches errors and does not propagate — NFR-R1', () => {
-      Object.defineProperty(mockState, 'terminals', { get: () => [], configurable: true })
+      mockState.terminals = []
       fakeSlidePanelManager.notifyQuickPanelClose = vi.fn().mockImplementation(() => {
         throw new Error('notifyQuickPanelClose failed')
       })
