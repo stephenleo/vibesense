@@ -171,6 +171,14 @@ describe('loadBindings()', () => {
       mockReadFileSync.mockReturnValue(JSON.stringify(invalid))
       expect(() => loadBindings('/workspace')).not.toThrow()
     })
+
+    it('returns CLAUDE_CODE_DEFAULT_BINDINGS when binding value is an empty string', () => {
+      const invalid = { bindings: { cross: '' } }
+      mockReadFileSync.mockReturnValue(JSON.stringify(invalid))
+
+      const result = loadBindings('/workspace')
+      expect(result).toEqual(CLAUDE_CODE_DEFAULT_BINDINGS)
+    })
   })
 
   // ── Unknown binding keys filtered ───────────────────────────────────────────
@@ -213,7 +221,7 @@ describe('loadBindings()', () => {
       const profile = {
         bindings: {
           circle: 'custom.deny',
-          invalid_key: 'custom.nope',
+          invalidKey: 'custom.nope',
         },
       }
       mockReadFileSync.mockReturnValue(JSON.stringify(profile))

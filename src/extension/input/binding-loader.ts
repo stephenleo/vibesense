@@ -21,7 +21,7 @@ const VALID_BUTTON_IDS = new Set<string>([
 
 const VibeProfileSchema = z.object({
   profile: z.string().optional(),
-  bindings: z.record(z.string(), z.string()).optional(),
+  bindings: z.record(z.string(), z.string().min(1)).optional(),
   radialWheel: z
     .object({
       segments: z.array(z.string()),
