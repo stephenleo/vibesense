@@ -115,7 +115,7 @@ describe('registerCommands', () => {
   })
 
   describe('vibesense.openTerminal (AC: 1, 5)', () => {
-    it('calls createTerminal({ name: "VibeSense" }) and show(true)', () => {
+    it('calls createTerminal({ name: "VibeSense" }) and show(false) to focus terminal', () => {
       const handlers = captureHandlers()
       handlers['vibesense.openTerminal']()
 
