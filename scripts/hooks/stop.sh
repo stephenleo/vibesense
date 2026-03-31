@@ -5,4 +5,4 @@
 set -euo pipefail
 PAYLOAD=$(cat /dev/stdin)
 SESSION_ID=$(echo "$PAYLOAD" | jq -r '.session_id')
-echo "{\"hook\":\"stop\",\"session_id\":\"$SESSION_ID\"}" | nc -w 1 -U /tmp/vibesense.sock
+echo "{\"hook\":\"stop\",\"session_id\":\"$SESSION_ID\"}" | nc -w 1 -U /tmp/vibesense.sock || true
