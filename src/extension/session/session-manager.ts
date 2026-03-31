@@ -11,6 +11,7 @@ import { logger } from '../logger'
 
 export class SessionManager extends EventEmitter {
   private sessions: Map<string, AgentFSM> = new Map()
+  private lastAggregateState: AggregateGameState = 'PLAY'
 
   /**
    * Route an inbound hook message to the appropriate FSM.
@@ -59,7 +60,10 @@ export class SessionManager extends EventEmitter {
       this.emit('sessionStateChanged', sessionId, prev, next)
 
       const aggregateState = this.getAggregateGameState()
-      this.emit('aggregateGameStateChanged', aggregateState)
+      if (aggregateState !== this.lastAggregateState) {
+        this.lastAggregateState = aggregateState
+        this.emit('aggregateGameStateChanged', aggregateState)
+      }
     })
 
     logger.info(`SessionManager: created new FSM for session "${sessionId}"`)
@@ -82,9 +86,9 @@ export class SessionManager extends EventEmitter {
 
   /**
    * Read-only access to the session map — for HUD/LED subsystems.
-   * Returns the internal map reference; callers must not mutate it.
+   * Returns the internal map as ReadonlyMap to prevent external mutation.
    */
-  getSessions(): Map<string, AgentFSM> {
+  getSessions(): ReadonlyMap<string, AgentFSM> {
     return this.sessions
   }
 

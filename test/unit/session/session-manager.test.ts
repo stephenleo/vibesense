@@ -71,14 +71,25 @@ describe('SessionManager', () => {
     expect(manager.getAggregateGameState()).toBe('PLAY')
   })
 
-  it('aggregateGameStateChanged emitted after state transition', () => {
+  it('aggregateGameStateChanged emitted only when aggregate value changes', () => {
     const handler = vi.fn()
     manager.on('aggregateGameStateChanged', handler)
 
     const fsm = manager.getOrCreateFsm('abc')
-    fsm.dispatch('AGENT_PROCESSING')
 
-    expect(handler).toHaveBeenCalled()
+    // idle → processing: aggregate stays PLAY → not emitted
+    fsm.dispatch('AGENT_PROCESSING')
+    expect(handler).not.toHaveBeenCalled()
+
+    // processing → needs-input: aggregate changes PLAY → PAUSE → emitted
+    fsm.dispatch('NEEDS_INPUT')
+    expect(handler).toHaveBeenCalledTimes(1)
+    expect(handler).toHaveBeenCalledWith('PAUSE')
+
+    // needs-input → idle (via AGENT_COMPLETE): aggregate changes PAUSE → PLAY → emitted
+    fsm.dispatch('AGENT_COMPLETE')
+    expect(handler).toHaveBeenCalledTimes(2)
+    expect(handler).toHaveBeenCalledWith('PLAY')
   })
 
   it('sessionStateChanged emitted with (sessionId, prev, next) on FSM transition', () => {

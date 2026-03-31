@@ -55,10 +55,7 @@ export function activate(context: vscode.ExtensionContext): void {
     logger.info(`SessionManager: aggregateGameState → ${state}`)
   })
 
-  // Story 5.1: Log per-session state transitions
-  sessionManager.on('sessionStateChanged', (sessionId: string, prev: string, next: string) => {
-    logger.info(`SessionManager: session "${sessionId}" ${prev} → ${next}`)
-  })
+  // Story 5.1: Per-session state transitions are already logged inside SessionManager.getOrCreateFsm()
 
   // Instantiate SlidePanel manager (Story 3.4) — must be before registerCommands (Story 3.3)
   const slidePanelManager = new SlidePanelManager(context)
@@ -314,5 +311,7 @@ export function deactivate(): void {
   lifecycleManager = undefined
   hidManager?.stop()
   hidManager = undefined
+  sessionManager?.dispose()
+  sessionManager = undefined
   disposeLogger()
 }
