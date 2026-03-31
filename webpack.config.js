@@ -44,6 +44,7 @@ const webviewConfig = {
   entry: {
     'radial-wheel': './src/webview/radial-wheel/index.tsx',
     session: './src/webview/session/index.tsx',
+    settings: './src/webview/settings/index.tsx',
   },
   output: {
     path: path.resolve(__dirname, 'dist/webview'),

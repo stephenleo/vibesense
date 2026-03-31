@@ -16,6 +16,8 @@ import { ensureWorkspaceProfile } from './input/profile-writer'
 import { CLAUDE_CODE_DEFAULT_PROFILE } from './input/profile-schema'
 import { ModeManager } from './input/mode-manager'
 import { SlidePanelManager } from './panels/slide-panel-manager'
+import { SettingsPanelManager } from './panels/settings-panel'
+import { SettingsBridge } from './input/settings-bridge'
 import { registerCommands } from './commands/register'
 import type { ControllerEvent, ControllerType } from '../shared/types'
 
@@ -59,6 +61,9 @@ export function activate(context: vscode.ExtensionContext): void {
   // Story 2.7: Create .vscode/vibesense.json if not present
   ensureWorkspaceProfile(workspaceRoot, CLAUDE_CODE_DEFAULT_PROFILE)
 
+  // Story 4.1: Create SettingsBridge (reads VSCode config API + writes profile atomically)
+  const settingsBridge = new SettingsBridge(workspaceRoot)
+
   // Story 2.5: Load binding profile (file may now exist from above)
   const bindings = loadBindings(workspaceRoot)
 
@@ -73,6 +78,43 @@ export function activate(context: vscode.ExtensionContext): void {
     modeManager.onDidChangeMode(() => {
       const filtered = modeManager.getFilteredBindings(bindings)
       inputRouter.updateBindings(filtered)
+    }),
+  )
+
+  // Story 4.1: Instantiate SettingsPanelManager and register vibesense.openSettings command
+  const settingsPanelManager = new SettingsPanelManager(context, settingsBridge, inputRouter)
+  context.subscriptions.push(settingsPanelManager)
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('vibesense.openSettings', () => {
+      try {
+        settingsPanelManager.open()
+      } catch (err) {
+        logger.error('extension: vibesense.openSettings failed', err)
+        // NFR-R1: never rethrow
+      }
+    }),
+  )
+
+  // Story 4.1: Watch VSCode settings for immediate hot-reload (AC 2)
+  context.subscriptions.push(
+    settingsBridge.watchSettings((newBindings) => {
+      inputRouter.reloadBindings(newBindings)
+    }),
+  )
+
+  // Story 4.2: Hot-reload bindings when vibesense.* configuration changes (e.g., via Settings Sync)
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('vibesense')) {
+        try {
+          const newBindings = loadBindings(workspaceRoot)
+          inputRouter.updateBindings(newBindings)
+          logger.info('VibeSense: bindings reloaded after configuration change')
+        } catch (err) {
+          logger.error('VibeSense: failed to reload bindings on config change', err)
+        }
+      }
     }),
   )
 
@@ -107,6 +149,7 @@ export function activate(context: vscode.ExtensionContext): void {
         if (event.kind === 'connected') {
           currentControllerType = event.controllerType
           statusBar.update({ kind: 'connected', controllerType: event.controllerType })
+          settingsPanelManager.notifyControllerConnected(event.controllerType)
         } else if (event.kind === 'disconnected') {
           currentControllerType = null
           statusBar.update({ kind: 'disconnected' })
@@ -184,6 +227,7 @@ export function activate(context: vscode.ExtensionContext): void {
       currentControllerType = driver.controllerType
       statusBar.update({ kind: 'connected', controllerType: driver.controllerType })
       slidePanelManager.notifyControllerConnected(driver.controllerType)
+      settingsPanelManager.notifyControllerConnected(driver.controllerType)
       attachStatusBarListeners(driver)
       attachInputListeners(driver)
     },
