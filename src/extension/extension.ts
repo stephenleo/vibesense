@@ -23,6 +23,7 @@ import { registerCommands } from './commands/register'
 import { SessionManager } from './session/session-manager'
 import { registerHooks } from './ipc/hook-writer'
 import { PipeServer } from './ipc/pipe-server'
+import { TerminalOutputParser } from './session/terminal-parser'
 import type { ControllerEvent, ControllerType } from '../shared/types'
 import type { AggregateGameState } from './fsm/states'
 
@@ -65,7 +66,17 @@ export function activate(context: vscode.ExtensionContext): void {
   // Story 5.1: Per-session state transitions are already logged inside SessionManager.getOrCreateFsm()
 
   // Story 5.2: Register Claude Code hooks — writes Stop + PostToolUse to ~/.claude/settings.json
-  registerHooks(context)
+  let hooksRegistered = false
+  try {
+    registerHooks(context)
+    hooksRegistered = true
+  } catch {
+    // If hook registration fails, terminal parser fallback will remain active
+  }
+
+  // Story 5.4: Terminal output fallback parser — active when hooks unavailable
+  const terminalParser = new TerminalOutputParser(sessionManager, () => hooksRegistered)
+  context.subscriptions.push(terminalParser)
 
   // Instantiate SlidePanel manager (Story 3.4) — must be before registerCommands (Story 3.3)
   const slidePanelManager = new SlidePanelManager(context)
