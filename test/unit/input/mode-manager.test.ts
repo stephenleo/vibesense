@@ -13,7 +13,6 @@ const mockState = vi.hoisted(() => {
   // Key is the bare config key passed to getConfiguration('vibesense').get('fullMode', false)
   const configValues: Record<string, unknown> = { fullMode: false }
 
-
   return {
     // Configuration values container — tests mutate this directly
     configValues,

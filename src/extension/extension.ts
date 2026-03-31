@@ -69,10 +69,12 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(inputRouter)
 
   // Story 4.3: Subscribe to mode changes — hot-swap the binding map on mode transitions (AC 2, 3).
-  modeManager.onDidChangeMode(() => {
-    const filtered = modeManager.getFilteredBindings(bindings)
-    inputRouter.updateBindings(filtered)
-  })
+  context.subscriptions.push(
+    modeManager.onDidChangeMode(() => {
+      const filtered = modeManager.getFilteredBindings(bindings)
+      inputRouter.updateBindings(filtered)
+    }),
+  )
 
   // Check HID access before enumeration — surfaces macOS/Linux permission guides (Story 2.6)
   const accessCheck = checkHidAccess()
