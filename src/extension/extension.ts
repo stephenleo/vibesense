@@ -17,6 +17,7 @@ import { CLAUDE_CODE_DEFAULT_PROFILE } from './input/profile-schema'
 import { ModeManager } from './input/mode-manager'
 import { SlidePanelManager } from './panels/slide-panel-manager'
 import { SettingsPanelManager } from './panels/settings-panel'
+import { OnboardingPanelManager } from './panels/onboarding-panel'
 import { SettingsBridge } from './input/settings-bridge'
 import { registerCommands } from './commands/register'
 import type { ControllerEvent, ControllerType } from '../shared/types'
@@ -46,10 +47,15 @@ export function activate(context: vscode.ExtensionContext): void {
   const modeManager = new ModeManager(context)
   context.subscriptions.push(modeManager)
 
+  // Story 4.4: Instantiate OnboardingPanelManager before registerCommands
+  const onboardingPanelManager = new OnboardingPanelManager(context)
+  context.subscriptions.push(onboardingPanelManager)
+
   // Story 3.1: Register controller-triggered terminal and agent launch commands (FR10, FR11, FR12)
   // Story 3.3: Pass slidePanelManager so session-switch commands can notify the webview (FR13)
   // Story 4.3: Pass modeManager so vibesense.completeTutorial can call setFullMode() (AC 2)
-  registerCommands(context, slidePanelManager, modeManager)
+  // Story 4.4: Pass onboardingPanelManager so vibesense.startOnboarding command is registered
+  registerCommands(context, slidePanelManager, modeManager, onboardingPanelManager)
 
   // Send initial empty session list on startup — panel shows empty state hint
   slidePanelManager.updateSessions([])
@@ -190,10 +196,37 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   }
 
+  /**
+   * Attach onboarding button-forwarding listener to a HAL driver.
+   * Forwards button events to the onboarding panel when it is open (Story 4.4).
+   * Called alongside attachStatusBarListeners and attachInputListeners.
+   */
+  function attachOnboardingListeners(driver: {
+    on: (event: string | symbol, listener: (...args: unknown[]) => void) => unknown
+  }): void {
+    driver.on('data', (raw: unknown) => {
+      try {
+        const event = raw as ControllerEvent
+        if (event.kind === 'button' && event.pressed && onboardingPanelManager.isOpen()) {
+          onboardingPanelManager.notifyButtonPressed(event.button)
+        }
+      } catch (err) {
+        logger.error('OnboardingPanel: button forward error', err)
+      }
+    })
+  }
+
   // Attach status-bar listeners to the initial driver (if any)
   if (initialDriver !== null) {
     attachStatusBarListeners(initialDriver)
     attachInputListeners(initialDriver)
+    attachOnboardingListeners(initialDriver)
+  }
+
+  // Story 4.4: First-launch detection — auto-open tutorial if onboarding not yet complete (AC 1)
+  const onboardingDone = context.globalState.get<boolean>('vibesense.onboardingComplete') === true
+  if (!onboardingDone) {
+    onboardingPanelManager.open(currentControllerType)
   }
 
   // Auto-detection failed — offer manual device selection (Story 2.6, FR5)
@@ -212,6 +245,7 @@ export function activate(context: vscode.ExtensionContext): void {
               statusBar.update({ kind: 'connected', controllerType: result.controllerType })
               attachStatusBarListeners(result.driver)
               attachInputListeners(result.driver)
+              attachOnboardingListeners(result.driver)
             }
           } catch (err) {
             logger.error('extension: showDeviceSelector failed', err)
@@ -230,6 +264,7 @@ export function activate(context: vscode.ExtensionContext): void {
       settingsPanelManager.notifyControllerConnected(driver.controllerType)
       attachStatusBarListeners(driver)
       attachInputListeners(driver)
+      attachOnboardingListeners(driver)
     },
     () => {
       logger.info('VibeSense: controller disconnected — keyboard fallback active')

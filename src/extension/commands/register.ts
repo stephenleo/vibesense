@@ -9,6 +9,7 @@ import * as vscode from 'vscode'
 import { logger } from '../logger'
 import type { SlidePanelManager } from '../panels/slide-panel-manager'
 import type { ModeManager } from '../input/mode-manager'
+import type { OnboardingPanelManager } from '../panels/onboarding-panel'
 
 /**
  * Register all vibesense.* commands with the extension context.
@@ -18,6 +19,7 @@ export function registerCommands(
   context: vscode.ExtensionContext,
   slidePanelManager: SlidePanelManager,
   modeManager: ModeManager,
+  onboardingPanelManager: OnboardingPanelManager,
 ): void {
   context.subscriptions.push(
     // FR10: Open a new VSCode integrated terminal and focus it
@@ -182,6 +184,17 @@ export function registerCommands(
         logger.info('vibesense.completeTutorial: Full mode unlocked')
       } catch (err) {
         logger.error('vibesense.completeTutorial: failed', err)
+        // NFR-R1: swallow — never propagate to VSCode process
+      }
+    }),
+
+    // Story 4.4: Open onboarding tutorial (AC 1, 4) — always starts from beginning
+    vscode.commands.registerCommand('vibesense.startOnboarding', () => {
+      try {
+        // null = no controller type known at command time; panel will use last notified type
+        onboardingPanelManager.open(null)
+      } catch (err) {
+        logger.error('vibesense.startOnboarding: failed', err)
         // NFR-R1: swallow — never propagate to VSCode process
       }
     }),

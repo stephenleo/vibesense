@@ -91,6 +91,18 @@ export const HostMessageSchema = z.discriminatedUnion('type', [
       command: z.string(),
     }),
   }),
+  z.object({
+    type: z.literal('ONBOARDING_INIT'),
+    payload: z.object({
+      controllerType: ControllerTypeSchema.nullable(),
+    }),
+  }),
+  z.object({
+    type: z.literal('ONBOARDING_BUTTON_PRESSED'),
+    payload: z.object({
+      button: z.string(),
+    }),
+  }),
 ])
 
 export type HostMessage = z.infer<typeof HostMessageSchema>
@@ -137,6 +149,20 @@ export const WebviewMessageSchema = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('SETTINGS_REQUEST_LOAD'),
+    payload: z.object({}),
+  }),
+  z.object({
+    type: z.literal('ONBOARDING_STEP_COMPLETE'),
+    payload: z.object({
+      stepIndex: z.number().int().nonnegative(),
+    }),
+  }),
+  z.object({
+    type: z.literal('ONBOARDING_COMPLETE'),
+    payload: z.object({}),
+  }),
+  z.object({
+    type: z.literal('ONBOARDING_DISMISSED'),
     payload: z.object({}),
   }),
 ])

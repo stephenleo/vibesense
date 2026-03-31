@@ -78,6 +78,14 @@ const fakeModeManager = {
   setGuidedMode: vi.fn(),
 } as unknown as import('../../../../src/extension/input/mode-manager').ModeManager
 
+// Minimal OnboardingPanelManager stub (Story 4.4 added onboardingPanelManager param)
+const fakeOnboardingPanelManager = {
+  open: vi.fn(),
+  isOpen: vi.fn(() => false),
+  notifyButtonPressed: vi.fn(),
+  dispose: vi.fn(),
+} as unknown as import('../../../../src/extension/panels/onboarding-panel').OnboardingPanelManager
+
 /**
  * Call registerCommands with a fake context and return a lookup map of
  * commandId → handler so each test can invoke handlers directly.
@@ -93,7 +101,7 @@ function captureHandlers(): Record<string, (...args: unknown[]) => void | Promis
     subscriptions: { push: vi.fn() },
   } as unknown as import('vscode').ExtensionContext
 
-  registerCommands(fakeContext, fakeSlidePanelManager, fakeModeManager)
+  registerCommands(fakeContext, fakeSlidePanelManager, fakeModeManager, fakeOnboardingPanelManager)
   return handlers
 }
 
@@ -128,6 +136,7 @@ describe('registerCommands', () => {
       expect(registeredIds).toContain('vibesense.quickPanelNext')
       expect(registeredIds).toContain('vibesense.quickPanelPrev')
       expect(registeredIds).toContain('vibesense.completeTutorial')
+      expect(registeredIds).toContain('vibesense.startOnboarding')
     })
 
     it('pushes all disposables to context.subscriptions (auto-dispose on deactivation)', () => {
@@ -137,11 +146,11 @@ describe('registerCommands', () => {
         subscriptions: { push: (...items: unknown[]) => fakeSubscriptions.push(...items) },
       } as unknown as import('vscode').ExtensionContext
 
-      registerCommands(fakeContext, fakeSlidePanelManager, fakeModeManager)
-      // 11 commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt,
+      registerCommands(fakeContext, fakeSlidePanelManager, fakeModeManager, fakeOnboardingPanelManager)
+      // 12 commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt,
       // switchSessionNext, switchSessionPrev, openQuickPanel, switchToSession,
-      // quickPanelNext, quickPanelPrev, completeTutorial
-      expect(fakeSubscriptions).toHaveLength(11)
+      // quickPanelNext, quickPanelPrev, completeTutorial, startOnboarding
+      expect(fakeSubscriptions).toHaveLength(12)
     })
   })
 
