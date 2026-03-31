@@ -101,7 +101,7 @@ describe('registerCommands', () => {
   })
 
   describe('registration', () => {
-    it('registers vibesense.openTerminal, vibesense.launchClaudeCode, and vibesense.launchCopilotChat', () => {
+    it('registers all commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt, switchSessionNext, switchSessionPrev', () => {
       captureHandlers()
       const registeredIds = mockState.registerCommand.mock.calls.map(
         (call) => call[0] as string,
@@ -109,6 +109,9 @@ describe('registerCommands', () => {
       expect(registeredIds).toContain('vibesense.openTerminal')
       expect(registeredIds).toContain('vibesense.launchClaudeCode')
       expect(registeredIds).toContain('vibesense.launchCopilotChat')
+      expect(registeredIds).toContain('vibesense.voicePtt')
+      expect(registeredIds).toContain('vibesense.switchSessionNext')
+      expect(registeredIds).toContain('vibesense.switchSessionPrev')
     })
 
     it('pushes all disposables to context.subscriptions (auto-dispose on deactivation)', () => {
@@ -119,8 +122,8 @@ describe('registerCommands', () => {
       } as unknown as import('vscode').ExtensionContext
 
       registerCommands(fakeContext, fakeSlidePanelManager)
-      // 5 commands: openTerminal, launchClaudeCode, launchCopilotChat, switchSessionNext, switchSessionPrev
-      expect(fakeSubscriptions).toHaveLength(5)
+      // 6 commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt, switchSessionNext, switchSessionPrev
+      expect(fakeSubscriptions).toHaveLength(6)
     })
   })
 
@@ -191,6 +194,66 @@ describe('registerCommands', () => {
 
       expect(() => handlers['vibesense.launchClaudeCode']()).not.toThrow()
       expect(mockState.loggerError).toHaveBeenCalledWith('vibesense.launchClaudeCode: failed', error)
+    })
+  })
+
+  describe('vibesense.voicePtt (AC: 1, 2, 3)', () => {
+    it('calls executeCommand("workbench.action.voiceChat.start") on invocation', async () => {
+      mockState.executeCommand.mockResolvedValueOnce(undefined)
+      const handlers = captureHandlers()
+      handlers['vibesense.voicePtt']()
+
+      await Promise.resolve()
+
+      expect(mockState.executeCommand).toHaveBeenCalledWith('workbench.action.voiceChat.start')
+    })
+
+    it('shows mic-active status bar message when voice is available (AC: 1)', async () => {
+      mockState.executeCommand.mockResolvedValueOnce(undefined)
+      const handlers = captureHandlers()
+      handlers['vibesense.voicePtt']()
+
+      await Promise.resolve()
+
+      expect(mockState.setStatusBarMessage).toHaveBeenCalledWith('$(mic) Voice input active', 5000)
+      expect(mockState.loggerInfo).toHaveBeenCalledWith('vibesense.voicePtt: voice PTT activated')
+    })
+
+    it('shows non-blocking fallback message when voice is unavailable (AC: 2, NFR-I2, NFR-A3, NFR-R4)', async () => {
+      mockState.executeCommand.mockRejectedValueOnce(new Error('command not found'))
+      const handlers = captureHandlers()
+      handlers['vibesense.voicePtt']()
+
+      await Promise.resolve()
+
+      expect(mockState.setStatusBarMessage).toHaveBeenCalledWith(
+        'Voice input unavailable — use radial wheel or keyboard',
+        5000,
+      )
+      expect(mockState.loggerWarn).toHaveBeenCalledWith(
+        'vibesense.voicePtt: voice unavailable — VS Code Speech not installed or voice mode inactive',
+      )
+    })
+
+    it('does NOT throw when executeCommand rejects — NFR-R1 zero-crash guarantee (AC: 3)', async () => {
+      mockState.executeCommand.mockRejectedValueOnce(new Error('VS Code Speech not installed'))
+      const handlers = captureHandlers()
+
+      // Synchronous call must not throw
+      expect(() => handlers['vibesense.voicePtt']()).not.toThrow()
+      // Async rejection handler must also not propagate
+      await Promise.resolve()
+    })
+
+    it('catches synchronous executeCommand throw and logs via logger.error — NFR-R1 (AC: 3)', () => {
+      const error = new Error('executeCommand exploded synchronously')
+      mockState.executeCommand.mockImplementationOnce(() => {
+        throw error
+      })
+      const handlers = captureHandlers()
+
+      expect(() => handlers['vibesense.voicePtt']()).not.toThrow()
+      expect(mockState.loggerError).toHaveBeenCalledWith('vibesense.voicePtt: failed', error)
     })
   })
 
