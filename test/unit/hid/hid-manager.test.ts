@@ -83,6 +83,9 @@ const { DualSenseDriver } = await import('../../../src/extension/hid/dualsense-d
 const { XboxDriver } = await import('../../../src/extension/hid/xbox-driver')
 const { GenericHidDriver } = await import('../../../src/extension/hid/generic-driver')
 
+// Pre-import GenericHidDriver for use in tests (cannot use await inside non-async test body)
+const GenericHidDriverImport = GenericHidDriver
+
 // ── createDriver() factory tests ──────────────────────────────────────────────
 describe('createDriver()', () => {
   beforeEach(() => {
@@ -324,5 +327,53 @@ describe('HidManager', () => {
 
   it('does not crash when stop() is called without start()', () => {
     expect(() => manager.stop()).not.toThrow()
+  })
+})
+
+// ── controllerType property tests ─────────────────────────────────────────────
+describe('controllerType property on drivers', () => {
+  it('DualSenseDriver exposes controllerType = "dualsense"', () => {
+    const driver = new DualSenseDriver()
+    expect(driver.controllerType).toBe('dualsense')
+  })
+
+  it('XboxDriver exposes controllerType = "xbox"', () => {
+    const driver = new XboxDriver(XBOX_VID, XBOX_PIDS[0])
+    expect(driver.controllerType).toBe('xbox')
+  })
+
+  it('GenericHidDriver exposes controllerType = "generic-hid"', () => {
+    const driver = new GenericHidDriverImport(0x1234, 0x5678)
+    expect(driver.controllerType).toBe('generic-hid')
+  })
+
+  it('createDriver() returns driver with correct controllerType for DualSense', () => {
+    mockDevices.mockReturnValue([
+      {
+        vendorId: DUALSENSE_VID,
+        productId: DUALSENSE_PIDS[0],
+        usagePage: 0x01,
+        usage: 0x05,
+        interface: 0,
+        release: 0,
+      },
+    ])
+    const driver = createDriver()
+    expect(driver?.controllerType).toBe('dualsense')
+  })
+
+  it('createDriver() returns driver with correct controllerType for Xbox', () => {
+    mockDevices.mockReturnValue([
+      {
+        vendorId: XBOX_VID,
+        productId: XBOX_PIDS[0],
+        usagePage: 0x01,
+        usage: 0x05,
+        interface: 0,
+        release: 0,
+      },
+    ])
+    const driver = createDriver()
+    expect(driver?.controllerType).toBe('xbox')
   })
 })

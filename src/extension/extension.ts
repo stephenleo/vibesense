@@ -5,8 +5,13 @@
 import * as vscode from 'vscode'
 import { logger, disposeLogger } from './logger'
 import { HidManager } from './hid/hid-manager'
+import { ControllerLifecycleManager } from './hid/controller-lifecycle-manager'
 import { StatusBarController } from './status-bar'
 import type { ControllerEvent, ControllerType } from '../shared/types'
+
+// Module-level references — accessible for deactivate() and subscription dispose
+let lifecycleManager: ControllerLifecycleManager | undefined
+let hidManager: HidManager | undefined
 
 /**
  * Called when the extension is activated.
@@ -19,19 +24,23 @@ export function activate(context: vscode.ExtensionContext): void {
   const statusBar = new StatusBarController()
   context.subscriptions.push(statusBar)
 
-  // Detect and start the controller driver
-  const hidManager = new HidManager()
-  const driver = hidManager.start()
-
   // Track current controller type for battery event correlation.
   let currentControllerType: ControllerType | null = null
 
-  if (driver !== null) {
-    // If a controller is already plugged in at startup, reflect that immediately (FR27)
-    statusBar.update({ kind: 'connected', controllerType: driver.controllerType })
-    currentControllerType = driver.controllerType
+  hidManager = new HidManager()
+  const initialDriver = hidManager.start()
 
-    // Subscribe to HAL events and map to status bar states
+  // If a controller is already plugged in at startup, reflect that immediately (FR27)
+  if (initialDriver !== null) {
+    statusBar.update({ kind: 'connected', controllerType: initialDriver.controllerType })
+    currentControllerType = initialDriver.controllerType
+  }
+
+  /**
+   * Attach status-bar event listeners to a HAL driver.
+   * Called on initial connect and on every reconnect.
+   */
+  function attachStatusBarListeners(driver: { on: (event: string | symbol, listener: (...args: unknown[]) => void) => unknown; controllerType: ControllerType }): void {
     driver.on('data', (raw: unknown) => {
       try {
         const event = raw as ControllerEvent
@@ -61,13 +70,43 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   }
 
-  // Dispose HidManager on extension deactivation
-  context.subscriptions.push({ dispose: () => hidManager.stop() })
+  // Attach status-bar listeners to the initial driver (if any)
+  if (initialDriver !== null) {
+    attachStatusBarListeners(initialDriver)
+  }
+
+  lifecycleManager = new ControllerLifecycleManager(
+    initialDriver,
+    (driver) => {
+      logger.info('VibeSense: controller connected', driver.controllerType)
+      currentControllerType = driver.controllerType
+      statusBar.update({ kind: 'connected', controllerType: driver.controllerType })
+      attachStatusBarListeners(driver)
+    },
+    () => {
+      logger.info('VibeSense: controller disconnected — keyboard fallback active')
+      currentControllerType = null
+      statusBar.update({ kind: 'disconnected' })
+    },
+  )
+
+  context.subscriptions.push({
+    dispose: () => {
+      lifecycleManager?.stop()
+      lifecycleManager = undefined
+      hidManager?.stop()
+      hidManager = undefined
+    },
+  })
 }
 
 /**
  * Called when the extension is deactivated.
  */
 export function deactivate(): void {
+  lifecycleManager?.stop()
+  lifecycleManager = undefined
+  hidManager?.stop()
+  hidManager = undefined
   disposeLogger()
 }

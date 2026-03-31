@@ -7,7 +7,7 @@ import { Dualsense } from 'dualsense-ts'
 import type { Momentary, Axis, Trigger } from 'dualsense-ts'
 import { logger } from '../logger'
 import type { ControllerHAL } from './hal'
-import type { ControllerEvent, ButtonId, AxisId, HapticPattern } from '../../shared/types'
+import type { ControllerEvent, ControllerType, ButtonId, AxisId, HapticPattern } from '../../shared/types'
 
 /**
  * DualSense controller driver.
@@ -16,7 +16,8 @@ import type { ControllerEvent, ButtonId, AxisId, HapticPattern } from '../../sha
  * Emits normalized ControllerEvents on the 'data' event.
  */
 export class DualSenseDriver extends EventEmitter implements ControllerHAL {
-  readonly controllerType = 'dualsense' as const
+  readonly controllerType: ControllerType = 'dualsense'
+
   private controller: Dualsense | null = null
   private hapticTimers: ReturnType<typeof setTimeout>[] = []
 
