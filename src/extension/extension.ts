@@ -15,6 +15,8 @@ import { loadBindings } from './input/binding-loader'
 import { ensureWorkspaceProfile } from './input/profile-writer'
 import { CLAUDE_CODE_DEFAULT_PROFILE } from './input/profile-schema'
 import { SlidePanelManager } from './panels/slide-panel-manager'
+import { SettingsPanelManager } from './panels/settings-panel'
+import { SettingsBridge } from './input/settings-bridge'
 import { registerCommands } from './commands/register'
 import type { ControllerEvent, ControllerType } from '../shared/types'
 
@@ -51,10 +53,35 @@ export function activate(context: vscode.ExtensionContext): void {
   // Story 2.7: Create .vscode/vibesense.json if not present
   ensureWorkspaceProfile(workspaceRoot, CLAUDE_CODE_DEFAULT_PROFILE)
 
+  // Story 4.1: Create SettingsBridge (reads VSCode config API + writes profile atomically)
+  const settingsBridge = new SettingsBridge(workspaceRoot)
+
   // Story 2.5: Load binding profile (file may now exist from above)
   const bindings = loadBindings(workspaceRoot)
   const inputRouter = new InputRouter(bindings)
   context.subscriptions.push(inputRouter)
+
+  // Story 4.1: Instantiate SettingsPanelManager and register vibesense.openSettings command
+  const settingsPanelManager = new SettingsPanelManager(context, settingsBridge, inputRouter)
+  context.subscriptions.push(settingsPanelManager)
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('vibesense.openSettings', () => {
+      try {
+        settingsPanelManager.open()
+      } catch (err) {
+        logger.error('extension: vibesense.openSettings failed', err)
+        // NFR-R1: never rethrow
+      }
+    }),
+  )
+
+  // Story 4.1: Watch VSCode settings for immediate hot-reload (AC 2)
+  context.subscriptions.push(
+    settingsBridge.watchSettings((newBindings) => {
+      inputRouter.reloadBindings(newBindings)
+    }),
+  )
 
   // Check HID access before enumeration — surfaces macOS/Linux permission guides (Story 2.6)
   const accessCheck = checkHidAccess()
@@ -87,6 +114,7 @@ export function activate(context: vscode.ExtensionContext): void {
         if (event.kind === 'connected') {
           currentControllerType = event.controllerType
           statusBar.update({ kind: 'connected', controllerType: event.controllerType })
+          settingsPanelManager.notifyControllerConnected(event.controllerType)
         } else if (event.kind === 'disconnected') {
           currentControllerType = null
           statusBar.update({ kind: 'disconnected' })
@@ -164,6 +192,7 @@ export function activate(context: vscode.ExtensionContext): void {
       currentControllerType = driver.controllerType
       statusBar.update({ kind: 'connected', controllerType: driver.controllerType })
       slidePanelManager.notifyControllerConnected(driver.controllerType)
+      settingsPanelManager.notifyControllerConnected(driver.controllerType)
       attachStatusBarListeners(driver)
       attachInputListeners(driver)
     },

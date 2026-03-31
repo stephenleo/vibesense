@@ -40,11 +40,190 @@
       {
         "command": "vibesense.switchToSession",
         "title": "VibeSense: Switch to Session"
+      },
+      {
+        "command": "vibesense.openSettings",
+        "title": "VibeSense: Open Settings"
       }
     ],
     "configuration": {
       "title": "VibeSense",
-      "properties": {}
+      "properties": {
+        "vibesense.profile": {
+          "type": "string",
+          "default": "claude-code-default",
+          "description": "Active binding profile name",
+          "order": 0
+        },
+        "vibesense.binding.cross": {
+          "type": "string",
+          "default": "vibesense.approve",
+          "markdownDescription": "**✕ Cross** — DualSense face button (bottom)",
+          "order": 1
+        },
+        "vibesense.binding.circle": {
+          "type": "string",
+          "default": "vibesense.deny",
+          "markdownDescription": "**○ Circle** — DualSense face button (right)",
+          "order": 2
+        },
+        "vibesense.binding.square": {
+          "type": "string",
+          "default": "vibesense.openTerminal",
+          "markdownDescription": "**□ Square** — DualSense face button (left)",
+          "order": 3
+        },
+        "vibesense.binding.triangle": {
+          "type": "string",
+          "default": "workbench.action.terminal.focus",
+          "markdownDescription": "**△ Triangle** — DualSense face button (top)",
+          "order": 4
+        },
+        "vibesense.binding.l1": {
+          "type": "string",
+          "default": "vibesense.switchSessionPrev",
+          "markdownDescription": "**L1** — DualSense left shoulder button",
+          "order": 5
+        },
+        "vibesense.binding.r1": {
+          "type": "string",
+          "default": "vibesense.switchSessionNext",
+          "markdownDescription": "**R1** — DualSense right shoulder button",
+          "order": 6
+        },
+        "vibesense.binding.l2": {
+          "type": "string",
+          "default": "vibesense.openRadialWheel",
+          "markdownDescription": "**L2** — DualSense left trigger",
+          "order": 7
+        },
+        "vibesense.binding.r2": {
+          "type": "string",
+          "default": "vibesense.openQuickPanel",
+          "markdownDescription": "**R2** — DualSense right trigger",
+          "order": 8
+        },
+        "vibesense.binding.l3": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "**L3** — DualSense left analog stick click",
+          "order": 9
+        },
+        "vibesense.binding.r3": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "**R3** — DualSense right analog stick click",
+          "order": 10
+        },
+        "vibesense.binding.up": {
+          "type": "string",
+          "default": "workbench.action.terminal.scrollUp",
+          "markdownDescription": "**↑ D-Pad Up** — DualSense directional pad up",
+          "order": 11
+        },
+        "vibesense.binding.down": {
+          "type": "string",
+          "default": "workbench.action.terminal.scrollDown",
+          "markdownDescription": "**↓ D-Pad Down** — DualSense directional pad down",
+          "order": 12
+        },
+        "vibesense.binding.left": {
+          "type": "string",
+          "default": "workbench.action.navigateBack",
+          "markdownDescription": "**← D-Pad Left** — DualSense directional pad left",
+          "order": 13
+        },
+        "vibesense.binding.right": {
+          "type": "string",
+          "default": "workbench.action.navigateForward",
+          "markdownDescription": "**→ D-Pad Right** — DualSense directional pad right",
+          "order": 14
+        },
+        "vibesense.binding.options": {
+          "type": "string",
+          "default": "vibesense.openSettings",
+          "markdownDescription": "**Options** — DualSense options button",
+          "order": 15
+        },
+        "vibesense.binding.touchpad": {
+          "type": "string",
+          "default": "vibesense.voicePtt",
+          "markdownDescription": "**Touchpad** — DualSense touchpad click",
+          "order": 16
+        },
+        "vibesense.binding.a": {
+          "type": "string",
+          "default": "vibesense.approve",
+          "markdownDescription": "**A** — Xbox face button (bottom)",
+          "order": 20
+        },
+        "vibesense.binding.b": {
+          "type": "string",
+          "default": "vibesense.deny",
+          "markdownDescription": "**B** — Xbox face button (right)",
+          "order": 21
+        },
+        "vibesense.binding.x": {
+          "type": "string",
+          "default": "vibesense.openTerminal",
+          "markdownDescription": "**X** — Xbox face button (left)",
+          "order": 22
+        },
+        "vibesense.binding.y": {
+          "type": "string",
+          "default": "workbench.action.terminal.focus",
+          "markdownDescription": "**Y** — Xbox face button (top)",
+          "order": 23
+        },
+        "vibesense.binding.lb": {
+          "type": "string",
+          "default": "vibesense.switchSessionPrev",
+          "markdownDescription": "**LB** — Xbox left bumper",
+          "order": 24
+        },
+        "vibesense.binding.rb": {
+          "type": "string",
+          "default": "vibesense.switchSessionNext",
+          "markdownDescription": "**RB** — Xbox right bumper",
+          "order": 25
+        },
+        "vibesense.binding.lt": {
+          "type": "string",
+          "default": "vibesense.openRadialWheel",
+          "markdownDescription": "**LT** — Xbox left trigger",
+          "order": 26
+        },
+        "vibesense.binding.rt": {
+          "type": "string",
+          "default": "vibesense.openQuickPanel",
+          "markdownDescription": "**RT** — Xbox right trigger",
+          "order": 27
+        },
+        "vibesense.binding.ls": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "**LS** — Xbox left analog stick click",
+          "order": 28
+        },
+        "vibesense.binding.rs": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "**RS** — Xbox right analog stick click",
+          "order": 29
+        },
+        "vibesense.binding.menu": {
+          "type": "string",
+          "default": "vibesense.openSettings",
+          "markdownDescription": "**Menu** — Xbox menu button",
+          "order": 30
+        },
+        "vibesense.binding.view": {
+          "type": "string",
+          "default": "vibesense.voicePtt",
+          "markdownDescription": "**View** — Xbox view button",
+          "order": 31
+        }
+      }
     }
   },
   "scripts": {
