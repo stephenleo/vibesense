@@ -4,7 +4,11 @@
 # Source files — only dist/ is needed
 src/
 test/
-scripts/
+# Story 5.2: scripts/hooks/*.sh must be packaged in the VSIX (bundled hook scripts)
+# Use scripts/* (not scripts/) so the negation pattern can re-include scripts/hooks/.
+# Per gitignore rules, a negation cannot re-include files under an excluded parent directory.
+scripts/*
+!scripts/hooks/
 
 # Config and tooling files
 .eslintrc.json

@@ -21,6 +21,7 @@ import { OnboardingPanelManager } from './panels/onboarding-panel'
 import { SettingsBridge } from './input/settings-bridge'
 import { registerCommands } from './commands/register'
 import { SessionManager } from './session/session-manager'
+import { registerHooks } from './ipc/hook-writer'
 import type { ControllerEvent, ControllerType } from '../shared/types'
 import type { AggregateGameState } from './fsm/states'
 
@@ -56,6 +57,9 @@ export function activate(context: vscode.ExtensionContext): void {
   })
 
   // Story 5.1: Per-session state transitions are already logged inside SessionManager.getOrCreateFsm()
+
+  // Story 5.2: Register Claude Code hooks — writes Stop + PostToolUse to ~/.claude/settings.json
+  registerHooks(context)
 
   // Instantiate SlidePanel manager (Story 3.4) — must be before registerCommands (Story 3.3)
   const slidePanelManager = new SlidePanelManager(context)
