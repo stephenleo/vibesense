@@ -14,6 +14,7 @@ import { InputRouter } from './input/input-router'
 import { loadBindings } from './input/binding-loader'
 import { ensureWorkspaceProfile } from './input/profile-writer'
 import { CLAUDE_CODE_DEFAULT_PROFILE } from './input/profile-schema'
+import { SlidePanelManager } from './panels/slide-panel-manager'
 import { registerCommands } from './commands/register'
 import type { ControllerEvent, ControllerType } from '../shared/types'
 
@@ -34,6 +35,13 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Story 3.1: Register controller-triggered terminal and agent launch commands (FR10, FR11, FR12)
   registerCommands(context)
+
+  // Instantiate SlidePanel manager (Story 3.4)
+  const slidePanelManager = new SlidePanelManager(context)
+  context.subscriptions.push(slidePanelManager)
+
+  // Send initial empty session list on startup — panel shows empty state hint
+  slidePanelManager.updateSessions([])
 
   // Load binding profile and create input router (Story 2.5)
   const workspaceRoot =
@@ -64,6 +72,7 @@ export function activate(context: vscode.ExtensionContext): void {
   if (initialDriver !== null) {
     statusBar.update({ kind: 'connected', controllerType: initialDriver.controllerType })
     currentControllerType = initialDriver.controllerType
+    slidePanelManager.notifyControllerConnected(initialDriver.controllerType)
   }
 
   /**
@@ -153,6 +162,7 @@ export function activate(context: vscode.ExtensionContext): void {
       logger.info('VibeSense: controller connected', driver.controllerType)
       currentControllerType = driver.controllerType
       statusBar.update({ kind: 'connected', controllerType: driver.controllerType })
+      slidePanelManager.notifyControllerConnected(driver.controllerType)
       attachStatusBarListeners(driver)
       attachInputListeners(driver)
     },
