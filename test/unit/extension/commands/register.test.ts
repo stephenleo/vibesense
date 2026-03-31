@@ -203,7 +203,7 @@ describe('registerCommands', () => {
 
       await Promise.resolve()
 
-      expect(mockState.setStatusBarMessage).toHaveBeenCalledWith('$(mic) Voice input active')
+      expect(mockState.setStatusBarMessage).toHaveBeenCalledWith('$(mic) Voice input active', 5000)
       expect(mockState.loggerInfo).toHaveBeenCalledWith('vibesense.voicePtt: voice PTT activated')
     })
 
@@ -231,6 +231,17 @@ describe('registerCommands', () => {
       expect(() => handlers['vibesense.voicePtt']()).not.toThrow()
       // Async rejection handler must also not propagate
       await Promise.resolve()
+    })
+
+    it('catches synchronous executeCommand throw and logs via logger.error — NFR-R1 (AC: 3)', () => {
+      const error = new Error('executeCommand exploded synchronously')
+      mockState.executeCommand.mockImplementationOnce(() => {
+        throw error
+      })
+      const handlers = captureHandlers()
+
+      expect(() => handlers['vibesense.voicePtt']()).not.toThrow()
+      expect(mockState.loggerError).toHaveBeenCalledWith('vibesense.voicePtt: failed', error)
     })
   })
 

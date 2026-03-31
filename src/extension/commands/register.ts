@@ -49,22 +49,27 @@ export function registerCommands(context: vscode.ExtensionContext): void {
 
     // FR17, FR21: Push-to-talk voice input; graceful fallback when VS Code Speech not available (NFR-I2, NFR-A3, NFR-R1, NFR-R4)
     vscode.commands.registerCommand('vibesense.voicePtt', () => {
-      vscode.commands.executeCommand('workbench.action.voiceChat.start').then(
-        () => {
-          vscode.window.setStatusBarMessage('$(mic) Voice input active')
-          logger.info('vibesense.voicePtt: voice PTT activated')
-        },
-        (_err: unknown) => {
-          // Voice unavailable — non-blocking fallback (NFR-I2, NFR-A3)
-          vscode.window.setStatusBarMessage(
-            'Voice input unavailable — use radial wheel or keyboard',
-            5000,
-          )
-          logger.warn(
-            'vibesense.voicePtt: voice unavailable — VS Code Speech not installed or voice mode inactive',
-          )
-        },
-      )
+      try {
+        vscode.commands.executeCommand('workbench.action.voiceChat.start').then(
+          () => {
+            vscode.window.setStatusBarMessage('$(mic) Voice input active', 5000)
+            logger.info('vibesense.voicePtt: voice PTT activated')
+          },
+          (_err: unknown) => {
+            // Voice unavailable — non-blocking fallback (NFR-I2, NFR-A3)
+            vscode.window.setStatusBarMessage(
+              'Voice input unavailable — use radial wheel or keyboard',
+              5000,
+            )
+            logger.warn(
+              'vibesense.voicePtt: voice unavailable — VS Code Speech not installed or voice mode inactive',
+            )
+          },
+        )
+      } catch (err) {
+        logger.error('vibesense.voicePtt: failed', err)
+        // NFR-R1: swallow — never propagate to VSCode process
+      }
     }),
   )
 }
