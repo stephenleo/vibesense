@@ -189,3 +189,22 @@ export function parseHostMessage(raw: unknown): HostMessage | null {
   const result = HostMessageSchema.safeParse(raw)
   return result.success ? result.data : null
 }
+
+// ─── Inbound hook messages (Claude Code hooks → extension) ───────────────────
+
+export const HookMessageSchema = z.object({
+  hook: z.enum(['stop', 'post_tool_use']),
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  session_id: z.string(),
+})
+
+export type HookMessage = z.infer<typeof HookMessageSchema>
+
+/**
+ * Parse a raw unknown value as a HookMessage.
+ * Returns the parsed message on success, or null on failure.
+ */
+export function parseHookMessage(raw: unknown): HookMessage | null {
+  const result = HookMessageSchema.safeParse(raw)
+  return result.success ? result.data : null
+}
