@@ -24,7 +24,8 @@ interface VscodeWindowWithTerminalData {
 
 // ── ANSI Escape Code Stripper ─────────────────────────────────────────────────
 // Strip color, cursor movement, and other control sequences before pattern matching
-const ANSI_ESCAPE_RE = /\x1B\[[0-9;]*[mGKHF]/g
+// eslint-disable-next-line no-control-regex -- ESC (U+001B) is intentionally matched here to strip ANSI sequences
+const ANSI_ESCAPE_RE = /\u001B\[[0-9;]*[mGKHF]/g
 
 function stripAnsi(data: string): string {
   return data.replace(ANSI_ESCAPE_RE, '')
@@ -83,6 +84,15 @@ export class TerminalOutputParser implements vscode.Disposable {
     // Cast vscode.window to our augmented interface — onDidWriteTerminalData is stable in VSCode 1.85+
     // but may not be in all @types/vscode versions.
     const vscodeWindow = vscode.window as unknown as VscodeWindowWithTerminalData
+
+    // Guard against older VSCode hosts where onDidWriteTerminalData is absent (NFR-I1).
+    // Fall back to a no-op disposable so the extension activates cleanly.
+    if (typeof vscodeWindow.onDidWriteTerminalData !== 'function') {
+      logger.info('TerminalOutputParser: onDidWriteTerminalData not available — terminal fallback disabled')
+      this.disposable = { dispose: () => undefined }
+      return
+    }
+
     this.disposable = vscodeWindow.onDidWriteTerminalData((event: TerminalDataWriteEvent) => {
       this.processOutput(event.terminal, event.data)
     })

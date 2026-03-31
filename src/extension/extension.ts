@@ -66,16 +66,14 @@ export function activate(context: vscode.ExtensionContext): void {
   // Story 5.1: Per-session state transitions are already logged inside SessionManager.getOrCreateFsm()
 
   // Story 5.2: Register Claude Code hooks — writes Stop + PostToolUse to ~/.claude/settings.json
-  let hooksRegistered = false
-  try {
-    registerHooks(context)
-    hooksRegistered = true
-  } catch {
-    // If hook registration fails, terminal parser fallback will remain active
-  }
+  // Never throws (NFR-R1) — see hook-writer.ts
+  registerHooks(context)
 
-  // Story 5.4: Terminal output fallback parser — active when hooks unavailable
-  const terminalParser = new TerminalOutputParser(sessionManager, () => hooksRegistered)
+  // Story 5.4: Terminal output fallback parser — active when hooks unavailable.
+  // hookActive is wired to () => false here: hook liveness is determined at runtime by whether
+  // hook messages arrive via the IPC pipe (PipeServer), not by whether registerHooks() was called.
+  // The terminal parser always starts active and defers to the IPC channel once it proves live.
+  const terminalParser = new TerminalOutputParser(sessionManager, () => false)
   context.subscriptions.push(terminalParser)
 
   // Instantiate SlidePanel manager (Story 3.4) — must be before registerCommands (Story 3.3)
