@@ -1,19 +1,40 @@
 /* src/webview/shared-ui/tokens.css */
-/* VibeSense design system CSS custom properties */
+/* VibeSense VOID Design System — CSS custom properties */
 /* Uses --vs-* prefix convention per Architecture naming patterns */
-/* Full token definitions in Story 2.4 (Void Design System) */
 
 :root {
-  /* Color tokens — mapped from VSCode theme variables */
-  --vs-color-primary: var(--vscode-button-background, #0078d4);
-  --vs-color-primary-text: var(--vscode-button-foreground, #ffffff);
-  --vs-color-surface: var(--vscode-editor-background, #1e1e1e);
-  --vs-color-surface-alt: var(--vscode-sideBar-background, #252526);
-  --vs-color-border: var(--vscode-panel-border, #454545);
-  --vs-color-text: var(--vscode-editor-foreground, #d4d4d4);
-  --vs-color-text-muted: var(--vscode-descriptionForeground, #8b8b8b);
+  /* ── VOID Color Tokens (UX-DR6) ────────────────────────────── */
+  --vs-bg: #09090F;
+  --vs-surface: #0E0E1C;
+  --vs-surface2: #13132A;
+  --vs-accent: #00C8FF;
+  --vs-accent2: #7B5CFA;
+  --vs-text: #EFF4FF;
+  --vs-text2: #7A8BAA;
+  --vs-border: rgba(0, 200, 255, 0.18);
+  --vs-glow: rgba(0, 200, 255, 0.35);
+  --vs-glow2: rgba(123, 92, 250, 0.35);
 
-  /* Spacing tokens */
+  /* ── Motion Tokens ─────────────────────────────────────────── */
+  --vs-duration-fast: 120ms;
+  --vs-duration-base: 240ms;
+  --vs-duration-slow: 400ms;
+  --vs-easing-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ── Controller Button Semantic Color Tokens (UX-DR2) ────────── */
+  /* DualSense: Cross #4A90D9, Circle #E05555, Square #D45FC9, Triangle #4DB89A */
+  /* Xbox: A #4DB89A (green), B #E05555 (red), X #4A90D9 (blue), Y #FFB800 (amber) */
+  --vs-controller-cross: #4A90D9;    /* DualSense Cross / Xbox X */
+  --vs-controller-circle: #E05555;   /* DualSense Circle / Xbox B */
+  --vs-controller-square: #D45FC9;   /* DualSense Square */
+  --vs-controller-triangle: #4DB89A; /* DualSense Triangle */
+  --vs-controller-a: #4DB89A;        /* Xbox A (green) */
+  --vs-controller-b: #E05555;        /* Xbox B (red) */
+  --vs-controller-x: #4A90D9;        /* Xbox X (blue) */
+  --vs-controller-y: #FFB800;        /* Xbox Y (amber) */
+  --vs-controller-generic: #7A8BAA;  /* generic-hid — text2 muted */
+
+  /* ── Spacing Tokens ────────────────────────────────────────── */
   --vs-space-1: 4px;
   --vs-space-2: 8px;
   --vs-space-3: 12px;
@@ -21,15 +42,32 @@
   --vs-space-6: 24px;
   --vs-space-8: 32px;
 
-  /* Radius tokens */
+  /* ── Radius Tokens ─────────────────────────────────────────── */
   --vs-radius-sm: 2px;
   --vs-radius-md: 4px;
   --vs-radius-lg: 8px;
   --vs-radius-full: 9999px;
 
-  /* Typography tokens */
+  /* ── Typography Tokens ─────────────────────────────────────── */
   --vs-font-family: var(--vscode-font-family, 'Segoe UI', sans-serif);
   --vs-font-size-sm: 11px;
   --vs-font-size-md: 13px;
   --vs-font-size-lg: 16px;
+
+  /* ── Legacy Color Tokens (kept for backward compatibility) ──── */
+  --vs-color-primary: var(--vscode-button-background, #0078d4);
+  --vs-color-primary-text: var(--vscode-button-foreground, #ffffff);
+  --vs-color-surface: var(--vscode-editor-background, #1e1e1e);
+  --vs-color-surface-alt: var(--vscode-sideBar-background, #252526);
+  --vs-color-border: var(--vscode-panel-border, #454545);
+  --vs-color-text: var(--vscode-editor-foreground, #d4d4d4);
+  --vs-color-text-muted: var(--vscode-descriptionForeground, #8b8b8b);
+}
+
+/* ── Reduced Motion (UX-DR19) ──────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
 }

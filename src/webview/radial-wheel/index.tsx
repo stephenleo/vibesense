@@ -2,6 +2,7 @@
 // Radial Wheel webview entry point — placeholder
 // Full implementation in Story 7.1
 
+import '../shared-ui/tokens.css'
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 
