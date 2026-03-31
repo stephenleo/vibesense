@@ -68,6 +68,8 @@ const fakeSlidePanelManager = {
   notifyQuickPanelOpen: vi.fn(),
   notifyQuickPanelClose: vi.fn(),
   notifyQuickPanelNavigate: vi.fn(),
+  quickPanelNext: vi.fn(),
+  quickPanelPrev: vi.fn(),
 } as unknown as import('../../../../src/extension/panels/slide-panel-manager').SlidePanelManager
 
 /**

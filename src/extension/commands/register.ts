@@ -156,13 +156,7 @@ export function registerCommands(
     // FR14: Navigate quick panel to next item (D-pad down) — Story 3.5
     vscode.commands.registerCommand('vibesense.quickPanelNext', () => {
       try {
-        const terminals = vscode.window.terminals
-        if (terminals.length === 0) return
-        // SlidePanelManager tracks open state; this command is a no-op when panel is closed
-        // selectedIndex state is managed in the webview; here we post navigate with incremented index
-        // For simplicity, retrieve current selection from a stored state if needed.
-        // As per dev notes, this is a best-effort command; panel tracks its own state.
-        slidePanelManager.notifyQuickPanelNavigate(0) // placeholder — webview handles modulo
+        slidePanelManager.quickPanelNext()
       } catch (err) {
         logger.error('vibesense.quickPanelNext: failed', err)
       }
@@ -171,9 +165,7 @@ export function registerCommands(
     // FR14: Navigate quick panel to previous item (D-pad up) — Story 3.5
     vscode.commands.registerCommand('vibesense.quickPanelPrev', () => {
       try {
-        const terminals = vscode.window.terminals
-        if (terminals.length === 0) return
-        slidePanelManager.notifyQuickPanelNavigate(0) // placeholder — webview handles modulo
+        slidePanelManager.quickPanelPrev()
       } catch (err) {
         logger.error('vibesense.quickPanelPrev: failed', err)
       }

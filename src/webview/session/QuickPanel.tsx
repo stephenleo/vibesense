@@ -34,7 +34,7 @@ export function QuickPanel({
       aria-label="Quick session panel"
     >
       {/* Semi-transparent backdrop */}
-      <div className="quick-panel__backdrop" />
+      <div className="quick-panel__backdrop" aria-hidden="true" />
 
       {/* Floating content panel */}
       <div className="quick-panel__content">

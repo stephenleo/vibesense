@@ -9,6 +9,8 @@ import type { Session, ControllerType } from '../../shared/types'
 export class SlidePanelManager implements vscode.Disposable {
   private panel: vscode.WebviewPanel | undefined
   private panelExpanded = false
+  private quickPanelSelectedIndex = 0
+  private quickPanelSessionCount = 0
 
   constructor(private readonly context: vscode.ExtensionContext) {
     this.panel = vscode.window.createWebviewPanel(
@@ -70,6 +72,8 @@ export class SlidePanelManager implements vscode.Disposable {
    * Open the quick session panel in the webview (Story 3.5 / FR14).
    */
   notifyQuickPanelOpen(sessions: Session[], selectedIndex: number): void {
+    this.quickPanelSessionCount = sessions.length
+    this.quickPanelSelectedIndex = selectedIndex
     this.panel?.webview.postMessage({
       type: 'QUICK_PANEL_OPEN',
       payload: { sessions, selectedIndex },
@@ -81,6 +85,8 @@ export class SlidePanelManager implements vscode.Disposable {
    * Close the quick session panel in the webview (Story 3.5).
    */
   notifyQuickPanelClose(): void {
+    this.quickPanelSelectedIndex = 0
+    this.quickPanelSessionCount = 0
     this.panel?.webview.postMessage({ type: 'QUICK_PANEL_CLOSE', payload: {} })
     logger.info('SlidePanelManager: quick panel close')
   }
@@ -89,11 +95,36 @@ export class SlidePanelManager implements vscode.Disposable {
    * Update the selected index in the quick panel (Story 3.5 / D-pad navigation).
    */
   notifyQuickPanelNavigate(selectedIndex: number): void {
+    this.quickPanelSelectedIndex = selectedIndex
     this.panel?.webview.postMessage({
       type: 'QUICK_PANEL_NAVIGATE',
       payload: { selectedIndex },
     })
     logger.info('SlidePanelManager: quick panel navigate', selectedIndex)
+  }
+
+  /**
+   * Move quick panel selection to the next item (wraps around).
+   * Returns the new selected index, or -1 if panel is not open.
+   */
+  quickPanelNext(): number {
+    if (this.quickPanelSessionCount === 0) return -1
+    const newIndex = (this.quickPanelSelectedIndex + 1) % this.quickPanelSessionCount
+    this.notifyQuickPanelNavigate(newIndex)
+    return newIndex
+  }
+
+  /**
+   * Move quick panel selection to the previous item (wraps around).
+   * Returns the new selected index, or -1 if panel is not open.
+   */
+  quickPanelPrev(): number {
+    if (this.quickPanelSessionCount === 0) return -1
+    const newIndex =
+      (this.quickPanelSelectedIndex - 1 + this.quickPanelSessionCount) %
+      this.quickPanelSessionCount
+    this.notifyQuickPanelNavigate(newIndex)
+    return newIndex
   }
 
   /**

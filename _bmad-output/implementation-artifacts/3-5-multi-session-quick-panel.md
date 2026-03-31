@@ -1,6 +1,6 @@
 # Story 3.5: Multi-Session Quick Panel
 
-Status: review
+Status: done
 
 ## Story
 
@@ -125,6 +125,13 @@ So that I can jump to any session instantly without cycling through them one by 
   - [x] Test: `vibesense.switchToSession` — focuses terminal at given index, calls `notifyQuickPanelClose`
   - [x] Test: `vibesense.switchToSession` — index out of bounds: no error propagated (NFR-R1)
   - [x] Mock `slidePanelManager.notifyQuickPanelOpen` and `notifyQuickPanelClose` using existing mock patterns
+
+### Review Findings
+
+- [x] [Review][Patch] quickPanelNext/Prev always sent hardcoded index 0 — D-pad navigation non-functional (AC 1 violation) [register.ts, slide-panel-manager.ts] — fixed: added quickPanelNext/quickPanelPrev methods with state tracking to SlidePanelManager
+- [x] [Review][Patch] Missing aria-hidden on backdrop div in QuickPanel [QuickPanel.tsx:37] — fixed: added aria-hidden="true"
+- [x] [Review][Defer] Missing aria-activedescendant on listbox [QuickPanel.tsx] — deferred, pre-existing pattern (SessionSwitcher doesn't use it either)
+- [x] [Review][Defer] Title uses `<p>` instead of heading element [QuickPanel.tsx:41] — deferred, spec explicitly says `<p>` with class
 
 ## Dev Notes
 
