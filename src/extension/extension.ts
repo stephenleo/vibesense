@@ -21,6 +21,7 @@ import { OnboardingPanelManager } from './panels/onboarding-panel'
 import { SettingsBridge } from './input/settings-bridge'
 import { registerCommands } from './commands/register'
 import { SessionManager } from './session/session-manager'
+import { LedController } from './output/led-controller'
 import { registerHooks } from './ipc/hook-writer'
 import { PipeServer } from './ipc/pipe-server'
 import { TerminalOutputParser } from './session/terminal-parser'
@@ -38,6 +39,8 @@ let hidManager: HidManager | undefined
 export let sessionManager: SessionManager | undefined
 // Story 5.5: Module-level lastCommandTracker ref — tracks last command per session for retry
 export let lastCommandTracker: LastCommandTracker | undefined
+// Story 6.2: Module-level ledController ref — drives DualSense lightbar color from FSM state
+let ledController: LedController | undefined
 
 /**
  * Called when the extension is activated.
@@ -81,6 +84,11 @@ export function activate(context: vscode.ExtensionContext): void {
   // EventEmitter fires listeners in registration order — haptic must subscribe first.
   const hapticController = new HapticController(sessionManager, () => currentDriver)
   context.subscriptions.push({ dispose: () => hapticController.dispose() })
+
+  // Story 6.2: LED color state controller — drives DualSense lightbar from FSM state (FR25, UX-DR4)
+  // Constructed with null HAL initially; updateHal() is called when controller connects/disconnects
+  ledController = new LedController(sessionManager, null)
+  context.subscriptions.push({ dispose: () => { ledController?.dispose(); ledController = undefined } })
 
   // Story 5.1: Log aggregateGameStateChanged events (haptic/LED/game integrations come in later epics)
   sessionManager.on('aggregateGameStateChanged', (state: AggregateGameState) => {
@@ -215,6 +223,8 @@ export function activate(context: vscode.ExtensionContext): void {
     currentControllerType = initialDriver.controllerType
     currentDriver = initialDriver  // Story 6.1: make HAL available to HapticController
     slidePanelManager.notifyControllerConnected(initialDriver.controllerType)
+    // Story 6.2: Provide initial HAL to LED controller
+    ledController?.updateHal(initialDriver)
   }
 
   /**
@@ -340,12 +350,16 @@ export function activate(context: vscode.ExtensionContext): void {
       attachStatusBarListeners(driver)
       attachInputListeners(driver)
       attachOnboardingListeners(driver)
+      // Story 6.2: Provide HAL to LED controller on reconnect
+      ledController?.updateHal(driver)
     },
     () => {
       logger.info('VibeSense: controller disconnected — keyboard fallback active')
       currentControllerType = null
       currentDriver = null  // Story 6.1: clear HAL ref on disconnect
       statusBar.update({ kind: 'disconnected' })
+      // Story 6.2: Clear HAL from LED controller on disconnect
+      ledController?.updateHal(null)
     },
   )
 
@@ -367,6 +381,8 @@ export function deactivate(): void {
   lifecycleManager = undefined
   hidManager?.stop()
   hidManager = undefined
+  ledController?.dispose()
+  ledController = undefined
   sessionManager?.dispose()
   sessionManager = undefined
   lastCommandTracker?.dispose()
