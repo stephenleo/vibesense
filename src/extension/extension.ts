@@ -20,11 +20,15 @@ import { SettingsPanelManager } from './panels/settings-panel'
 import { OnboardingPanelManager } from './panels/onboarding-panel'
 import { SettingsBridge } from './input/settings-bridge'
 import { registerCommands } from './commands/register'
+import { SessionManager } from './session/session-manager'
 import type { ControllerEvent, ControllerType } from '../shared/types'
+import type { AggregateGameState } from './fsm/states'
 
 // Module-level references — accessible for deactivate() and subscription dispose
 let lifecycleManager: ControllerLifecycleManager | undefined
 let hidManager: HidManager | undefined
+// Story 5.1: Module-level sessionManager ref — Stories 5.2/5.3 call handleHookMessage() via this
+export let sessionManager: SessionManager | undefined
 
 /**
  * Called when the extension is activated.
@@ -36,6 +40,25 @@ export function activate(context: vscode.ExtensionContext): void {
   // Instantiate status bar immediately so it's always visible (FR27)
   const statusBar = new StatusBarController()
   context.subscriptions.push(statusBar)
+
+  // Story 5.1: Instantiate SessionManager after statusBar — tracks agent FSM states per session
+  sessionManager = new SessionManager()
+  context.subscriptions.push({
+    dispose: () => {
+      sessionManager?.dispose()
+      sessionManager = undefined
+    },
+  })
+
+  // Story 5.1: Log aggregateGameStateChanged events (haptic/LED/game integrations come in later epics)
+  sessionManager.on('aggregateGameStateChanged', (state: AggregateGameState) => {
+    logger.info(`SessionManager: aggregateGameState → ${state}`)
+  })
+
+  // Story 5.1: Log per-session state transitions
+  sessionManager.on('sessionStateChanged', (sessionId: string, prev: string, next: string) => {
+    logger.info(`SessionManager: session "${sessionId}" ${prev} → ${next}`)
+  })
 
   // Instantiate SlidePanel manager (Story 3.4) — must be before registerCommands (Story 3.3)
   const slidePanelManager = new SlidePanelManager(context)
