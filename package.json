@@ -48,6 +48,10 @@
       {
         "command": "vibesense.openSettings",
         "title": "VibeSense: Open Settings"
+      },
+      {
+        "command": "vibesense.startOnboarding",
+        "title": "VibeSense: Start Onboarding"
       }
     ],
     "configuration": {

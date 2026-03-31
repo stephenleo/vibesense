@@ -1,0 +1,188 @@
+/* src/webview/onboarding/onboarding.css */
+/* VibeSense Onboarding Tutorial — layout and animation styles */
+
+@import '../shared-ui/tokens.css';
+
+/* ─── Full-screen centered layout ───────────────────────────────────── */
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--vs-font-family);
+  background: var(--vs-bg);
+  color: var(--vs-text);
+  font-size: var(--vs-font-size-md);
+}
+
+.onboarding-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--vs-bg);
+  padding: var(--vs-space-8);
+  box-sizing: border-box;
+}
+
+/* ─── Header ────────────────────────────────────────────────────────── */
+
+.onboarding-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--vs-space-4);
+  margin-bottom: var(--vs-space-8);
+}
+
+.onboarding-title {
+  font-size: var(--vs-font-size-lg);
+  color: var(--vs-accent);
+  margin: 0;
+  letter-spacing: 0.05em;
+}
+
+/* ─── Progress indicator ─────────────────────────────────────────────── */
+
+.onboarding-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--vs-space-2);
+}
+
+.onboarding-section-label {
+  font-size: var(--vs-font-size-sm);
+  color: var(--vs-text2);
+}
+
+.onboarding-progress-bar {
+  display: flex;
+  gap: var(--vs-space-2);
+}
+
+.onboarding-progress-segment {
+  width: 48px;
+  height: 4px;
+  border-radius: var(--vs-radius-full);
+  background: var(--vs-surface2);
+  transition: background var(--vs-duration-base);
+}
+
+.onboarding-progress-segment.active {
+  background: var(--vs-accent);
+}
+
+/* ─── Step area ──────────────────────────────────────────────────────── */
+
+.onboarding-step-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: var(--vs-space-6);
+}
+
+/* ─── Tutorial step ──────────────────────────────────────────────────── */
+
+.tutorial-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--vs-space-6);
+  padding: var(--vs-space-8);
+  background: var(--vs-surface);
+  border: 1px solid var(--vs-border);
+  border-radius: var(--vs-radius-lg);
+  min-width: 280px;
+}
+
+.tutorial-step-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--vs-surface2);
+  transition: transform var(--vs-duration-fast), filter var(--vs-duration-fast);
+}
+
+/* Highlighted button state (AC 2) */
+.step-highlighted {
+  filter: drop-shadow(0 0 8px var(--vs-glow));
+  transform: scale(1.15);
+  transition: transform var(--vs-duration-fast), filter var(--vs-duration-fast);
+}
+
+.tutorial-step-generic-label {
+  font-size: var(--vs-font-size-lg);
+  color: var(--vs-text2);
+  font-weight: bold;
+}
+
+.tutorial-step-instruction {
+  font-size: var(--vs-font-size-lg);
+  color: var(--vs-text);
+  text-align: center;
+  margin: 0;
+}
+
+/* Next button — keyboard accessible but visually secondary */
+.tutorial-step-next {
+  padding: var(--vs-space-2) var(--vs-space-6);
+  background: var(--vs-surface2);
+  border: 1px solid var(--vs-border);
+  border-radius: var(--vs-radius-md);
+  color: var(--vs-text2);
+  font-size: var(--vs-font-size-sm);
+  cursor: pointer;
+  transition: background var(--vs-duration-fast), color var(--vs-duration-fast);
+}
+
+.tutorial-step-next:hover,
+.tutorial-step-next:focus {
+  background: var(--vs-surface);
+  color: var(--vs-text);
+  outline: 2px solid var(--vs-accent);
+  outline-offset: 2px;
+}
+
+/* ─── Keyboard hint ──────────────────────────────────────────────────── */
+
+.onboarding-keyboard-hint {
+  font-size: var(--vs-font-size-sm);
+  color: var(--vs-text2);
+  margin: 0;
+}
+
+/* ─── Complete state ─────────────────────────────────────────────────── */
+
+.onboarding-complete {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--vs-space-4);
+  padding: var(--vs-space-8);
+  text-align: center;
+}
+
+.onboarding-complete-title {
+  font-size: 48px;
+  color: var(--vs-accent);
+  margin: 0;
+}
+
+.onboarding-complete-message {
+  font-size: var(--vs-font-size-md);
+  color: var(--vs-text2);
+  margin: 0;
+}
+
+/* ─── Reduced motion (UX-DR19) ───────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
