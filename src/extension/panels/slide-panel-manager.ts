@@ -32,6 +32,16 @@ export class SlidePanelManager implements vscode.Disposable {
       if (msg.type === 'SLIDE_PANEL_TOGGLE') {
         this.panelExpanded = !this.panelExpanded
         logger.info('SlidePanelManager: toggle received, expanded =', this.panelExpanded)
+      } else if (msg.type === 'QUICK_PANEL_SELECT') {
+        logger.info('SlidePanelManager: quick panel select', msg.payload.sessionIndex)
+        vscode.commands
+          .executeCommand('vibesense.switchToSession', msg.payload.sessionIndex)
+          .then(undefined, (err: unknown) => {
+            logger.error('SlidePanelManager: switchToSession command failed', err)
+          })
+      } else if (msg.type === 'QUICK_PANEL_DISMISS') {
+        logger.info('SlidePanelManager: quick panel dismissed without session switch')
+        this.notifyQuickPanelClose()
       }
     })
 
@@ -54,6 +64,36 @@ export class SlidePanelManager implements vscode.Disposable {
   notifyControllerConnected(controllerType: ControllerType): void {
     this.panel?.webview.postMessage({ type: 'CONTROLLER_CONNECTED', payload: { controllerType } })
     logger.info('SlidePanelManager: controller connected', controllerType)
+  }
+
+  /**
+   * Open the quick session panel in the webview (Story 3.5 / FR14).
+   */
+  notifyQuickPanelOpen(sessions: Session[], selectedIndex: number): void {
+    this.panel?.webview.postMessage({
+      type: 'QUICK_PANEL_OPEN',
+      payload: { sessions, selectedIndex },
+    })
+    logger.info('SlidePanelManager: quick panel open', sessions.length, 'sessions')
+  }
+
+  /**
+   * Close the quick session panel in the webview (Story 3.5).
+   */
+  notifyQuickPanelClose(): void {
+    this.panel?.webview.postMessage({ type: 'QUICK_PANEL_CLOSE', payload: {} })
+    logger.info('SlidePanelManager: quick panel close')
+  }
+
+  /**
+   * Update the selected index in the quick panel (Story 3.5 / D-pad navigation).
+   */
+  notifyQuickPanelNavigate(selectedIndex: number): void {
+    this.panel?.webview.postMessage({
+      type: 'QUICK_PANEL_NAVIGATE',
+      payload: { selectedIndex },
+    })
+    logger.info('SlidePanelManager: quick panel navigate', selectedIndex)
   }
 
   /**

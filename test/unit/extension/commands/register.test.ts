@@ -65,6 +65,9 @@ import { registerCommands } from '../../../../src/extension/commands/register'
 // Minimal SlidePanelManager stub (Story 3.3 added slidePanelManager param)
 const fakeSlidePanelManager = {
   notifySessionSwitched: vi.fn(),
+  notifyQuickPanelOpen: vi.fn(),
+  notifyQuickPanelClose: vi.fn(),
+  notifyQuickPanelNavigate: vi.fn(),
 } as unknown as import('../../../../src/extension/panels/slide-panel-manager').SlidePanelManager
 
 /**
@@ -101,7 +104,7 @@ describe('registerCommands', () => {
   })
 
   describe('registration', () => {
-    it('registers all commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt, switchSessionNext, switchSessionPrev', () => {
+    it('registers all commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt, switchSessionNext, switchSessionPrev, openQuickPanel, switchToSession, quickPanelNext, quickPanelPrev', () => {
       captureHandlers()
       const registeredIds = mockState.registerCommand.mock.calls.map(
         (call) => call[0] as string,
@@ -112,6 +115,10 @@ describe('registerCommands', () => {
       expect(registeredIds).toContain('vibesense.voicePtt')
       expect(registeredIds).toContain('vibesense.switchSessionNext')
       expect(registeredIds).toContain('vibesense.switchSessionPrev')
+      expect(registeredIds).toContain('vibesense.openQuickPanel')
+      expect(registeredIds).toContain('vibesense.switchToSession')
+      expect(registeredIds).toContain('vibesense.quickPanelNext')
+      expect(registeredIds).toContain('vibesense.quickPanelPrev')
     })
 
     it('pushes all disposables to context.subscriptions (auto-dispose on deactivation)', () => {
@@ -122,8 +129,10 @@ describe('registerCommands', () => {
       } as unknown as import('vscode').ExtensionContext
 
       registerCommands(fakeContext, fakeSlidePanelManager)
-      // 6 commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt, switchSessionNext, switchSessionPrev
-      expect(fakeSubscriptions).toHaveLength(6)
+      // 10 commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt,
+      // switchSessionNext, switchSessionPrev, openQuickPanel, switchToSession,
+      // quickPanelNext, quickPanelPrev
+      expect(fakeSubscriptions).toHaveLength(10)
     })
   })
 
@@ -438,4 +447,79 @@ describe('registerCommands', () => {
       expect(fakeSlidePanelManager.notifySessionSwitched).toHaveBeenCalledWith(2, 'Copilot', 3)
     })
   })
+
+  // ── Quick panel (Story 3.5 / FR14) ───────────────────────────────────────
+
+  describe('vibesense.openQuickPanel (AC 1, 3)', () => {
+    it('calls notifyQuickPanelOpen with empty sessions array when 0 terminals (AC 3 / empty state)', () => {
+      mockState.terminals = []
+      fakeSlidePanelManager.notifyQuickPanelOpen = vi.fn()
+      const handlers = captureHandlers()
+      handlers['vibesense.openQuickPanel']()
+      expect(fakeSlidePanelManager.notifyQuickPanelOpen).toHaveBeenCalledWith([], 0)
+    })
+
+    it('calls notifyQuickPanelOpen with sessions array of length 2 and selectedIndex=0 when 2 terminals (AC 1)', () => {
+      const terms = [
+        { name: 'VibeSense', show: vi.fn() },
+        { name: 'Agent', show: vi.fn() },
+      ]
+      mockState.terminals = terms
+      fakeSlidePanelManager.notifyQuickPanelOpen = vi.fn()
+      const handlers = captureHandlers()
+      handlers['vibesense.openQuickPanel']()
+      expect(fakeSlidePanelManager.notifyQuickPanelOpen).toHaveBeenCalledWith(
+        [
+          { sessionId: 'VibeSense', agentState: 'idle', label: 'VibeSense' },
+          { sessionId: 'Agent', agentState: 'idle', label: 'Agent' },
+        ],
+        0,
+      )
+    })
+
+    it('catches errors and does not propagate — NFR-R1', () => {
+      fakeSlidePanelManager.notifyQuickPanelOpen = vi.fn().mockImplementation(() => {
+        throw new Error('notifyQuickPanelOpen failed')
+      })
+      mockState.terminals = []
+      const handlers = captureHandlers()
+      expect(() => handlers['vibesense.openQuickPanel']()).not.toThrow()
+    })
+  })
+
+  describe('vibesense.switchToSession (AC 1, 2)', () => {
+    it('focuses terminal at given index and calls notifyQuickPanelClose', () => {
+      const terms = [
+        { name: 'VibeSense', show: vi.fn() },
+        { name: 'Agent', show: vi.fn() },
+      ]
+      Object.defineProperty(mockState, 'terminals', { get: () => terms, configurable: true })
+      fakeSlidePanelManager.notifyQuickPanelClose = vi.fn()
+      const handlers = captureHandlers()
+      handlers['vibesense.switchToSession'](1)
+      expect(terms[1].show).toHaveBeenCalledWith(false)
+      expect(fakeSlidePanelManager.notifyQuickPanelClose).toHaveBeenCalledOnce()
+    })
+
+    it('does not call show when index is out of bounds — no error propagated (NFR-R1)', () => {
+      const terms = [{ name: 'VibeSense', show: vi.fn() }]
+      Object.defineProperty(mockState, 'terminals', { get: () => terms, configurable: true })
+      fakeSlidePanelManager.notifyQuickPanelClose = vi.fn()
+      const handlers = captureHandlers()
+      expect(() => handlers['vibesense.switchToSession'](99)).not.toThrow()
+      expect(terms[0].show).not.toHaveBeenCalled()
+      // Panel close is still called even when terminal not found
+      expect(fakeSlidePanelManager.notifyQuickPanelClose).toHaveBeenCalledOnce()
+    })
+
+    it('catches errors and does not propagate — NFR-R1', () => {
+      Object.defineProperty(mockState, 'terminals', { get: () => [], configurable: true })
+      fakeSlidePanelManager.notifyQuickPanelClose = vi.fn().mockImplementation(() => {
+        throw new Error('notifyQuickPanelClose failed')
+      })
+      const handlers = captureHandlers()
+      expect(() => handlers['vibesense.switchToSession'](0)).not.toThrow()
+    })
+  })
 })
+

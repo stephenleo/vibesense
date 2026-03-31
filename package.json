@@ -32,6 +32,14 @@
       {
         "command": "vibesense.voicePtt",
         "title": "VibeSense: Voice Push-to-Talk"
+      },
+      {
+        "command": "vibesense.openQuickPanel",
+        "title": "VibeSense: Open Quick Session Panel"
+      },
+      {
+        "command": "vibesense.switchToSession",
+        "title": "VibeSense: Switch to Session"
       }
     ],
     "configuration": {

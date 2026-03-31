@@ -203,3 +203,83 @@
   font-size: 0.875rem;
   color: var(--vs-text2);
 }
+
+/* ─── QuickPanel ────────────────────────────────────────────────────────── */
+
+.quick-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quick-panel--visible {
+  opacity: 1;
+  transition: opacity var(--vs-duration-fast, 120ms) ease-out;
+}
+
+.quick-panel--hidden {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease-out;
+}
+
+.quick-panel__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.quick-panel__content {
+  position: relative;
+  z-index: 1;
+  background: rgba(14, 14, 28, 0.94);
+  border: 1px solid var(--vs-border);
+  border-radius: var(--vs-radius-md);
+  padding: var(--vs-space-4);
+  min-width: 280px;
+  max-width: 480px;
+}
+
+.quick-panel__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--vs-text2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 var(--vs-space-3);
+}
+
+.quick-panel__session-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--vs-space-2);
+}
+
+.quick-panel__item--selected .session-card {
+  box-shadow: 0 0 16px var(--vs-glow);
+  outline: 2px solid var(--vs-accent);
+  outline-offset: 2px;
+}
+
+.quick-panel__empty {
+  color: var(--vs-text2);
+  font-size: var(--vs-font-size-sm);
+  text-align: center;
+  padding: var(--vs-space-4) 0;
+  margin: 0;
+}
+
+.quick-panel__select-btn,
+.quick-panel__dismiss-btn {
+  display: none;
+}
+
