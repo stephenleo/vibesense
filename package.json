@@ -44,7 +44,23 @@
     ],
     "configuration": {
       "title": "VibeSense",
-      "properties": {}
+      "properties": {
+        "vibesense.activeProfile": {
+          "type": "string",
+          "default": "claude-code-default",
+          "description": "Name of the active binding profile. Synced via VSCode Settings Sync."
+        },
+        "vibesense.enableBatteryWarning": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a status bar warning when controller battery drops below 20%."
+        },
+        "vibesense.fullMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "When true, all bindings are active. When false (Guided mode), only essential bindings are exposed. Unlock via onboarding tutorial or toggle manually."
+        }
+      }
     }
   },
   "scripts": {

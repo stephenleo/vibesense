@@ -62,6 +62,14 @@ export class InputRouter implements vscode.Disposable {
   }
 
   /**
+   * Hot-reload bindings after a VSCode configuration change (Story 4.2).
+   * Updates the internal binding map in-place; no router reinitialization needed.
+   */
+  updateBindings(bindings: BindingMap): void {
+    this.bindings = bindings
+  }
+
+  /**
    * Begin buffering incoming events.
    * After INPUT_BUFFER_WINDOW_MS, buffered events are automatically flushed in order.
    */
