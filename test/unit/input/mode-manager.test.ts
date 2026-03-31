@@ -10,10 +10,8 @@ const mockState = vi.hoisted(() => {
   let configChangeListener: ((e: { affectsConfiguration: (key: string) => boolean }) => void) | undefined
 
   // Simulated vscode configuration values — mutated per test.
-  // Key is the bare config key passed to getConfiguration().get() = 'fullMode'
-  // (ModeManager calls getConfiguration('vibesense').get('fullMode', false))
-  // Key matches what ModeManager passes: getConfiguration('vibesense').get('vibesense.fullMode', false)
-  const configValues: Record<string, unknown> = { 'vibesense.fullMode': false }
+  // Key is the bare config key passed to getConfiguration('vibesense').get('fullMode', false)
+  const configValues: Record<string, unknown> = { fullMode: false }
 
 
   return {
@@ -133,7 +131,7 @@ describe('ModeManager', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     // Reset config values to first-install defaults
-    mockState.configValues['vibesense.fullMode'] = false
+    mockState.configValues['fullMode'] = false
   })
 
   // ── AC 1: First install defaults to Guided mode ───────────────────────────
@@ -146,7 +144,7 @@ describe('ModeManager', () => {
     })
 
     it('starts in Full mode when no globalState but fullMode setting = true', () => {
-      mockState.configValues['vibesense.fullMode'] = true
+      mockState.configValues['fullMode'] = true
       const ctx = makeContext(undefined)
       const manager = new ModeManager(ctx)
       expect(manager.mode).toBe('full')
@@ -157,21 +155,21 @@ describe('ModeManager', () => {
 
   describe('initial mode — returning user (AC 4)', () => {
     it('starts in Full mode when globalState has mode = "full", even if setting = false', () => {
-      mockState.configValues['vibesense.fullMode'] = false
+      mockState.configValues['fullMode'] = false
       const ctx = makeContext('full')
       const manager = new ModeManager(ctx)
       expect(manager.mode).toBe('full')
     })
 
     it('starts in Guided mode when globalState has mode = "guided"', () => {
-      mockState.configValues['vibesense.fullMode'] = true // setting says Full, but globalState wins
+      mockState.configValues['fullMode'] = true // setting says Full, but globalState wins
       const ctx = makeContext('guided')
       const manager = new ModeManager(ctx)
       expect(manager.mode).toBe('guided')
     })
 
     it('ignores unknown globalState values and falls back to setting', () => {
-      mockState.configValues['vibesense.fullMode'] = true
+      mockState.configValues['fullMode'] = true
       const ctx = makeContext('unknown-value' as never)
       const manager = new ModeManager(ctx)
       // Falls back to setting which is true → Full
@@ -300,6 +298,19 @@ describe('ModeManager', () => {
         expect.any(Error),
       )
     })
+
+    it('is a no-op when already in Full mode — does not fire event or write globalState', () => {
+      const ctx = makeContext('full')
+      const manager = new ModeManager(ctx)
+      const listener = vi.fn()
+      manager.onDidChangeMode(listener)
+      vi.clearAllMocks()
+
+      manager.setFullMode()
+
+      expect(listener).not.toHaveBeenCalled()
+      expect(ctx.globalState.update).not.toHaveBeenCalled()
+    })
   })
 
   // ── setGuidedMode (AC 3) ──────────────────────────────────────────────────
@@ -347,6 +358,19 @@ describe('ModeManager', () => {
         expect.any(Error),
       )
     })
+
+    it('is a no-op when already in Guided mode — does not fire event or write globalState', () => {
+      const ctx = makeContext(undefined) // starts guided
+      const manager = new ModeManager(ctx)
+      const listener = vi.fn()
+      manager.onDidChangeMode(listener)
+      vi.clearAllMocks()
+
+      manager.setGuidedMode()
+
+      expect(listener).not.toHaveBeenCalled()
+      expect(ctx.globalState.update).not.toHaveBeenCalled()
+    })
   })
 
   // ── onDidChangeConfiguration listener (AC 3) ──────────────────────────────
@@ -358,7 +382,7 @@ describe('ModeManager', () => {
       expect(manager.mode).toBe('guided')
 
       // Simulate setting toggled to true
-      mockState.configValues['vibesense.fullMode'] = true
+      mockState.configValues['fullMode'] = true
       const listener = mockState.getConfigChangeListener()
       listener?.({ affectsConfiguration: (key: string) => key === 'vibesense.fullMode' })
 
@@ -371,7 +395,7 @@ describe('ModeManager', () => {
       expect(manager.mode).toBe('full')
 
       // Simulate setting toggled to false
-      mockState.configValues['vibesense.fullMode'] = false
+      mockState.configValues['fullMode'] = false
       const listener = mockState.getConfigChangeListener()
       listener?.({ affectsConfiguration: (key: string) => key === 'vibesense.fullMode' })
 

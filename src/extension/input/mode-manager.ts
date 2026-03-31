@@ -11,8 +11,11 @@ import { GUIDED_MODE_BUTTON_IDS } from './default-bindings'
 /** globalState key used to persist the active mode across restarts */
 const GLOBAL_STATE_KEY = 'vibesense.mode'
 
-/** VSCode workspace setting key for toggling Full mode */
-const SETTING_KEY = 'vibesense.fullMode'
+/** Full dotted key — used with affectsConfiguration() which expects the complete path */
+const SETTING_FULL_KEY = 'vibesense.fullMode'
+
+/** Bare key within the 'vibesense' section — used with getConfiguration('vibesense').get() */
+const SETTING_SECTION_KEY = 'fullMode'
 
 export class ModeManager implements vscode.Disposable {
   private currentMode: BindingMode
@@ -28,17 +31,17 @@ export class ModeManager implements vscode.Disposable {
       this.currentMode = stored
     } else {
       // Fall back to VSCode setting when no persisted state exists (first install).
-      const setting = vscode.workspace.getConfiguration('vibesense').get<boolean>(SETTING_KEY, false)
+      const setting = vscode.workspace.getConfiguration('vibesense').get<boolean>(SETTING_SECTION_KEY, false)
       this.currentMode = setting ? 'full' : 'guided'
     }
     logger.info(`ModeManager: initial mode = ${this.currentMode}`)
 
     // React to manual settings toggle in real time (AC 3).
     this.configListener = vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration(SETTING_KEY)) {
+      if (e.affectsConfiguration(SETTING_FULL_KEY)) {
         const enabled = vscode.workspace
           .getConfiguration('vibesense')
-          .get<boolean>(SETTING_KEY, false)
+          .get<boolean>(SETTING_SECTION_KEY, false)
         if (enabled) {
           this.setFullMode()
         } else {
@@ -74,6 +77,7 @@ export class ModeManager implements vscode.Disposable {
    * Errors are caught and logged — never rethrown (NFR-R1).
    */
   setFullMode(): void {
+    if (this.currentMode === 'full') return
     try {
       this.currentMode = 'full'
       void this.context.globalState.update(GLOBAL_STATE_KEY, 'full')
@@ -89,6 +93,7 @@ export class ModeManager implements vscode.Disposable {
    * Errors are caught and logged — never rethrown (NFR-R1).
    */
   setGuidedMode(): void {
+    if (this.currentMode === 'guided') return
     try {
       this.currentMode = 'guided'
       void this.context.globalState.update(GLOBAL_STATE_KEY, 'guided')
