@@ -19,6 +19,7 @@ export type StatusBarState =
 const CONTROLLER_LABELS: Record<ControllerType, string> = Object.freeze({
   dualsense: 'DualSense',
   xbox: 'Xbox',
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   'generic-hid': 'Controller',
 })
 
