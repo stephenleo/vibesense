@@ -56,6 +56,18 @@ export class SlidePanelManager implements vscode.Disposable {
     logger.info('SlidePanelManager: controller connected', controllerType)
   }
 
+  /**
+   * Notify the webview that a session switch occurred via L1/R1 (Story 3.3).
+   * Posts SESSION_SWITCHED message to trigger the SessionSwitcher overlay.
+   */
+  notifySessionSwitched(sessionIndex: number, sessionName: string, totalSessions: number): void {
+    this.panel?.webview.postMessage({
+      type: 'SESSION_SWITCHED',
+      payload: { sessionIndex, sessionName, totalSessions },
+    })
+    logger.info('SlidePanelManager: session switched', sessionIndex, sessionName)
+  }
+
   dispose(): void {
     this.panel?.dispose()
     this.panel = undefined
