@@ -126,6 +126,15 @@ describe('InputRouter', () => {
       expect(mockExecuteCommand).not.toHaveBeenCalled()
     })
 
+    it('passes through at exactly 0.15 (dead zone boundary — not less than threshold)', () => {
+      // 0.15 is NOT < 0.15, so it passes through the dead zone filter into the axis handler
+      expect(() => router.handleEvent(axisEvent(0.15))).not.toThrow()
+    })
+
+    it('passes through at exactly -0.15 (negative dead zone boundary)', () => {
+      expect(() => router.handleEvent(axisEvent(-0.15))).not.toThrow()
+    })
+
     it('does NOT throw when axis value is above dead zone (0.20) — handler in place', () => {
       expect(() => router.handleEvent(axisEvent(0.20))).not.toThrow()
     })

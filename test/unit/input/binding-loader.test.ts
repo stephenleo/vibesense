@@ -172,4 +172,55 @@ describe('loadBindings()', () => {
       expect(() => loadBindings('/workspace')).not.toThrow()
     })
   })
+
+  // ── Unknown binding keys filtered ───────────────────────────────────────────
+  describe('unknown binding key validation', () => {
+    it('skips binding keys that are not valid ButtonId values', () => {
+      const profile = {
+        bindings: {
+          cross: 'custom.approve',
+          foobar: 'custom.unknown',
+        },
+      }
+      mockReadFileSync.mockReturnValue(JSON.stringify(profile))
+
+      const result = loadBindings('/workspace')
+      expect(result.cross).toBe('custom.approve')
+      // foobar is not a valid ButtonId — should not appear in result
+      expect((result as Record<string, string>)['foobar']).toBeUndefined()
+    })
+
+    it('logs a warning for each unknown binding key', () => {
+      const profile = {
+        bindings: {
+          cross: 'custom.approve',
+          foobar: 'custom.unknown',
+          baz: 'custom.another',
+        },
+      }
+      mockReadFileSync.mockReturnValue(JSON.stringify(profile))
+
+      loadBindings('/workspace')
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        "BindingLoader: unknown button id 'foobar' in vibesense.json — skipped",
+      )
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        "BindingLoader: unknown button id 'baz' in vibesense.json — skipped",
+      )
+    })
+
+    it('still includes valid keys alongside unknown ones', () => {
+      const profile = {
+        bindings: {
+          circle: 'custom.deny',
+          invalid_key: 'custom.nope',
+        },
+      }
+      mockReadFileSync.mockReturnValue(JSON.stringify(profile))
+
+      const result = loadBindings('/workspace')
+      expect(result.circle).toBe('custom.deny')
+      expect(result.cross).toBe('vibesense.approve') // default preserved
+    })
+  })
 })

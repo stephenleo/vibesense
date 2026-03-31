@@ -23,6 +23,7 @@ export const CLAUDE_CODE_DEFAULT_BINDINGS: BindingMap = {
   // Xbox equivalents
   a: 'vibesense.approve',
   b: 'vibesense.deny',
+  y: 'workbench.action.terminal.focus',
   lt: 'vibesense.openRadialWheel',
   lb: 'vibesense.switchSessionPrev',
   rb: 'vibesense.switchSessionNext',

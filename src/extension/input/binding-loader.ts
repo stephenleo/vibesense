@@ -6,6 +6,18 @@ import * as path from 'node:path'
 import { z } from 'zod'
 import { logger } from '../logger'
 import { CLAUDE_CODE_DEFAULT_BINDINGS, type BindingMap } from './default-bindings'
+import type { ButtonId } from '../../shared/types'
+
+/** Set of valid ButtonId values for binding key validation */
+const VALID_BUTTON_IDS = new Set<string>([
+  'cross', 'circle', 'square', 'triangle',
+  'l1', 'r1', 'l2', 'r2', 'l3', 'r3',
+  'up', 'down', 'left', 'right',
+  'options', 'touchpad',
+  'a', 'b', 'x', 'y',
+  'lb', 'rb', 'lt', 'rt', 'ls', 'rs',
+  'menu', 'view',
+])
 
 const VibeProfileSchema = z.object({
   profile: z.string().optional(),
@@ -34,7 +46,15 @@ export function loadBindings(workspaceRoot: string): BindingMap {
     const { bindings, profile } = result.data
     logger.info(`BindingLoader: loaded profile '${profile ?? 'unnamed'}' from ${profilePath}`)
     if (!bindings) return CLAUDE_CODE_DEFAULT_BINDINGS
-    return { ...CLAUDE_CODE_DEFAULT_BINDINGS, ...bindings } as BindingMap
+    const validBindings: BindingMap = {}
+    for (const [key, value] of Object.entries(bindings)) {
+      if (VALID_BUTTON_IDS.has(key)) {
+        validBindings[key as ButtonId] = value
+      } else {
+        logger.warn(`BindingLoader: unknown button id '${key}' in vibesense.json — skipped`)
+      }
+    }
+    return { ...CLAUDE_CODE_DEFAULT_BINDINGS, ...validBindings }
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
       // File not found is normal — use defaults silently
