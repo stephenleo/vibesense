@@ -14,6 +14,7 @@ const MAX_BUFFER_BYTES = 1_048_576
 
 export class PipeServer {
   private server: net.Server | null = null
+  private readonly activeSockets = new Set<net.Socket>()
 
   constructor(private readonly sessionManager: SessionManager) {}
 
@@ -28,6 +29,11 @@ export class PipeServer {
     }
 
     const server = net.createServer((socket) => {
+      this.activeSockets.add(socket)
+      socket.on('close', () => {
+        this.activeSockets.delete(socket)
+      })
+
       let buffer = ''
 
       socket.on('data', (chunk: Buffer) => {
@@ -49,12 +55,14 @@ export class PipeServer {
             if (line.trim() === '') {
               continue
             }
+            let parsed: unknown
             try {
-              const parsed: unknown = JSON.parse(line)
-              handleRawPayload(parsed, this.sessionManager)
+              parsed = JSON.parse(line)
             } catch {
               logger.warn('IPC: malformed JSON on socket', line)
+              continue
             }
+            handleRawPayload(parsed, this.sessionManager)
           }
         } catch (err) {
           logger.warn('IPC: data handler error', err)
@@ -87,7 +95,7 @@ export class PipeServer {
   }
 
   /**
-   * Stop the IPC server — closes all connections and removes the socket file.
+   * Stop the IPC server — closes the server, destroys active connections, and removes the socket file.
    */
   stop(): void {
     if (this.server === null) {
@@ -95,6 +103,11 @@ export class PipeServer {
     }
     this.server.close()
     this.server = null
+    // Destroy any lingering open connections so the process does not hang
+    for (const socket of this.activeSockets) {
+      socket.destroy()
+    }
+    this.activeSockets.clear()
     try {
       fs.unlinkSync(VIBESENSE_SOCKET_PATH)
     } catch {
