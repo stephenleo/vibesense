@@ -9,6 +9,8 @@ import type { Session, ControllerType } from '../../shared/types'
 export class SlidePanelManager implements vscode.Disposable {
   private panel: vscode.WebviewPanel | undefined
   private panelExpanded = false
+  private quickPanelSelectedIndex = 0
+  private quickPanelSessionCount = 0
 
   constructor(private readonly context: vscode.ExtensionContext) {
     this.panel = vscode.window.createWebviewPanel(
@@ -32,6 +34,16 @@ export class SlidePanelManager implements vscode.Disposable {
       if (msg.type === 'SLIDE_PANEL_TOGGLE') {
         this.panelExpanded = !this.panelExpanded
         logger.info('SlidePanelManager: toggle received, expanded =', this.panelExpanded)
+      } else if (msg.type === 'QUICK_PANEL_SELECT') {
+        logger.info('SlidePanelManager: quick panel select', msg.payload.sessionIndex)
+        vscode.commands
+          .executeCommand('vibesense.switchToSession', msg.payload.sessionIndex)
+          .then(undefined, (err: unknown) => {
+            logger.error('SlidePanelManager: switchToSession command failed', err)
+          })
+      } else if (msg.type === 'QUICK_PANEL_DISMISS') {
+        logger.info('SlidePanelManager: quick panel dismissed without session switch')
+        this.notifyQuickPanelClose()
       }
     })
 
@@ -54,6 +66,65 @@ export class SlidePanelManager implements vscode.Disposable {
   notifyControllerConnected(controllerType: ControllerType): void {
     this.panel?.webview.postMessage({ type: 'CONTROLLER_CONNECTED', payload: { controllerType } })
     logger.info('SlidePanelManager: controller connected', controllerType)
+  }
+
+  /**
+   * Open the quick session panel in the webview (Story 3.5 / FR14).
+   */
+  notifyQuickPanelOpen(sessions: Session[], selectedIndex: number): void {
+    this.quickPanelSessionCount = sessions.length
+    this.quickPanelSelectedIndex = selectedIndex
+    this.panel?.webview.postMessage({
+      type: 'QUICK_PANEL_OPEN',
+      payload: { sessions, selectedIndex },
+    })
+    logger.info('SlidePanelManager: quick panel open', sessions.length, 'sessions')
+  }
+
+  /**
+   * Close the quick session panel in the webview (Story 3.5).
+   */
+  notifyQuickPanelClose(): void {
+    this.quickPanelSelectedIndex = 0
+    this.quickPanelSessionCount = 0
+    this.panel?.webview.postMessage({ type: 'QUICK_PANEL_CLOSE', payload: {} })
+    logger.info('SlidePanelManager: quick panel close')
+  }
+
+  /**
+   * Update the selected index in the quick panel (Story 3.5 / D-pad navigation).
+   */
+  notifyQuickPanelNavigate(selectedIndex: number): void {
+    this.quickPanelSelectedIndex = selectedIndex
+    this.panel?.webview.postMessage({
+      type: 'QUICK_PANEL_NAVIGATE',
+      payload: { selectedIndex },
+    })
+    logger.info('SlidePanelManager: quick panel navigate', selectedIndex)
+  }
+
+  /**
+   * Move quick panel selection to the next item (wraps around).
+   * Returns the new selected index, or -1 if panel is not open.
+   */
+  quickPanelNext(): number {
+    if (this.quickPanelSessionCount === 0) return -1
+    const newIndex = (this.quickPanelSelectedIndex + 1) % this.quickPanelSessionCount
+    this.notifyQuickPanelNavigate(newIndex)
+    return newIndex
+  }
+
+  /**
+   * Move quick panel selection to the previous item (wraps around).
+   * Returns the new selected index, or -1 if panel is not open.
+   */
+  quickPanelPrev(): number {
+    if (this.quickPanelSessionCount === 0) return -1
+    const newIndex =
+      (this.quickPanelSelectedIndex - 1 + this.quickPanelSessionCount) %
+      this.quickPanelSessionCount
+    this.notifyQuickPanelNavigate(newIndex)
+    return newIndex
   }
 
   /**

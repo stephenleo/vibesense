@@ -13,6 +13,7 @@ export const CLAUDE_CODE_DEFAULT_BINDINGS: BindingMap = {
   circle: 'vibesense.deny',
   square: 'vibesense.openTerminal', // Story 3.1: DualSense □ = new terminal (MVP; L1+R1 chord deferred)
   l2: 'vibesense.openRadialWheel',
+  r2: 'vibesense.openQuickPanel',
   l1: 'vibesense.switchSessionPrev',
   r1: 'vibesense.switchSessionNext',
   options: 'vibesense.openSettings',
@@ -28,6 +29,7 @@ export const CLAUDE_CODE_DEFAULT_BINDINGS: BindingMap = {
   x: 'vibesense.openTerminal', // Story 3.1: Xbox X = new terminal (parity with DualSense □)
   y: 'workbench.action.terminal.focus',
   lt: 'vibesense.openRadialWheel',
+  rt: 'vibesense.openQuickPanel',
   lb: 'vibesense.switchSessionPrev',
   rb: 'vibesense.switchSessionNext',
   menu: 'vibesense.openSettings',

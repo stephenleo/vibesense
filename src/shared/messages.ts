@@ -60,6 +60,23 @@ export const HostMessageSchema = z.discriminatedUnion('type', [
       totalSessions: z.number().int().positive(),
     }),
   }),
+  z.object({
+    type: z.literal('QUICK_PANEL_OPEN'),
+    payload: z.object({
+      sessions: z.array(SessionSchema),
+      selectedIndex: z.number().int().nonnegative(),
+    }),
+  }),
+  z.object({
+    type: z.literal('QUICK_PANEL_CLOSE'),
+    payload: z.object({}),
+  }),
+  z.object({
+    type: z.literal('QUICK_PANEL_NAVIGATE'),
+    payload: z.object({
+      selectedIndex: z.number().int().nonnegative(),
+    }),
+  }),
 ])
 
 export type HostMessage = z.infer<typeof HostMessageSchema>
@@ -79,6 +96,16 @@ export const WebviewMessageSchema = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('SLIDE_PANEL_TOGGLE'),
+    payload: z.object({}),
+  }),
+  z.object({
+    type: z.literal('QUICK_PANEL_SELECT'),
+    payload: z.object({
+      sessionIndex: z.number().int().nonnegative(),
+    }),
+  }),
+  z.object({
+    type: z.literal('QUICK_PANEL_DISMISS'),
     payload: z.object({}),
   }),
 ])

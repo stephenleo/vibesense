@@ -2,6 +2,7 @@
 // Centralised command registration for controller-triggered terminal and agent launch (Story 3.1)
 // FR10: open terminal, FR11: launch Claude Code, FR12: launch Copilot Chat
 // FR13: L1/R1 session switching (Story 3.3)
+// FR14: quick session panel (Story 3.5)
 
 import * as vscode from 'vscode'
 import { logger } from '../logger'
@@ -118,6 +119,55 @@ export function registerCommands(
       } catch (err) {
         logger.error('vibesense.switchSessionPrev: failed', err)
         // NFR-R1: swallow — never propagate to VSCode process
+      }
+    }),
+
+    // FR14: Open quick session panel (R2/RT button) — Story 3.5 (AC 1, 2, 3)
+    vscode.commands.registerCommand('vibesense.openQuickPanel', () => {
+      try {
+        const terminals = vscode.window.terminals
+        const sessions = terminals.map((t) => ({
+          sessionId: t.name,
+          agentState: 'idle' as const,
+          label: t.name,
+        }))
+        slidePanelManager.notifyQuickPanelOpen(sessions, 0)
+      } catch (err) {
+        logger.error('vibesense.openQuickPanel: failed', err)
+        // NFR-R1: swallow — never propagate to VSCode process
+      }
+    }),
+
+    // FR14: Switch to a specific session by index (called by QUICK_PANEL_SELECT) — Story 3.5
+    vscode.commands.registerCommand('vibesense.switchToSession', (sessionIndex: number) => {
+      try {
+        const terminals = vscode.window.terminals
+        const terminal = terminals[sessionIndex]
+        if (terminal) {
+          terminal.show(false)
+        }
+        slidePanelManager.notifyQuickPanelClose()
+      } catch (err) {
+        logger.error('vibesense.switchToSession: failed', err)
+        // NFR-R1: swallow — never propagate to VSCode process
+      }
+    }),
+
+    // FR14: Navigate quick panel to next item (D-pad down) — Story 3.5
+    vscode.commands.registerCommand('vibesense.quickPanelNext', () => {
+      try {
+        slidePanelManager.quickPanelNext()
+      } catch (err) {
+        logger.error('vibesense.quickPanelNext: failed', err)
+      }
+    }),
+
+    // FR14: Navigate quick panel to previous item (D-pad up) — Story 3.5
+    vscode.commands.registerCommand('vibesense.quickPanelPrev', () => {
+      try {
+        slidePanelManager.quickPanelPrev()
+      } catch (err) {
+        logger.error('vibesense.quickPanelPrev: failed', err)
       }
     }),
   )

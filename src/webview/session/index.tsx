@@ -8,6 +8,7 @@ import { SESSION_SWITCHER_DISPLAY_MS } from '../../shared/constants'
 import type { Session, ControllerType } from '../../shared/types'
 import { SlidePanel } from './SlidePanel'
 import { SessionSwitcher } from './SessionSwitcher'
+import { QuickPanel } from './QuickPanel'
 import '../shared-ui/tokens.css'
 import './session.css'
 
@@ -25,6 +26,8 @@ interface AppState {
   switcherSessionIndex: number
   switcherSessionName: string
   switcherTotalSessions: number
+  quickPanelVisible: boolean
+  quickPanelSelectedIndex: number
 }
 
 type AppAction =
@@ -36,6 +39,9 @@ type AppAction =
       payload: { sessionIndex: number; sessionName: string; totalSessions: number }
     }
   | { type: 'HIDE_SWITCHER' }
+  | { type: 'OPEN_QUICK_PANEL'; sessions: Session[]; selectedIndex: number }
+  | { type: 'CLOSE_QUICK_PANEL' }
+  | { type: 'NAVIGATE_QUICK_PANEL'; selectedIndex: number }
 
 function reducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
@@ -55,6 +61,17 @@ function reducer(state: AppState, action: AppAction): AppState {
       }
     case 'HIDE_SWITCHER':
       return { ...state, switcherVisible: false }
+    case 'OPEN_QUICK_PANEL':
+      return {
+        ...state,
+        sessions: action.sessions,
+        quickPanelVisible: true,
+        quickPanelSelectedIndex: action.selectedIndex,
+      }
+    case 'CLOSE_QUICK_PANEL':
+      return { ...state, quickPanelVisible: false }
+    case 'NAVIGATE_QUICK_PANEL':
+      return { ...state, quickPanelSelectedIndex: action.selectedIndex }
     default:
       return state
   }
@@ -68,6 +85,8 @@ const initialState: AppState = {
   switcherSessionIndex: 0,
   switcherSessionName: '',
   switcherTotalSessions: 1,
+  quickPanelVisible: false,
+  quickPanelSelectedIndex: 0,
 }
 
 // ─── App Component ────────────────────────────────────────────────────────────
@@ -95,6 +114,16 @@ function App(): React.ReactElement {
           dispatch({ type: 'HIDE_SWITCHER' })
           switcherTimerRef.current = null
         }, SESSION_SWITCHER_DISPLAY_MS)
+      } else if (msg.type === 'QUICK_PANEL_OPEN') {
+        dispatch({
+          type: 'OPEN_QUICK_PANEL',
+          sessions: msg.payload.sessions,
+          selectedIndex: msg.payload.selectedIndex,
+        })
+      } else if (msg.type === 'QUICK_PANEL_CLOSE') {
+        dispatch({ type: 'CLOSE_QUICK_PANEL' })
+      } else if (msg.type === 'QUICK_PANEL_NAVIGATE') {
+        dispatch({ type: 'NAVIGATE_QUICK_PANEL', selectedIndex: msg.payload.selectedIndex })
       }
     }
 
@@ -113,6 +142,16 @@ function App(): React.ReactElement {
     vscode.postMessage({ type: 'SLIDE_PANEL_TOGGLE', payload: {} })
   }
 
+  function handleQuickPanelSelect(index: number): void {
+    vscode.postMessage({ type: 'QUICK_PANEL_SELECT', payload: { sessionIndex: index } })
+    dispatch({ type: 'CLOSE_QUICK_PANEL' })
+  }
+
+  function handleQuickPanelDismiss(): void {
+    vscode.postMessage({ type: 'QUICK_PANEL_DISMISS', payload: {} })
+    dispatch({ type: 'CLOSE_QUICK_PANEL' })
+  }
+
   return (
     <>
       <SlidePanel
@@ -125,6 +164,13 @@ function App(): React.ReactElement {
         sessionName={state.switcherSessionName}
         totalSessions={state.switcherTotalSessions}
         visible={state.switcherVisible}
+      />
+      <QuickPanel
+        sessions={state.sessions}
+        selectedIndex={state.quickPanelSelectedIndex}
+        visible={state.quickPanelVisible}
+        onSelect={handleQuickPanelSelect}
+        onDismiss={handleQuickPanelDismiss}
       />
     </>
   )
