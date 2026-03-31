@@ -25,10 +25,10 @@ export const SessionSchema = z.object({
 })
 
 // Drift guards — break the build if schemas diverge from types.ts
-const _agentStateOk: AssertEqual<z.infer<typeof AgentStateSchema>, AgentState> = true
-const _controllerTypeOk: AssertEqual<z.infer<typeof ControllerTypeSchema>, ControllerType> = true
-const _sessionOk: AssertEqual<z.infer<typeof SessionSchema>, Session> = true
-void _agentStateOk; void _controllerTypeOk; void _sessionOk
+const agentStateOk: AssertEqual<z.infer<typeof AgentStateSchema>, AgentState> = true
+const controllerTypeOk: AssertEqual<z.infer<typeof ControllerTypeSchema>, ControllerType> = true
+const sessionOk: AssertEqual<z.infer<typeof SessionSchema>, Session> = true
+void agentStateOk; void controllerTypeOk; void sessionOk
 
 // ─── Host → Webview messages ─────────────────────────────────────────────────
 
