@@ -16,6 +16,7 @@ export const CLAUDE_CODE_DEFAULT_BINDINGS: BindingMap = {
   l1: 'vibesense.switchSessionPrev',
   r1: 'vibesense.switchSessionNext',
   options: 'vibesense.openSettings',
+  touchpad: 'vibesense.voicePtt', // Story 3.6: DualSense touchpad = voice PTT
   triangle: 'workbench.action.terminal.focus',
   up: 'workbench.action.terminal.scrollUp',
   down: 'workbench.action.terminal.scrollDown',
@@ -30,6 +31,7 @@ export const CLAUDE_CODE_DEFAULT_BINDINGS: BindingMap = {
   lb: 'vibesense.switchSessionPrev',
   rb: 'vibesense.switchSessionNext',
   menu: 'vibesense.openSettings',
+  view: 'vibesense.voicePtt', // Story 3.6: Xbox View button = voice PTT
 }
 
 /** Default bindings for Copilot vibe-coding workflow */
