@@ -14,13 +14,13 @@ const {
   mockGetConfiguration,
   mockOnDidChangeConfiguration,
   mockConfigGet,
-  mockConfigUpdate,
+  _mockConfigUpdate,
 } = vi.hoisted(() => {
   const mockConfigGet = vi.fn()
-  const mockConfigUpdate = vi.fn().mockResolvedValue(undefined)
+  const _mockConfigUpdate = vi.fn().mockResolvedValue(undefined)
   const mockGetConfiguration = vi.fn(() => ({
     get: mockConfigGet,
-    update: mockConfigUpdate,
+    update: _mockConfigUpdate,
   }))
   const mockOnDidChangeConfiguration = vi.fn(() => ({
     dispose: vi.fn(),
@@ -40,7 +40,7 @@ const {
     mockGetConfiguration,
     mockOnDidChangeConfiguration,
     mockConfigGet,
-    mockConfigUpdate,
+    _mockConfigUpdate,
   }
 })
 

@@ -93,6 +93,7 @@ export class SettingsBridge {
       logger.info(`SettingsBridge: binding ${button} → ${command} written to vibesense.json`)
     } catch (err) {
       logger.warn('SettingsBridge: failed to write vibesense.json', err)
+      try { fs.unlinkSync(tmpPath) } catch { /* best-effort cleanup */ }
       // NFR-R1: never throw
     }
   }
@@ -129,6 +130,7 @@ export class SettingsBridge {
       logger.info(`SettingsBridge: reset ${buttons.length} button(s) to defaults in vibesense.json`)
     } catch (err) {
       logger.warn('SettingsBridge: failed to reset vibesense.json to defaults', err)
+      try { fs.unlinkSync(tmpPath) } catch { /* best-effort cleanup */ }
       // NFR-R1: never throw
     }
 

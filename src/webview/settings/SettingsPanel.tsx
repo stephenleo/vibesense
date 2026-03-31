@@ -157,7 +157,7 @@ export function SettingsPanel({
             onBindingChange={onBindingChange}
           />
           <BindingGroup
-            legend="DualSense Shoulders &amp; Triggers"
+            legend="DualSense Shoulders & Triggers"
             buttons={DUALSENSE_SHOULDER_TRIGGER}
             bindings={bindings}
             controllerType={controllerType}
@@ -178,7 +178,7 @@ export function SettingsPanel({
             onBindingChange={onBindingChange}
           />
           <BindingGroup
-            legend="Xbox Shoulders &amp; Triggers"
+            legend="Xbox Shoulders & Triggers"
             buttons={XBOX_SHOULDER_TRIGGER}
             bindings={bindings}
             controllerType={controllerType}

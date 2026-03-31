@@ -11,6 +11,7 @@ import type { InputRouter } from '../input/input-router'
 export class SettingsPanelManager implements vscode.Disposable {
   private panel: vscode.WebviewPanel | undefined
   private readonly subscriptions: vscode.Disposable[] = []
+  private currentControllerType: ControllerType | null = null
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -90,6 +91,7 @@ export class SettingsPanelManager implements vscode.Disposable {
    * No-op if the panel is not currently visible.
    */
   notifyControllerConnected(controllerType: ControllerType): void {
+    this.currentControllerType = controllerType
     if (this.panel) {
       this.panel.webview.postMessage({
         type: 'CONTROLLER_CONNECTED',
@@ -122,7 +124,7 @@ export class SettingsPanelManager implements vscode.Disposable {
       }
       this.panel?.webview.postMessage({
         type: 'SETTINGS_LOADED',
-        payload: { bindings: bindingsRecord, controllerType: null },
+        payload: { bindings: bindingsRecord, controllerType: this.currentControllerType },
       })
     } catch (err) {
       logger.error('SettingsPanelManager: error sending current state', err)
