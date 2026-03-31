@@ -69,6 +69,10 @@ export const WebviewMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('APPROVE_ACTION'),
     payload: z.object({}),
   }),
+  z.object({
+    type: z.literal('SLIDE_PANEL_TOGGLE'),
+    payload: z.object({}),
+  }),
 ])
 
 export type WebviewMessage = z.infer<typeof WebviewMessageSchema>

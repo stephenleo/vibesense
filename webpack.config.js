@@ -41,7 +41,10 @@ const extensionConfig = {
 /** @type {import('webpack').Configuration} */
 const webviewConfig = {
   target: 'web',
-  entry: { 'radial-wheel': './src/webview/radial-wheel/index.tsx' },
+  entry: {
+    'radial-wheel': './src/webview/radial-wheel/index.tsx',
+    session: './src/webview/session/index.tsx',
+  },
   output: {
     path: path.resolve(__dirname, 'dist/webview'),
     filename: '[name].js',
