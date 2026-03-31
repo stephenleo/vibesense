@@ -22,6 +22,7 @@ import { SettingsBridge } from './input/settings-bridge'
 import { registerCommands } from './commands/register'
 import { SessionManager } from './session/session-manager'
 import { registerHooks } from './ipc/hook-writer'
+import { PipeServer } from './ipc/pipe-server'
 import type { ControllerEvent, ControllerType } from '../shared/types'
 import type { AggregateGameState } from './fsm/states'
 
@@ -50,6 +51,11 @@ export function activate(context: vscode.ExtensionContext): void {
       sessionManager = undefined
     },
   })
+
+  // Story 5.3: IPC server — Claude Code hooks and vibeSense.notify() API
+  const pipeServer = new PipeServer(sessionManager)
+  pipeServer.start()
+  context.subscriptions.push({ dispose: () => pipeServer.stop() })
 
   // Story 5.1: Log aggregateGameStateChanged events (haptic/LED/game integrations come in later epics)
   sessionManager.on('aggregateGameStateChanged', (state: AggregateGameState) => {
