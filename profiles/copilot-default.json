@@ -1,0 +1,35 @@
+{
+  "profile": "copilot-default",
+  "bindings": {
+    "cross": "vibesense.approve",
+    "circle": "vibesense.deny",
+    "l2": "vibesense.openRadialWheel",
+    "l1": "vibesense.switchSessionPrev",
+    "r1": "vibesense.switchSessionNext",
+    "options": "vibesense.openSettings",
+    "triangle": "workbench.action.terminal.focus",
+    "up": "workbench.action.terminal.scrollUp",
+    "down": "workbench.action.terminal.scrollDown",
+    "left": "workbench.action.navigateBack",
+    "right": "workbench.action.navigateForward",
+    "a": "vibesense.approve",
+    "b": "vibesense.deny",
+    "y": "workbench.action.terminal.focus",
+    "lt": "vibesense.openRadialWheel",
+    "lb": "vibesense.switchSessionPrev",
+    "rb": "vibesense.switchSessionNext",
+    "menu": "vibesense.openSettings"
+  },
+  "radialWheel": {
+    "segments": [
+      "vibesense.approve",
+      "vibesense.deny",
+      "vibesense.switchSessionNext",
+      "vibesense.switchSessionPrev",
+      "workbench.action.terminal.focus",
+      "workbench.action.terminal.scrollUp",
+      "workbench.action.terminal.scrollDown",
+      "vibesense.openSettings"
+    ]
+  }
+}

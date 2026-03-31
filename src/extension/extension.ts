@@ -12,6 +12,8 @@ import { handleHidPermissionError } from './platform/platform-guide'
 import { showDeviceSelector } from './platform/device-selector'
 import { InputRouter } from './input/input-router'
 import { loadBindings } from './input/binding-loader'
+import { ensureWorkspaceProfile } from './input/profile-writer'
+import { CLAUDE_CODE_DEFAULT_PROFILE } from './input/profile-schema'
 import type { ControllerEvent, ControllerType } from '../shared/types'
 
 // Module-level references — accessible for deactivate() and subscription dispose
@@ -32,6 +34,11 @@ export function activate(context: vscode.ExtensionContext): void {
   // Load binding profile and create input router (Story 2.5)
   const workspaceRoot =
     vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? context.extensionUri.fsPath
+
+  // Story 2.7: Create .vscode/vibesense.json if not present
+  ensureWorkspaceProfile(workspaceRoot, CLAUDE_CODE_DEFAULT_PROFILE)
+
+  // Story 2.5: Load binding profile (file may now exist from above)
   const bindings = loadBindings(workspaceRoot)
   const inputRouter = new InputRouter(bindings)
   context.subscriptions.push(inputRouter)

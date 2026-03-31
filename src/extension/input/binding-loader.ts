@@ -3,9 +3,9 @@
 
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { z } from 'zod'
 import { logger } from '../logger'
 import { CLAUDE_CODE_DEFAULT_BINDINGS, type BindingMap } from './default-bindings'
+import { VibeProfileSchema } from './profile-schema'
 import type { ButtonId } from '../../shared/types'
 
 /** Set of valid ButtonId values for binding key validation */
@@ -18,16 +18,6 @@ const VALID_BUTTON_IDS = new Set<string>([
   'lb', 'rb', 'lt', 'rt', 'ls', 'rs',
   'menu', 'view',
 ])
-
-const VibeProfileSchema = z.object({
-  profile: z.string().optional(),
-  bindings: z.record(z.string(), z.string().min(1)).optional(),
-  radialWheel: z
-    .object({
-      segments: z.array(z.string()),
-    })
-    .optional(),
-})
 
 /**
  * Load binding profile from <workspaceRoot>/.vscode/vibesense.json.
