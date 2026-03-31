@@ -11,6 +11,7 @@ export class SlidePanelManager implements vscode.Disposable {
   private panelExpanded = false
   private quickPanelSelectedIndex = 0
   private quickPanelSessionCount = 0
+  private errorMenuSessionId = ''
 
   constructor(private readonly context: vscode.ExtensionContext) {
     this.panel = vscode.window.createWebviewPanel(
@@ -44,6 +45,37 @@ export class SlidePanelManager implements vscode.Disposable {
       } else if (msg.type === 'QUICK_PANEL_DISMISS') {
         logger.info('SlidePanelManager: quick panel dismissed without session switch')
         this.notifyQuickPanelClose()
+      } else if (msg.type === 'ERROR_MENU_ACTION') {
+        logger.info('SlidePanelManager: error menu action', msg.payload.action)
+        if (msg.payload.action === 'retry') {
+          vscode.commands
+            .executeCommand('vibesense.errorRetryLastCommand', this.errorMenuSessionId)
+            .then(undefined, (err: unknown) => {
+              logger.error('SlidePanelManager: errorRetryLastCommand failed', err)
+            })
+        } else if (msg.payload.action === 'clear') {
+          vscode.commands
+            .executeCommand('vibesense.errorClearTerminal')
+            .then(undefined, (err: unknown) => {
+              logger.error('SlidePanelManager: errorClearTerminal failed', err)
+            })
+        } else if (msg.payload.action === 'new-session') {
+          vscode.commands
+            .executeCommand('vibesense.openTerminal')
+            .then(undefined, (err: unknown) => {
+              logger.error('SlidePanelManager: openTerminal failed', err)
+            })
+        } else if (msg.payload.action === 'view-log') {
+          vscode.commands
+            .executeCommand('vibesense.errorViewLog')
+            .then(undefined, (err: unknown) => {
+              logger.error('SlidePanelManager: errorViewLog failed', err)
+            })
+        }
+        this.notifyErrorMenuClose()
+      } else if (msg.type === 'ERROR_MENU_DISMISS') {
+        logger.info('SlidePanelManager: error menu dismissed without action')
+        this.notifyErrorMenuClose()
       }
     })
 
@@ -125,6 +157,27 @@ export class SlidePanelManager implements vscode.Disposable {
       this.quickPanelSessionCount
     this.notifyQuickPanelNavigate(newIndex)
     return newIndex
+  }
+
+  /**
+   * Open the error recovery menu in the webview (Story 5.5 / FR56).
+   */
+  notifyErrorMenuOpen(sessionId: string, hasLastCommand: boolean): void {
+    this.errorMenuSessionId = sessionId
+    this.panel?.webview.postMessage({
+      type: 'ERROR_MENU_OPEN',
+      payload: { sessionId, hasLastCommand },
+    })
+    logger.info('SlidePanelManager: error menu open', sessionId)
+  }
+
+  /**
+   * Close the error recovery menu in the webview (Story 5.5).
+   */
+  notifyErrorMenuClose(): void {
+    this.errorMenuSessionId = ''
+    this.panel?.webview.postMessage({ type: 'ERROR_MENU_CLOSE', payload: {} })
+    logger.info('SlidePanelManager: error menu close')
   }
 
   /**

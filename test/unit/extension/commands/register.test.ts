@@ -70,6 +70,8 @@ const fakeSlidePanelManager = {
   notifyQuickPanelNavigate: vi.fn(),
   quickPanelNext: vi.fn(),
   quickPanelPrev: vi.fn(),
+  notifyErrorMenuOpen: vi.fn(),
+  notifyErrorMenuClose: vi.fn(),
 } as unknown as import('../../../../src/extension/panels/slide-panel-manager').SlidePanelManager
 
 // Minimal ModeManager stub (Story 4.3 added modeManager param)
@@ -86,6 +88,22 @@ const fakeOnboardingPanelManager = {
   dispose: vi.fn(),
 } as unknown as import('../../../../src/extension/panels/onboarding-panel').OnboardingPanelManager
 
+// Minimal SessionManager stub (Story 5.5 added sessionManager param)
+const fakeErrorFsm = { state: 'error' as const }
+const fakeIdleFsm = { state: 'idle' as const, dispatch: vi.fn() }
+const fakeSessionManager = {
+  getSessions: vi.fn(() => new Map<string, { state: string }>()),
+  getOrCreateFsm: vi.fn(() => fakeIdleFsm),
+} as unknown as import('../../../../src/extension/session/session-manager').SessionManager
+
+// Minimal LastCommandTracker stub (Story 5.5)
+const fakeLastCommandTracker = {
+  getLastCommand: vi.fn(() => undefined as string | undefined),
+  setLastCommand: vi.fn(),
+  clearSession: vi.fn(),
+  dispose: vi.fn(),
+} as unknown as import('../../../../src/extension/session/last-command-tracker').LastCommandTracker
+
 /**
  * Call registerCommands with a fake context and return a lookup map of
  * commandId → handler so each test can invoke handlers directly.
@@ -101,7 +119,7 @@ function captureHandlers(): Record<string, (...args: unknown[]) => void | Promis
     subscriptions: { push: vi.fn() },
   } as unknown as import('vscode').ExtensionContext
 
-  registerCommands(fakeContext, fakeSlidePanelManager, fakeModeManager, fakeOnboardingPanelManager)
+  registerCommands(fakeContext, fakeSlidePanelManager, fakeModeManager, fakeOnboardingPanelManager, fakeSessionManager, fakeLastCommandTracker)
   return handlers
 }
 
@@ -120,7 +138,7 @@ describe('registerCommands', () => {
   })
 
   describe('registration', () => {
-    it('registers all commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt, switchSessionNext, switchSessionPrev, openQuickPanel, switchToSession, quickPanelNext, quickPanelPrev, completeTutorial', () => {
+    it('registers all commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt, switchSessionNext, switchSessionPrev, openQuickPanel, switchToSession, quickPanelNext, quickPanelPrev, completeTutorial, startOnboarding, openErrorMenu, errorRetryLastCommand, errorClearTerminal, errorViewLog', () => {
       captureHandlers()
       const registeredIds = mockState.registerCommand.mock.calls.map(
         (call) => call[0] as string,
@@ -137,6 +155,10 @@ describe('registerCommands', () => {
       expect(registeredIds).toContain('vibesense.quickPanelPrev')
       expect(registeredIds).toContain('vibesense.completeTutorial')
       expect(registeredIds).toContain('vibesense.startOnboarding')
+      expect(registeredIds).toContain('vibesense.openErrorMenu')
+      expect(registeredIds).toContain('vibesense.errorRetryLastCommand')
+      expect(registeredIds).toContain('vibesense.errorClearTerminal')
+      expect(registeredIds).toContain('vibesense.errorViewLog')
     })
 
     it('pushes all disposables to context.subscriptions (auto-dispose on deactivation)', () => {
@@ -146,11 +168,12 @@ describe('registerCommands', () => {
         subscriptions: { push: (...items: unknown[]) => fakeSubscriptions.push(...items) },
       } as unknown as import('vscode').ExtensionContext
 
-      registerCommands(fakeContext, fakeSlidePanelManager, fakeModeManager, fakeOnboardingPanelManager)
-      // 12 commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt,
+      registerCommands(fakeContext, fakeSlidePanelManager, fakeModeManager, fakeOnboardingPanelManager, fakeSessionManager, fakeLastCommandTracker)
+      // 16 commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt,
       // switchSessionNext, switchSessionPrev, openQuickPanel, switchToSession,
-      // quickPanelNext, quickPanelPrev, completeTutorial, startOnboarding
-      expect(fakeSubscriptions).toHaveLength(12)
+      // quickPanelNext, quickPanelPrev, completeTutorial, startOnboarding,
+      // openErrorMenu, errorRetryLastCommand, errorClearTerminal, errorViewLog
+      expect(fakeSubscriptions).toHaveLength(16)
     })
   })
 
@@ -570,6 +593,130 @@ describe('registerCommands', () => {
         'vibesense.completeTutorial: failed',
         error,
       )
+    })
+  })
+
+  // ── vibesense.openErrorMenu (Story 5.5 / FR56) ────────────────────────────
+
+  describe('vibesense.openErrorMenu (AC 1)', () => {
+    it('does NOT call notifyErrorMenuOpen when no sessions are in error state', () => {
+      fakeSessionManager.getSessions = vi.fn(() => new Map())
+      fakeSlidePanelManager.notifyErrorMenuOpen = vi.fn()
+      const handlers = captureHandlers()
+      handlers['vibesense.openErrorMenu']()
+      expect(fakeSlidePanelManager.notifyErrorMenuOpen).not.toHaveBeenCalled()
+    })
+
+    it('calls notifyErrorMenuOpen with the error session ID when one session is in error state', () => {
+      fakeSessionManager.getSessions = vi.fn(() =>
+        new Map([['error-session-1', fakeErrorFsm]]),
+      )
+      fakeLastCommandTracker.getLastCommand = vi.fn(() => undefined)
+      fakeSlidePanelManager.notifyErrorMenuOpen = vi.fn()
+      const handlers = captureHandlers()
+      handlers['vibesense.openErrorMenu']()
+      expect(fakeSlidePanelManager.notifyErrorMenuOpen).toHaveBeenCalledWith('error-session-1', false)
+    })
+
+    it('sets hasLastCommand=true when lastCommandTracker has a command for the session', () => {
+      fakeSessionManager.getSessions = vi.fn(() =>
+        new Map([['error-session-2', fakeErrorFsm]]),
+      )
+      fakeLastCommandTracker.getLastCommand = vi.fn(() => 'claude')
+      fakeSlidePanelManager.notifyErrorMenuOpen = vi.fn()
+      const handlers = captureHandlers()
+      handlers['vibesense.openErrorMenu']()
+      expect(fakeSlidePanelManager.notifyErrorMenuOpen).toHaveBeenCalledWith('error-session-2', true)
+    })
+
+    it('does not propagate errors — NFR-R1', () => {
+      fakeSessionManager.getSessions = vi.fn(() => {
+        throw new Error('getSessions exploded')
+      })
+      const handlers = captureHandlers()
+      expect(() => handlers['vibesense.openErrorMenu']()).not.toThrow()
+    })
+  })
+
+  // ── vibesense.errorClearTerminal (Story 5.5) ──────────────────────────────
+
+  describe('vibesense.errorClearTerminal (AC 2)', () => {
+    it('executes workbench.action.terminal.clear command', () => {
+      mockState.executeCommand.mockResolvedValueOnce(undefined)
+      const handlers = captureHandlers()
+      handlers['vibesense.errorClearTerminal']()
+      expect(mockState.executeCommand).toHaveBeenCalledWith('workbench.action.terminal.clear')
+    })
+
+    it('does not propagate errors — NFR-R1', () => {
+      mockState.executeCommand.mockImplementationOnce(() => {
+        throw new Error('executeCommand failed')
+      })
+      const handlers = captureHandlers()
+      expect(() => handlers['vibesense.errorClearTerminal']()).not.toThrow()
+    })
+  })
+
+  // ── vibesense.errorViewLog (Story 5.5) ────────────────────────────────────
+
+  describe('vibesense.errorViewLog (AC 2)', () => {
+    it('sets a status bar message pointing to the error log', () => {
+      const handlers = captureHandlers()
+      handlers['vibesense.errorViewLog']()
+      expect(mockState.setStatusBarMessage).toHaveBeenCalledWith(
+        expect.stringContaining('error log'),
+        5000,
+      )
+    })
+
+    it('does not propagate errors — NFR-R1', () => {
+      mockState.setStatusBarMessage.mockImplementationOnce(() => {
+        throw new Error('setStatusBarMessage failed')
+      })
+      const handlers = captureHandlers()
+      expect(() => handlers['vibesense.errorViewLog']()).not.toThrow()
+    })
+  })
+
+  // ── vibesense.errorRetryLastCommand (Story 5.5) ───────────────────────────
+
+  describe('vibesense.errorRetryLastCommand (AC 2)', () => {
+    it('calls terminal.sendText with the last command when active terminal and lastCommand exist', () => {
+      mockState.activeTerminal = mockState.terminal
+      fakeLastCommandTracker.getLastCommand = vi.fn(() => 'claude')
+      fakeSessionManager.getOrCreateFsm = vi.fn(() => fakeIdleFsm)
+      const handlers = captureHandlers()
+      handlers['vibesense.errorRetryLastCommand']('session-1')
+      expect(mockState.terminal.sendText).toHaveBeenCalledWith('claude', true)
+    })
+
+    it('falls back to runRecentCommand when no lastCommand is tracked', async () => {
+      mockState.activeTerminal = mockState.terminal
+      fakeLastCommandTracker.getLastCommand = vi.fn(() => undefined)
+      mockState.executeCommand.mockResolvedValueOnce(undefined)
+      fakeSessionManager.getOrCreateFsm = vi.fn(() => fakeIdleFsm)
+      const handlers = captureHandlers()
+      handlers['vibesense.errorRetryLastCommand']('session-1')
+      await Promise.resolve()
+      expect(mockState.executeCommand).toHaveBeenCalledWith('workbench.action.terminal.runRecentCommand')
+    })
+
+    it('does not throw when no active terminal — NFR-R1', () => {
+      mockState.activeTerminal = undefined
+      fakeLastCommandTracker.getLastCommand = vi.fn(() => undefined)
+      fakeSessionManager.getOrCreateFsm = vi.fn(() => fakeIdleFsm)
+      const handlers = captureHandlers()
+      expect(() => handlers['vibesense.errorRetryLastCommand']('session-1')).not.toThrow()
+    })
+
+    it('dispatches AGENT_PROCESSING on the session FSM (AC 2)', () => {
+      mockState.activeTerminal = mockState.terminal
+      fakeLastCommandTracker.getLastCommand = vi.fn(() => 'claude')
+      const mockFsm = { state: 'error' as const, dispatch: vi.fn() }
+      fakeSessionManager.getOrCreateFsm = vi.fn(() => mockFsm)
+      const handlers = captureHandlers()
+      handlers['vibesense.errorRetryLastCommand']('session-err')
+      expect(mockFsm.dispatch).toHaveBeenCalledWith('AGENT_PROCESSING')
     })
   })
 })

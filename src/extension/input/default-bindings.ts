@@ -57,6 +57,11 @@ export const CLAUDE_CODE_DEFAULT_BINDINGS: BindingMap = {
   view: 'vibesense.voicePtt', // Story 3.6: Xbox View button = voice PTT
 }
 
+// Story 5.5: vibesense.openErrorMenu is intentionally NOT bound here.
+// The error menu opens automatically when an agent session transitions to error state (AC 1).
+// A manual binding can be added in a future story if a dedicated button becomes available
+// (currently unbound: l3, r3).
+
 /** Default bindings for Copilot vibe-coding workflow */
 export const COPILOT_DEFAULT_BINDINGS: BindingMap = {
   ...CLAUDE_CODE_DEFAULT_BINDINGS,

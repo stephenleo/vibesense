@@ -52,6 +52,22 @@
       {
         "command": "vibesense.startOnboarding",
         "title": "VibeSense: Start Onboarding"
+      },
+      {
+        "command": "vibesense.openErrorMenu",
+        "title": "VibeSense: Open Error Recovery Menu"
+      },
+      {
+        "command": "vibesense.errorRetryLastCommand",
+        "title": "VibeSense: Retry Last Command"
+      },
+      {
+        "command": "vibesense.errorClearTerminal",
+        "title": "VibeSense: Clear Terminal Output"
+      },
+      {
+        "command": "vibesense.errorViewLog",
+        "title": "VibeSense: View Error Log"
       }
     ],
     "configuration": {
