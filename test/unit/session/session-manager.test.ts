@@ -61,6 +61,17 @@ describe('SessionManager', () => {
     expect(manager.getAggregateGameState()).toBe('PAUSE')
   })
 
+  it('getAggregateGameState() — one processing, one error → PAUSE (AC 2)', () => {
+    const fsm1 = manager.getOrCreateFsm('s1')
+    const fsm2 = manager.getOrCreateFsm('s2')
+
+    fsm1.dispatch('AGENT_PROCESSING') // s1 = processing
+    fsm2.dispatch('AGENT_PROCESSING')
+    fsm2.dispatch('AGENT_ERROR')      // s2 = error
+
+    expect(manager.getAggregateGameState()).toBe('PAUSE')
+  })
+
   it('getAggregateGameState() — all processing or idle → PLAY (AC 3)', () => {
     const fsm1 = manager.getOrCreateFsm('s1')
     const fsm2 = manager.getOrCreateFsm('s2')
