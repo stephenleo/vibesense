@@ -71,11 +71,13 @@ export class InputRouter implements vscode.Disposable {
   }
 
   /**
-   * Hot-reload bindings after a VSCode configuration change (Story 4.2).
+   * Hot-swap the active binding map.
+   * Called by the mode-change subscription in extension.ts when Guided ↔ Full
+   * mode transitions occur (Story 4.3, AC 2, 3), and after VSCode configuration changes (Story 4.2).
    * Delegates to reloadBindings for a consistent hot-reload path.
    */
-  updateBindings(bindings: BindingMap): void {
-    this.reloadBindings(bindings)
+  updateBindings(newBindings: BindingMap): void {
+    this.reloadBindings(newBindings)
   }
 
   /**

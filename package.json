@@ -42,6 +42,10 @@
         "title": "VibeSense: Switch to Session"
       },
       {
+        "command": "vibesense.completeTutorial",
+        "title": "VibeSense: Complete Tutorial (Unlock Full Mode)"
+      },
+      {
         "command": "vibesense.openSettings",
         "title": "VibeSense: Open Settings"
       }
@@ -64,7 +68,7 @@
         "vibesense.fullMode": {
           "type": "boolean",
           "default": false,
-          "description": "When true, all bindings are active. When false (Guided mode), only essential bindings are exposed. Unlock via onboarding tutorial or toggle manually.",
+          "description": "Enable Full mode — all bindings active. When false, Guided mode restricts to core bindings (approve, deny, scroll, session switch). Full mode is also auto-unlocked when the onboarding tutorial is completed.",
           "order": 2
         },
         "vibesense.binding.cross": {

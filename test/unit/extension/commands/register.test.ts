@@ -72,13 +72,19 @@ const fakeSlidePanelManager = {
   quickPanelPrev: vi.fn(),
 } as unknown as import('../../../../src/extension/panels/slide-panel-manager').SlidePanelManager
 
+// Minimal ModeManager stub (Story 4.3 added modeManager param)
+const fakeModeManager = {
+  setFullMode: vi.fn(),
+  setGuidedMode: vi.fn(),
+} as unknown as import('../../../../src/extension/input/mode-manager').ModeManager
+
 /**
  * Call registerCommands with a fake context and return a lookup map of
  * commandId → handler so each test can invoke handlers directly.
  */
-function captureHandlers(): Record<string, () => void | Promise<void>> {
-  const handlers: Record<string, () => void | Promise<void>> = {}
-  mockState.registerCommand.mockImplementation((id: string, handler: () => void) => {
+function captureHandlers(): Record<string, (...args: unknown[]) => void | Promise<void>> {
+  const handlers: Record<string, (...args: unknown[]) => void | Promise<void>> = {}
+  mockState.registerCommand.mockImplementation((id: string, handler: (...args: unknown[]) => void) => {
     handlers[id] = handler
     return { dispose: vi.fn() }
   })
@@ -87,7 +93,7 @@ function captureHandlers(): Record<string, () => void | Promise<void>> {
     subscriptions: { push: vi.fn() },
   } as unknown as import('vscode').ExtensionContext
 
-  registerCommands(fakeContext, fakeSlidePanelManager)
+  registerCommands(fakeContext, fakeSlidePanelManager, fakeModeManager)
   return handlers
 }
 
@@ -106,7 +112,7 @@ describe('registerCommands', () => {
   })
 
   describe('registration', () => {
-    it('registers all commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt, switchSessionNext, switchSessionPrev, openQuickPanel, switchToSession, quickPanelNext, quickPanelPrev', () => {
+    it('registers all commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt, switchSessionNext, switchSessionPrev, openQuickPanel, switchToSession, quickPanelNext, quickPanelPrev, completeTutorial', () => {
       captureHandlers()
       const registeredIds = mockState.registerCommand.mock.calls.map(
         (call) => call[0] as string,
@@ -121,6 +127,7 @@ describe('registerCommands', () => {
       expect(registeredIds).toContain('vibesense.switchToSession')
       expect(registeredIds).toContain('vibesense.quickPanelNext')
       expect(registeredIds).toContain('vibesense.quickPanelPrev')
+      expect(registeredIds).toContain('vibesense.completeTutorial')
     })
 
     it('pushes all disposables to context.subscriptions (auto-dispose on deactivation)', () => {
@@ -130,11 +137,11 @@ describe('registerCommands', () => {
         subscriptions: { push: (...items: unknown[]) => fakeSubscriptions.push(...items) },
       } as unknown as import('vscode').ExtensionContext
 
-      registerCommands(fakeContext, fakeSlidePanelManager)
-      // 10 commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt,
+      registerCommands(fakeContext, fakeSlidePanelManager, fakeModeManager)
+      // 11 commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt,
       // switchSessionNext, switchSessionPrev, openQuickPanel, switchToSession,
-      // quickPanelNext, quickPanelPrev
-      expect(fakeSubscriptions).toHaveLength(10)
+      // quickPanelNext, quickPanelPrev, completeTutorial
+      expect(fakeSubscriptions).toHaveLength(11)
     })
   })
 
@@ -521,6 +528,39 @@ describe('registerCommands', () => {
       })
       const handlers = captureHandlers()
       expect(() => handlers['vibesense.switchToSession'](0)).not.toThrow()
+    })
+  })
+
+  // ── vibesense.completeTutorial (Story 4.3, AC 2) ─────────────────────────
+
+  describe('vibesense.completeTutorial (AC 2)', () => {
+    it('calls modeManager.setFullMode() once when invoked', () => {
+      fakeModeManager.setFullMode = vi.fn()
+      const handlers = captureHandlers()
+      handlers['vibesense.completeTutorial']()
+      expect(fakeModeManager.setFullMode).toHaveBeenCalledOnce()
+    })
+
+    it('logs "vibesense.completeTutorial: Full mode unlocked" via logger.info', () => {
+      fakeModeManager.setFullMode = vi.fn()
+      const handlers = captureHandlers()
+      handlers['vibesense.completeTutorial']()
+      expect(mockState.loggerInfo).toHaveBeenCalledWith(
+        'vibesense.completeTutorial: Full mode unlocked',
+      )
+    })
+
+    it('catches error if setFullMode throws and does not rethrow (NFR-R1)', () => {
+      const error = new Error('setFullMode exploded')
+      fakeModeManager.setFullMode = vi.fn().mockImplementation(() => {
+        throw error
+      })
+      const handlers = captureHandlers()
+      expect(() => handlers['vibesense.completeTutorial']()).not.toThrow()
+      expect(mockState.loggerError).toHaveBeenCalledWith(
+        'vibesense.completeTutorial: failed',
+        error,
+      )
     })
   })
 })

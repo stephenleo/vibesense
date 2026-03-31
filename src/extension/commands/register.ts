@@ -3,10 +3,12 @@
 // FR10: open terminal, FR11: launch Claude Code, FR12: launch Copilot Chat
 // FR13: L1/R1 session switching (Story 3.3)
 // FR14: quick session panel (Story 3.5)
+// Story 4.3: vibesense.completeTutorial (Guided → Full mode unlock)
 
 import * as vscode from 'vscode'
 import { logger } from '../logger'
 import type { SlidePanelManager } from '../panels/slide-panel-manager'
+import type { ModeManager } from '../input/mode-manager'
 
 /**
  * Register all vibesense.* commands with the extension context.
@@ -15,6 +17,7 @@ import type { SlidePanelManager } from '../panels/slide-panel-manager'
 export function registerCommands(
   context: vscode.ExtensionContext,
   slidePanelManager: SlidePanelManager,
+  modeManager: ModeManager,
 ): void {
   context.subscriptions.push(
     // FR10: Open a new VSCode integrated terminal and focus it
@@ -168,6 +171,18 @@ export function registerCommands(
         slidePanelManager.quickPanelPrev()
       } catch (err) {
         logger.error('vibesense.quickPanelPrev: failed', err)
+      }
+    }),
+
+    // Story 4.3: Complete onboarding tutorial and unlock Full mode (AC 2)
+    // Called by Story 4.4's onboarding panel when tutorial is finished.
+    vscode.commands.registerCommand('vibesense.completeTutorial', () => {
+      try {
+        modeManager.setFullMode()
+        logger.info('vibesense.completeTutorial: Full mode unlocked')
+      } catch (err) {
+        logger.error('vibesense.completeTutorial: failed', err)
+        // NFR-R1: swallow — never propagate to VSCode process
       }
     }),
   )

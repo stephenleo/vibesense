@@ -183,18 +183,19 @@ describe('onDidChangeConfiguration handler (Story 4.2)', () => {
     const context = makeExtensionContext()
     activate(context as never)
 
-    // Story 4.1 (settingsBridge.watchSettings) and Story 4.2 each register one listener
-    expect(mockOnDidChangeConfiguration).toHaveBeenCalledTimes(2)
-    // Story 4.2 handler is registered second
-    expect(typeof mockOnDidChangeConfiguration.mock.calls[1][0]).toBe('function')
+    // Story 4.3 (ModeManager), Story 4.1 (settingsBridge.watchSettings), and Story 4.2 each
+    // register one listener — three total.
+    expect(mockOnDidChangeConfiguration).toHaveBeenCalledTimes(3)
+    // Story 4.2 handler is registered third (index 2)
+    expect(typeof mockOnDidChangeConfiguration.mock.calls[2][0]).toBe('function')
   })
 
   it('reloads bindings when affectsConfiguration("vibesense") returns true', () => {
     const context = makeExtensionContext()
     activate(context as never)
 
-    // Retrieve the Story 4.2 handler (second registration; first is Story 4.1 settingsBridge)
-    const handler = mockOnDidChangeConfiguration.mock.calls[1][0] as (
+    // Retrieve the Story 4.2 handler (third registration; first is Story 4.3 ModeManager, second is Story 4.1 settingsBridge)
+    const handler = mockOnDidChangeConfiguration.mock.calls[2][0] as (
       e: { affectsConfiguration: (section: string) => boolean },
     ) => void
 
@@ -215,8 +216,8 @@ describe('onDidChangeConfiguration handler (Story 4.2)', () => {
     const context = makeExtensionContext()
     activate(context as never)
 
-    // Story 4.2 handler is the second registration
-    const handler = mockOnDidChangeConfiguration.mock.calls[1][0] as (
+    // Story 4.2 handler is the third registration (index 2)
+    const handler = mockOnDidChangeConfiguration.mock.calls[2][0] as (
       e: { affectsConfiguration: (section: string) => boolean },
     ) => void
 
@@ -234,8 +235,8 @@ describe('onDidChangeConfiguration handler (Story 4.2)', () => {
     const context = makeExtensionContext()
     activate(context as never)
 
-    // Story 4.2 handler is the second registration
-    const handler = mockOnDidChangeConfiguration.mock.calls[1][0] as (
+    // Story 4.2 handler is the third registration (index 2)
+    const handler = mockOnDidChangeConfiguration.mock.calls[2][0] as (
       e: { affectsConfiguration: (section: string) => boolean },
     ) => void
 

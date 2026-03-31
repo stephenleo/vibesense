@@ -6,6 +6,27 @@ import type { ButtonId } from '../../shared/types'
 /** Maps ButtonId to a VSCode command ID string */
 export type BindingMap = Partial<Record<ButtonId, string>>
 
+/** Active binding mode — Guided exposes only core buttons; Full exposes all configured bindings */
+export type BindingMode = 'guided' | 'full'
+
+/**
+ * Strict set of ButtonIds allowed in Guided mode.
+ * Analog axes (left_y / right_y) are NOT in this set — they are handled
+ * by AnalogScrollController independently and always pass through.
+ */
+export const GUIDED_MODE_BUTTON_IDS: ReadonlySet<ButtonId> = new Set([
+  // DualSense core buttons
+  'cross',
+  'circle',
+  'l1',
+  'r1',
+  // Xbox equivalents
+  'a',
+  'b',
+  'lb',
+  'rb',
+])
+
 /** Default bindings for Claude Code vibe-coding workflow */
 export const CLAUDE_CODE_DEFAULT_BINDINGS: BindingMap = {
   // DualSense primary actions
