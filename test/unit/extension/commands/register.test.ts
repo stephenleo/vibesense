@@ -363,5 +363,16 @@ describe('registerCommands', () => {
       expect(() => handlers['vibesense.switchSessionPrev']()).not.toThrow()
       expect(fakeSlidePanelManager.notifySessionSwitched).not.toHaveBeenCalled()
     })
+
+    it('wraps to last terminal when no active terminal (treats as index 0)', () => {
+      const terms = threeTerminals()
+      mockState.terminals = terms
+      mockState.activeTerminal = undefined
+      fakeSlidePanelManager.notifySessionSwitched = vi.fn()
+      const handlers = captureHandlers()
+      handlers['vibesense.switchSessionPrev']()
+      expect(terms[2].show).toHaveBeenCalledWith(false)
+      expect(fakeSlidePanelManager.notifySessionSwitched).toHaveBeenCalledWith(2, 'Copilot', 3)
+    })
   })
 })
