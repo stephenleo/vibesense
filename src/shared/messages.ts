@@ -77,6 +77,20 @@ export const HostMessageSchema = z.discriminatedUnion('type', [
       selectedIndex: z.number().int().nonnegative(),
     }),
   }),
+  z.object({
+    type: z.literal('SETTINGS_LOADED'),
+    payload: z.object({
+      bindings: z.record(z.string(), z.string()),
+      controllerType: ControllerTypeSchema.nullable(),
+    }),
+  }),
+  z.object({
+    type: z.literal('SETTINGS_BINDING_APPLIED'),
+    payload: z.object({
+      button: z.string(),
+      command: z.string(),
+    }),
+  }),
 ])
 
 export type HostMessage = z.infer<typeof HostMessageSchema>
@@ -106,6 +120,23 @@ export const WebviewMessageSchema = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('QUICK_PANEL_DISMISS'),
+    payload: z.object({}),
+  }),
+  z.object({
+    type: z.literal('SETTINGS_BINDING_CHANGED'),
+    payload: z.object({
+      button: z.string(),
+      command: z.string(),
+    }),
+  }),
+  z.object({
+    type: z.literal('SETTINGS_RESET_SECTION'),
+    payload: z.object({
+      buttons: z.array(z.string()),
+    }),
+  }),
+  z.object({
+    type: z.literal('SETTINGS_REQUEST_LOAD'),
     payload: z.object({}),
   }),
 ])

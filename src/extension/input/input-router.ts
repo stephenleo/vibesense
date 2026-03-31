@@ -62,11 +62,20 @@ export class InputRouter implements vscode.Disposable {
   }
 
   /**
+   * Hot-reload bindings without restarting the extension (AC 2 — immediate effect).
+   * Node.js single-threaded execution guarantees no mid-event mutation.
+   */
+  reloadBindings(newBindings: BindingMap): void {
+    this.bindings = newBindings
+    logger.info('InputRouter: bindings hot-reloaded')
+  }
+
+  /**
    * Hot-reload bindings after a VSCode configuration change (Story 4.2).
-   * Updates the internal binding map in-place; no router reinitialization needed.
+   * Delegates to reloadBindings for a consistent hot-reload path.
    */
   updateBindings(bindings: BindingMap): void {
-    this.bindings = bindings
+    this.reloadBindings(bindings)
   }
 
   /**

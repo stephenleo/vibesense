@@ -183,16 +183,18 @@ describe('onDidChangeConfiguration handler (Story 4.2)', () => {
     const context = makeExtensionContext()
     activate(context as never)
 
-    expect(mockOnDidChangeConfiguration).toHaveBeenCalledTimes(1)
-    expect(typeof mockOnDidChangeConfiguration.mock.calls[0][0]).toBe('function')
+    // Story 4.1 (settingsBridge.watchSettings) and Story 4.2 each register one listener
+    expect(mockOnDidChangeConfiguration).toHaveBeenCalledTimes(2)
+    // Story 4.2 handler is registered second
+    expect(typeof mockOnDidChangeConfiguration.mock.calls[1][0]).toBe('function')
   })
 
   it('reloads bindings when affectsConfiguration("vibesense") returns true', () => {
     const context = makeExtensionContext()
     activate(context as never)
 
-    // Retrieve the registered handler (first argument of first call)
-    const handler = mockOnDidChangeConfiguration.mock.calls[0][0] as (
+    // Retrieve the Story 4.2 handler (second registration; first is Story 4.1 settingsBridge)
+    const handler = mockOnDidChangeConfiguration.mock.calls[1][0] as (
       e: { affectsConfiguration: (section: string) => boolean },
     ) => void
 
@@ -213,7 +215,8 @@ describe('onDidChangeConfiguration handler (Story 4.2)', () => {
     const context = makeExtensionContext()
     activate(context as never)
 
-    const handler = mockOnDidChangeConfiguration.mock.calls[0][0] as (
+    // Story 4.2 handler is the second registration
+    const handler = mockOnDidChangeConfiguration.mock.calls[1][0] as (
       e: { affectsConfiguration: (section: string) => boolean },
     ) => void
 
@@ -231,7 +234,8 @@ describe('onDidChangeConfiguration handler (Story 4.2)', () => {
     const context = makeExtensionContext()
     activate(context as never)
 
-    const handler = mockOnDidChangeConfiguration.mock.calls[0][0] as (
+    // Story 4.2 handler is the second registration
+    const handler = mockOnDidChangeConfiguration.mock.calls[1][0] as (
       e: { affectsConfiguration: (section: string) => boolean },
     ) => void
 
