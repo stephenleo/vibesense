@@ -140,7 +140,9 @@ export class DualSenseDriver extends EventEmitter implements ControllerHAL {
       report[45] = r
       report[46] = g
       report[47] = b
-      void this.controller.hid.provider.write(report)
+      this.controller.hid.provider.write(report).catch((writeErr: unknown) => {
+        logger.error('DualSense setLED write failed', writeErr)
+      })
     } catch (err) {
       logger.error('DualSense setLED error', err)
     }
