@@ -48,6 +48,7 @@ vi.mock('vscode', () => ({
       dispose: vi.fn(),
     })),
     showInformationMessage: vi.fn().mockResolvedValue(undefined),
+    onDidWriteTerminalData: vi.fn(() => ({ dispose: vi.fn() })),
     showWebviewPanel: vi.fn(),
     createWebviewPanel: vi.fn(() => ({
       webview: {
