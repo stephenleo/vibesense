@@ -168,6 +168,13 @@ describe('AnalogScrollController', () => {
       expect(mockExecuteCommand.mock.calls.length).toBeGreaterThanOrEqual(1)
     })
 
+    it('clamps absValue > 1.0 to MAX_LINES_PER_TICK (faulty hardware guard)', () => {
+      controller.update('left_y', 1.5)
+      vi.advanceTimersByTime(SCROLL_TICK_MS)
+      // Should fire exactly 20 (MAX_LINES_PER_TICK), not more
+      expect(mockExecuteCommand).toHaveBeenCalledTimes(20)
+    })
+
     it('satisfies AC 2: at full displacement, fires enough to traverse 1000 lines in under 5 seconds', () => {
       // 20 lines/tick * 20 ticks/sec = 400 lines/sec → 1000 lines in 2.5s < 5s ✓
       controller.update('left_y', 1.0)
@@ -280,6 +287,22 @@ describe('AnalogScrollController', () => {
       vi.advanceTimersByTime(SCROLL_TICK_MS)
       expect(mockLogger.error).toHaveBeenCalledWith(
         'AnalogScrollController: executeCommand error',
+        expect.any(Error),
+      )
+    })
+
+    it('logs error when scrollToBottom throws during return-to-dead-zone', () => {
+      controller.update('left_y', 0.8)
+      vi.advanceTimersByTime(SCROLL_TICK_MS)
+      vi.resetAllMocks()
+
+      // Make scrollToBottom throw when returning to dead zone
+      mockExecuteCommand.mockImplementation(() => {
+        throw new Error('scrollToBottom failure')
+      })
+      expect(() => controller.update('left_y', 0.0)).not.toThrow()
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'AnalogScrollController: scrollToBottom error',
         expect.any(Error),
       )
     })

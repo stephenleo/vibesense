@@ -71,7 +71,8 @@ export class AnalogScrollController implements vscode.Disposable {
    * linesPerTick = max(1, round(magnitude * MAX_LINES_PER_TICK))
    */
   private computeLinesPerTick(absValue: number): number {
-    const magnitude = (absValue - SCROLL_DEAD_ZONE) / (1.0 - SCROLL_DEAD_ZONE)
+    const clamped = Math.min(absValue, 1.0)
+    const magnitude = (clamped - SCROLL_DEAD_ZONE) / (1.0 - SCROLL_DEAD_ZONE)
     return Math.max(1, Math.round(magnitude * MAX_LINES_PER_TICK))
   }
 
