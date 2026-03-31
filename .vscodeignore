@@ -4,7 +4,10 @@
 # Source files — only dist/ is needed
 src/
 test/
+# Story 5.2: scripts/hooks/*.sh must be packaged in the VSIX (bundled hook scripts)
+# Exclude everything in scripts/ EXCEPT scripts/hooks/
 scripts/
+!scripts/hooks/
 
 # Config and tooling files
 .eslintrc.json
