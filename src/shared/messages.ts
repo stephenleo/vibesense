@@ -52,6 +52,14 @@ export const HostMessageSchema = z.discriminatedUnion('type', [
       sessions: z.array(SessionSchema),
     }),
   }),
+  z.object({
+    type: z.literal('SESSION_SWITCHED'),
+    payload: z.object({
+      sessionIndex: z.number().int().nonnegative(),
+      sessionName: z.string(),
+      totalSessions: z.number().int().positive(),
+    }),
+  }),
 ])
 
 export type HostMessage = z.infer<typeof HostMessageSchema>

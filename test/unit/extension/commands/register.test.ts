@@ -58,6 +58,11 @@ import { registerCommands } from '../../../../src/extension/commands/register'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+// Minimal SlidePanelManager stub (Story 3.3 added slidePanelManager param)
+const fakeSlidePanelManager = {
+  notifySessionSwitched: vi.fn(),
+} as unknown as import('../../../../src/extension/panels/slide-panel-manager').SlidePanelManager
+
 /**
  * Call registerCommands with a fake context and return a lookup map of
  * commandId → handler so each test can invoke handlers directly.
@@ -73,7 +78,7 @@ function captureHandlers(): Record<string, () => void | Promise<void>> {
     subscriptions: { push: vi.fn() },
   } as unknown as import('vscode').ExtensionContext
 
-  registerCommands(fakeContext)
+  registerCommands(fakeContext, fakeSlidePanelManager)
   return handlers
 }
 
@@ -109,8 +114,9 @@ describe('registerCommands', () => {
         subscriptions: { push: (...items: unknown[]) => fakeSubscriptions.push(...items) },
       } as unknown as import('vscode').ExtensionContext
 
-      registerCommands(fakeContext)
-      expect(fakeSubscriptions).toHaveLength(3)
+      registerCommands(fakeContext, fakeSlidePanelManager)
+      // 5 commands: openTerminal, launchClaudeCode, launchCopilotChat, switchSessionNext, switchSessionPrev
+      expect(fakeSubscriptions).toHaveLength(5)
     })
   })
 

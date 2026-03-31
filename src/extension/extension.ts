@@ -33,12 +33,13 @@ export function activate(context: vscode.ExtensionContext): void {
   const statusBar = new StatusBarController()
   context.subscriptions.push(statusBar)
 
-  // Story 3.1: Register controller-triggered terminal and agent launch commands (FR10, FR11, FR12)
-  registerCommands(context)
-
-  // Instantiate SlidePanel manager (Story 3.4)
+  // Instantiate SlidePanel manager (Story 3.4) — must be before registerCommands (Story 3.3)
   const slidePanelManager = new SlidePanelManager(context)
   context.subscriptions.push(slidePanelManager)
+
+  // Story 3.1: Register controller-triggered terminal and agent launch commands (FR10, FR11, FR12)
+  // Story 3.3: Pass slidePanelManager so session-switch commands can notify the webview (FR13)
+  registerCommands(context, slidePanelManager)
 
   // Send initial empty session list on startup — panel shows empty state hint
   slidePanelManager.updateSessions([])

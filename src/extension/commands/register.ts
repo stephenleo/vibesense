@@ -1,15 +1,20 @@
 // src/extension/commands/register.ts
 // Centralised command registration for controller-triggered terminal and agent launch (Story 3.1)
 // FR10: open terminal, FR11: launch Claude Code, FR12: launch Copilot Chat
+// FR13: L1/R1 session switching (Story 3.3)
 
 import * as vscode from 'vscode'
 import { logger } from '../logger'
+import type { SlidePanelManager } from '../panels/slide-panel-manager'
 
 /**
  * Register all vibesense.* commands with the extension context.
  * Disposables are pushed to context.subscriptions so VSCode auto-disposes on deactivation.
  */
-export function registerCommands(context: vscode.ExtensionContext): void {
+export function registerCommands(
+  context: vscode.ExtensionContext,
+  slidePanelManager: SlidePanelManager,
+): void {
   context.subscriptions.push(
     // FR10: Open a new VSCode integrated terminal and focus it
     vscode.commands.registerCommand('vibesense.openTerminal', () => {
@@ -45,6 +50,48 @@ export function registerCommands(context: vscode.ExtensionContext): void {
           logger.warn('vibesense.launchCopilotChat: Copilot Chat not installed')
         },
       )
+    }),
+
+    // FR13: Switch to next terminal session (R1 button) — Story 3.3 (AC 1, 3, 4)
+    vscode.commands.registerCommand('vibesense.switchSessionNext', () => {
+      try {
+        const terminals = vscode.window.terminals
+        if (terminals.length < 2) return // AC 3: no-op with 0 or 1 terminal
+
+        const activeTerminal = vscode.window.activeTerminal
+        const currentIndex = activeTerminal ? terminals.findIndex((t) => t === activeTerminal) : -1
+        const nextIndex = (currentIndex + 1) % terminals.length
+        const nextTerminal = terminals[nextIndex]
+
+        nextTerminal.show(false) // false = focus the terminal (within 100ms, AC 1)
+
+        const sessionName = nextTerminal.name ?? `Terminal ${nextIndex + 1}`
+        slidePanelManager.notifySessionSwitched(nextIndex, sessionName, terminals.length)
+      } catch (err) {
+        logger.error('vibesense.switchSessionNext: failed', err)
+        // NFR-R1: swallow — never propagate to VSCode process
+      }
+    }),
+
+    // FR13: Switch to previous terminal session (L1 button) — Story 3.3 (AC 2, 3, 4)
+    vscode.commands.registerCommand('vibesense.switchSessionPrev', () => {
+      try {
+        const terminals = vscode.window.terminals
+        if (terminals.length < 2) return // AC 3: no-op with 0 or 1 terminal
+
+        const activeTerminal = vscode.window.activeTerminal
+        const currentIndex = activeTerminal ? terminals.findIndex((t) => t === activeTerminal) : 0
+        const prevIndex = (currentIndex - 1 + terminals.length) % terminals.length
+        const prevTerminal = terminals[prevIndex]
+
+        prevTerminal.show(false) // false = focus the terminal (within 100ms, AC 2)
+
+        const sessionName = prevTerminal.name ?? `Terminal ${prevIndex + 1}`
+        slidePanelManager.notifySessionSwitched(prevIndex, sessionName, terminals.length)
+      } catch (err) {
+        logger.error('vibesense.switchSessionPrev: failed', err)
+        // NFR-R1: swallow — never propagate to VSCode process
+      }
     }),
   )
 }
