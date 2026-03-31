@@ -9,6 +9,9 @@ import type { SessionManager } from '../session/session-manager'
 import { logger } from '../logger'
 import { handleRawPayload } from './message-handler'
 
+/** Maximum per-connection buffer size (1 MB). Connections exceeding this are dropped. */
+const MAX_BUFFER_BYTES = 1_048_576
+
 export class PipeServer {
   private server: net.Server | null = null
 
@@ -19,12 +22,26 @@ export class PipeServer {
    * Removes any stale socket file before binding to prevent EADDRINUSE on unclean host restart.
    */
   start(): void {
+    if (this.server !== null) {
+      logger.warn('IPC: start() called while server is already running — ignoring')
+      return
+    }
+
     const server = net.createServer((socket) => {
       let buffer = ''
 
       socket.on('data', (chunk: Buffer) => {
         try {
           buffer += chunk.toString()
+
+          // Guard against unbounded buffer growth (DoS protection)
+          if (buffer.length > MAX_BUFFER_BYTES) {
+            logger.warn('IPC: buffer exceeded max size — dropping connection')
+            buffer = ''
+            socket.destroy()
+            return
+          }
+
           const lines = buffer.split('\n')
           buffer = lines.pop() ?? '' // keep incomplete last segment
 
@@ -73,10 +90,11 @@ export class PipeServer {
    * Stop the IPC server — closes all connections and removes the socket file.
    */
   stop(): void {
-    if (this.server !== null) {
-      this.server.close()
-      this.server = null
+    if (this.server === null) {
+      return
     }
+    this.server.close()
+    this.server = null
     try {
       fs.unlinkSync(VIBESENSE_SOCKET_PATH)
     } catch {

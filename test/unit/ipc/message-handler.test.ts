@@ -2,7 +2,7 @@
 // Unit tests for handleRawPayload() — validation + routing layer
 // AC 2: invalid payloads are rejected with logged warning, never executed
 
-import { vi, describe, it, expect, beforeEach } from 'vitest'
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 
 // ── Mock vscode (required by logger) ─────────────────────────────────────────
 vi.mock('vscode', () => ({
@@ -30,6 +30,10 @@ describe('handleRawPayload', () => {
     sessionManager = new SessionManager()
     vi.spyOn(sessionManager, 'handleHookMessage')
     vi.spyOn(logger, 'warn')
+  })
+
+  afterEach(() => {
+    sessionManager.dispose()
   })
 
   // ── Valid HookMessage routing ─────────────────────────────────────────────────

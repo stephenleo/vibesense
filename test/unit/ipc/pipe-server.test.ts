@@ -119,6 +119,17 @@ describe('PipeServer', () => {
     expect(mockServer.listen).toHaveBeenCalledWith(VIBESENSE_SOCKET_PATH, expect.any(Function))
   })
 
+  it('start() called twice is a no-op on the second call (double-start guard)', () => {
+    vi.mocked(fs.existsSync).mockReturnValue(false)
+
+    pipeServer.start()
+    expect(net.createServer).toHaveBeenCalledTimes(1)
+
+    pipeServer.start()
+    // Second call should NOT create a new server
+    expect(net.createServer).toHaveBeenCalledTimes(1)
+  })
+
   // ── AC 3: Stop / deactivation ────────────────────────────────────────────────
 
   it('stop() closes server and removes socket file (AC 3)', () => {
@@ -138,6 +149,13 @@ describe('PipeServer', () => {
     vi.mocked(fs.unlinkSync).mockImplementation(() => { throw new Error('ENOENT') })
 
     expect(() => { pipeServer.stop() }).not.toThrow()
+  })
+
+  it('stop() is a no-op when server was never started', () => {
+    // Do NOT call start() — stop() should not attempt to unlink or close anything
+    pipeServer.stop()
+
+    expect(fs.unlinkSync).not.toHaveBeenCalled()
   })
 
   it('dispose() delegates to stop()', () => {
@@ -274,5 +292,20 @@ describe('PipeServer', () => {
       // eslint-disable-next-line @typescript-eslint/naming-convention
       sendData(socket, JSON.stringify({ hook: 'stop', session_id: 'crash-test' }) + '\n')
     }).not.toThrow()
+  })
+
+  // ── Buffer overflow protection ──────────────────────────────────────────────
+
+  it('connection sending data exceeding max buffer size is destroyed (DoS protection)', () => {
+    vi.mocked(fs.existsSync).mockReturnValue(false)
+    pipeServer.start()
+
+    const socket = simulateConnection()
+    // Send a chunk larger than 1 MB without a newline — triggers buffer overflow guard
+    const oversizedChunk = 'x'.repeat(1_048_577)
+    sendData(socket, oversizedChunk)
+
+    expect(socket.destroy).toHaveBeenCalled()
+    expect(sessionManager.handleHookMessage).not.toHaveBeenCalled()
   })
 })
