@@ -6,17 +6,18 @@ import { logger } from '../logger'
 import { INPUT_BUFFER_WINDOW_MS } from '../../shared/constants'
 import type { ControllerEvent, ButtonId, AxisId } from '../../shared/types'
 import type { BindingMap } from './default-bindings'
-
-const DEAD_ZONE = 0.15
+import { AnalogScrollController } from './analog-scroll-controller'
 
 export class InputRouter implements vscode.Disposable {
   private bindings: BindingMap
   private buffering = false
   private buffer: ControllerEvent[] = []
   private bufferTimer: ReturnType<typeof setTimeout> | undefined = undefined
+  private scrollController: AnalogScrollController
 
   constructor(bindings: BindingMap) {
     this.bindings = bindings
+    this.scrollController = new AnalogScrollController()
   }
 
   /**
@@ -54,11 +55,10 @@ export class InputRouter implements vscode.Disposable {
   }
 
   private handleAxis(axis: AxisId, value: number): void {
-    if (Math.abs(value) < DEAD_ZONE) return
-    // Proportional magnitude: (Math.abs(value) - DEAD_ZONE) / (1.0 - DEAD_ZONE)
-    // Axis-to-command mappings introduced in Story 3.2 (AnalogStickScroll).
-    // Structure is in place; no axis commands dispatched in this story.
-    void axis // used in future stories
+    // All axis values (including dead zone) are passed to scrollController so it can
+    // detect the return-to-dead-zone transition and stop the scroll loop (avoids missed-stop bug).
+    // left_y and right_y drive terminal scroll (Story 3.2); all other axes are no-ops.
+    this.scrollController.update(axis, value)
   }
 
   /**
@@ -102,5 +102,6 @@ export class InputRouter implements vscode.Disposable {
       this.bufferTimer = undefined
     }
     this.buffer = []
+    this.scrollController.dispose()
   }
 }

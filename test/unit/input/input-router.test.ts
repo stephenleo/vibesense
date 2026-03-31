@@ -4,7 +4,7 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 
 // ── Hoisted mocks (must be declared before vi.mock calls) ─────────────────────
-const { mockExecuteCommand, mockLogger } = vi.hoisted(() => {
+const { mockExecuteCommand, mockLogger, mockScrollUpdate, mockScrollDispose } = vi.hoisted(() => {
   return {
     mockExecuteCommand: vi.fn(),
     mockLogger: {
@@ -13,6 +13,8 @@ const { mockExecuteCommand, mockLogger } = vi.hoisted(() => {
       warn: vi.fn(),
       error: vi.fn(),
     },
+    mockScrollUpdate: vi.fn(),
+    mockScrollDispose: vi.fn(),
   }
 })
 
@@ -26,6 +28,16 @@ vi.mock('vscode', () => ({
 // ── Mock logger ────────────────────────────────────────────────────────────────
 vi.mock('../../../src/extension/logger', () => ({
   logger: mockLogger,
+}))
+
+// ── Mock AnalogScrollController ───────────────────────────────────────────────
+vi.mock('../../../src/extension/input/analog-scroll-controller', () => ({
+  AnalogScrollController: vi.fn(function () {
+    return {
+      update: mockScrollUpdate,
+      dispose: mockScrollDispose,
+    }
+  }),
 }))
 
 // ── Imports after mocks ────────────────────────────────────────────────────────
@@ -283,6 +295,47 @@ describe('InputRouter', () => {
     it('ignores battery events', () => {
       router.handleEvent({ kind: 'battery', level: 10 })
       expect(mockExecuteCommand).not.toHaveBeenCalled()
+    })
+  })
+
+  // ── AC 5: Axis routing to AnalogScrollController ──────────────────────────
+  describe('axis routing to AnalogScrollController (AC 4, AC 5)', () => {
+    it('routes left_y axis events to scrollController.update()', () => {
+      router.handleEvent({ kind: 'axis', axis: 'left_y', value: 0.8 })
+      expect(mockScrollUpdate).toHaveBeenCalledWith('left_y', 0.8)
+    })
+
+    it('routes right_y axis events to scrollController.update()', () => {
+      router.handleEvent({ kind: 'axis', axis: 'right_y', value: -0.6 })
+      expect(mockScrollUpdate).toHaveBeenCalledWith('right_y', -0.6)
+    })
+
+    it('routes dead zone axis values to scrollController.update() (no early return — avoids missed-stop bug)', () => {
+      router.handleEvent({ kind: 'axis', axis: 'left_y', value: 0.05 })
+      expect(mockScrollUpdate).toHaveBeenCalledWith('left_y', 0.05)
+    })
+
+    it('routes left_x axis events to scrollController.update() (scroll controller ignores them)', () => {
+      router.handleEvent({ kind: 'axis', axis: 'left_x', value: 0.9 })
+      expect(mockScrollUpdate).toHaveBeenCalledWith('left_x', 0.9)
+    })
+
+    it('routes right_x axis events to scrollController.update()', () => {
+      router.handleEvent({ kind: 'axis', axis: 'right_x', value: 0.9 })
+      expect(mockScrollUpdate).toHaveBeenCalledWith('right_x', 0.9)
+    })
+
+    it('does not directly call executeCommand for axis events (delegated to scrollController)', () => {
+      router.handleEvent({ kind: 'axis', axis: 'left_y', value: 0.8 })
+      expect(mockExecuteCommand).not.toHaveBeenCalled()
+    })
+  })
+
+  // ── dispose() calls scrollController.dispose() ───────────────────────────
+  describe('dispose() delegates to scrollController', () => {
+    it('calls scrollController.dispose() on dispose()', () => {
+      router.dispose()
+      expect(mockScrollDispose).toHaveBeenCalledOnce()
     })
   })
 })
