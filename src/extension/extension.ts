@@ -83,6 +83,21 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
   )
 
+  // Story 4.2: Hot-reload bindings when vibesense.* configuration changes (e.g., via Settings Sync)
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('vibesense')) {
+        try {
+          const newBindings = loadBindings(workspaceRoot)
+          inputRouter.updateBindings(newBindings)
+          logger.info('VibeSense: bindings reloaded after configuration change')
+        } catch (err) {
+          logger.error('VibeSense: failed to reload bindings on config change', err)
+        }
+      }
+    }),
+  )
+
   // Check HID access before enumeration — surfaces macOS/Linux permission guides (Story 2.6)
   const accessCheck = checkHidAccess()
   if (!accessCheck.ok && isHidPermissionError(accessCheck.error)) {
