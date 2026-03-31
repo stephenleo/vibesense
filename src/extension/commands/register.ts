@@ -15,7 +15,7 @@ export function registerCommands(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('vibesense.openTerminal', () => {
       try {
         const terminal = vscode.window.createTerminal({ name: 'VibeSense' })
-        terminal.show(true) // true = preserve focus on terminal (not editor)
+        terminal.show(false) // false = focus the new terminal (AC 1: "focus moves to the new terminal")
       } catch (err) {
         logger.error('vibesense.openTerminal: failed', err)
         // NFR-R1: swallow — never propagate to VSCode process
@@ -27,7 +27,7 @@ export function registerCommands(context: vscode.ExtensionContext): void {
       try {
         const terminal =
           vscode.window.activeTerminal ?? vscode.window.createTerminal({ name: 'VibeSense' })
-        terminal.show(true)
+        terminal.show(false) // false = focus the terminal so user sees Claude Code start
         terminal.sendText('claude', true) // true = add newline (presses Enter)
       } catch (err) {
         logger.error('vibesense.launchClaudeCode: failed', err)

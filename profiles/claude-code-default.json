@@ -29,8 +29,11 @@
       "vibesense.openTerminal",
       "vibesense.launchClaudeCode",
       "vibesense.launchCopilotChat",
+      "vibesense.switchSessionNext",
+      "vibesense.switchSessionPrev",
       "workbench.action.terminal.focus",
       "workbench.action.terminal.scrollUp",
+      "workbench.action.terminal.scrollDown",
       "vibesense.openSettings"
     ]
   }

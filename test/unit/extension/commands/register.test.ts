@@ -27,15 +27,19 @@ const mockState = vi.hoisted(() => {
 // ── Mock vscode ──────────────────────────────────────────────────────────────
 vi.mock('vscode', () => ({
   window: {
-    createTerminal: (...args: unknown[]) => mockState.createTerminal(...args),
+    createTerminal: (...args: Parameters<typeof mockState.createTerminal>) =>
+      mockState.createTerminal(...args),
     get activeTerminal() {
       return mockState.activeTerminal
     },
-    setStatusBarMessage: (...args: unknown[]) => mockState.setStatusBarMessage(...args),
+    setStatusBarMessage: (...args: Parameters<typeof mockState.setStatusBarMessage>) =>
+      mockState.setStatusBarMessage(...args),
   },
   commands: {
-    registerCommand: (...args: unknown[]) => mockState.registerCommand(...args),
-    executeCommand: (...args: unknown[]) => mockState.executeCommand(...args),
+    registerCommand: (...args: Parameters<typeof mockState.registerCommand>) =>
+      mockState.registerCommand(...args),
+    executeCommand: (...args: Parameters<typeof mockState.executeCommand>) =>
+      mockState.executeCommand(...args),
   },
 }))
 
@@ -91,7 +95,7 @@ describe('registerCommands', () => {
     it('registers vibesense.openTerminal, vibesense.launchClaudeCode, and vibesense.launchCopilotChat', () => {
       captureHandlers()
       const registeredIds = mockState.registerCommand.mock.calls.map(
-        (call: [string, () => void]) => call[0],
+        (call) => call[0] as string,
       )
       expect(registeredIds).toContain('vibesense.openTerminal')
       expect(registeredIds).toContain('vibesense.launchClaudeCode')
@@ -116,7 +120,7 @@ describe('registerCommands', () => {
       handlers['vibesense.openTerminal']()
 
       expect(mockState.createTerminal).toHaveBeenCalledWith({ name: 'VibeSense' })
-      expect(mockState.terminal.show).toHaveBeenCalledWith(true)
+      expect(mockState.terminal.show).toHaveBeenCalledWith(false)
     })
 
     it('always creates a NEW terminal regardless of activeTerminal state (AC: 5)', () => {
@@ -150,7 +154,7 @@ describe('registerCommands', () => {
 
       // Should NOT create a new terminal — reuse activeTerminal
       expect(mockState.createTerminal).not.toHaveBeenCalled()
-      expect(mockState.terminal.show).toHaveBeenCalledWith(true)
+      expect(mockState.terminal.show).toHaveBeenCalledWith(false)
       expect(mockState.terminal.sendText).toHaveBeenCalledWith('claude', true)
     })
 
@@ -160,7 +164,7 @@ describe('registerCommands', () => {
       handlers['vibesense.launchClaudeCode']()
 
       expect(mockState.createTerminal).toHaveBeenCalledWith({ name: 'VibeSense' })
-      expect(mockState.terminal.show).toHaveBeenCalledWith(true)
+      expect(mockState.terminal.show).toHaveBeenCalledWith(false)
       expect(mockState.terminal.sendText).toHaveBeenCalledWith('claude', true)
     })
 
