@@ -80,10 +80,11 @@ export class SettingsPanelManager implements vscode.Disposable {
     })
     this.subscriptions.push(msgDisposable)
 
-    this.panel.onDidDispose(() => {
+    const disposeDisposable = this.panel.onDidDispose(() => {
       logger.info('SettingsPanelManager: panel disposed')
       this.panel = undefined
     })
+    this.subscriptions.push(disposeDisposable)
   }
 
   /**

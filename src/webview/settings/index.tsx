@@ -1,7 +1,7 @@
 // src/webview/settings/index.tsx
 // Settings panel webview entry point — React root for VibeSense Settings
 
-import React, { useReducer } from 'react'
+import React, { useReducer, useRef, useCallback } from 'react'
 import { createRoot } from 'react-dom/client'
 import { parseHostMessage } from '../../shared/messages'
 import type { ControllerType } from '../../shared/types'
@@ -89,9 +89,17 @@ function App(): React.ReactElement {
     }
   }, [])
 
-  function handleBindingChange(button: string, command: string): void {
-    vscode.postMessage({ type: 'SETTINGS_BINDING_CHANGED', payload: { button, command } })
-  }
+  // Debounce binding changes to avoid file I/O on every keystroke (300ms)
+  const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  const handleBindingChange = useCallback((button: string, command: string) => {
+    // Update local state immediately for responsive UI
+    dispatch({ type: 'BINDING_APPLIED', button, command })
+    // Debounce the message to the extension host
+    clearTimeout(debounceTimers.current[button])
+    debounceTimers.current[button] = setTimeout(() => {
+      vscode.postMessage({ type: 'SETTINGS_BINDING_CHANGED', payload: { button, command } })
+    }, 300)
+  }, [])
 
   function handleResetSection(buttons: string[]): void {
     vscode.postMessage({ type: 'SETTINGS_RESET_SECTION', payload: { buttons } })
