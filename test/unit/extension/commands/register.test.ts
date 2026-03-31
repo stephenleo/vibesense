@@ -709,6 +709,16 @@ describe('registerCommands', () => {
       expect(() => handlers['vibesense.errorRetryLastCommand']('session-1')).not.toThrow()
     })
 
+    it('does NOT dispatch AGENT_PROCESSING when no active terminal (no retry occurred)', () => {
+      mockState.activeTerminal = undefined
+      fakeLastCommandTracker.getLastCommand = vi.fn(() => 'claude')
+      const mockFsm = { state: 'error' as const, dispatch: vi.fn() }
+      fakeSessionManager.getOrCreateFsm = vi.fn(() => mockFsm)
+      const handlers = captureHandlers()
+      handlers['vibesense.errorRetryLastCommand']('session-no-terminal')
+      expect(fakeSessionManager.getOrCreateFsm).not.toHaveBeenCalled()
+    })
+
     it('dispatches AGENT_PROCESSING on the session FSM (AC 2)', () => {
       mockState.activeTerminal = mockState.terminal
       fakeLastCommandTracker.getLastCommand = vi.fn(() => 'claude')

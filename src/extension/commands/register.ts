@@ -45,7 +45,10 @@ export function registerCommands(
           vscode.window.activeTerminal ?? vscode.window.createTerminal({ name: 'VibeSense' })
         terminal.show(false) // false = focus the terminal so user sees Claude Code start
         terminal.sendText('claude', true) // true = add newline (presses Enter)
-        // Story 5.5: Record 'claude' as the last command for retry support
+        // Story 5.5: Record 'claude' as the last command for retry support.
+        // NOTE: Uses terminal.name as the key. Hook-based session IDs (Story 5.2)
+        // will differ from terminal.name, so retry lookup will miss until Story 5.2
+        // aligns the key spaces. This is a known limitation pending hook integration.
         lastCommandTracker?.setLastCommand(terminal.name, 'claude')
       } catch (err) {
         logger.error('vibesense.launchClaudeCode: failed', err)
@@ -232,9 +235,11 @@ export function registerCommands(
       try {
         const terminal = vscode.window.activeTerminal
         const lastCommand = lastCommandTracker?.getLastCommand(sessionId)
+        let didRetry = false
         if (terminal) {
           if (lastCommand) {
             terminal.sendText(lastCommand, true)
+            didRetry = true
           } else {
             // Fallback: delegate to VSCode's built-in terminal history
             vscode.commands
@@ -242,12 +247,13 @@ export function registerCommands(
               .then(undefined, (err: unknown) => {
                 logger.error('vibesense.errorRetryLastCommand: runRecentCommand failed', err)
               })
+            didRetry = true
           }
         } else {
           logger.warn('vibesense.errorRetryLastCommand: no active terminal — no-op')
         }
-        // Transition FSM back to processing (AC 2)
-        if (sessionId) {
+        // Transition FSM back to processing only when a retry was actually attempted (AC 2)
+        if (didRetry && sessionId) {
           sessionManager?.getOrCreateFsm(sessionId).dispatch('AGENT_PROCESSING')
         }
       } catch (err) {
