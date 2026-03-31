@@ -1,12 +1,15 @@
 // src/extension/extension.ts
 // VibeSense extension entry point
-// Full implementation across Stories 1.2 – 2.3
+// Full implementation across Stories 1.2 – 2.6
 
 import * as vscode from 'vscode'
 import { logger, disposeLogger } from './logger'
 import { HidManager } from './hid/hid-manager'
 import { ControllerLifecycleManager } from './hid/controller-lifecycle-manager'
 import { StatusBarController } from './status-bar'
+import { checkHidAccess, isHidPermissionError } from './platform/permission-checker'
+import { handleHidPermissionError } from './platform/platform-guide'
+import { showDeviceSelector } from './platform/device-selector'
 import type { ControllerEvent, ControllerType } from '../shared/types'
 
 // Module-level references — accessible for deactivate() and subscription dispose
@@ -23,6 +26,13 @@ export function activate(context: vscode.ExtensionContext): void {
   // Instantiate status bar immediately so it's always visible (FR27)
   const statusBar = new StatusBarController()
   context.subscriptions.push(statusBar)
+
+  // Check HID access before enumeration — surfaces macOS/Linux permission guides (Story 2.6)
+  const accessCheck = checkHidAccess()
+  if (!accessCheck.ok && isHidPermissionError(accessCheck.error)) {
+    handleHidPermissionError(accessCheck.error)
+    return
+  }
 
   // Track current controller type for battery event correlation.
   let currentControllerType: ControllerType | null = null
@@ -73,6 +83,29 @@ export function activate(context: vscode.ExtensionContext): void {
   // Attach status-bar listeners to the initial driver (if any)
   if (initialDriver !== null) {
     attachStatusBarListeners(initialDriver)
+  }
+
+  // Auto-detection failed — offer manual device selection (Story 2.6, FR5)
+  if (initialDriver === null) {
+    void vscode.window
+      .showInformationMessage(
+        'Controller not found. Check connection or select device manually.',
+        'Select Device',
+      )
+      .then(async (selection) => {
+        if (selection === 'Select Device') {
+          try {
+            const result = await showDeviceSelector()
+            if (result) {
+              currentControllerType = result.controllerType
+              statusBar.update({ kind: 'connected', controllerType: result.controllerType })
+              attachStatusBarListeners(result.driver)
+            }
+          } catch (err) {
+            logger.error('extension: showDeviceSelector failed', err)
+          }
+        }
+      })
   }
 
   lifecycleManager = new ControllerLifecycleManager(
