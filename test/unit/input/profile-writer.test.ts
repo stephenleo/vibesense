@@ -85,7 +85,7 @@ describe('ensureWorkspaceProfile', () => {
 
     expect(mockWriteFileSync).toHaveBeenCalledWith(
       PROFILE_PATH,
-      JSON.stringify(CLAUDE_CODE_DEFAULT_PROFILE, null, 2),
+      JSON.stringify(CLAUDE_CODE_DEFAULT_PROFILE, null, 2) + '\n',
       'utf-8',
     )
   })
@@ -122,6 +122,19 @@ describe('ensureWorkspaceProfile', () => {
     expect(mockLogger.warn).toHaveBeenCalledWith(
       'ProfileWriter: failed to write .vscode/vibesense.json',
       error,
+    )
+  })
+
+  it('does not throw when mkdirSync throws (NFR-R1)', () => {
+    mockExistsSync.mockReturnValueOnce(false).mockReturnValueOnce(false)
+    mockMkdirSync.mockImplementation(() => {
+      throw new Error('EACCES: permission denied')
+    })
+
+    expect(() => ensureWorkspaceProfile(WORKSPACE_ROOT, CLAUDE_CODE_DEFAULT_PROFILE)).not.toThrow()
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      'ProfileWriter: failed to write .vscode/vibesense.json',
+      expect.any(Error),
     )
   })
 

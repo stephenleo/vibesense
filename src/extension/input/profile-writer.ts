@@ -26,7 +26,7 @@ export function ensureWorkspaceProfile(workspaceRoot: string, defaultProfile: Vi
       fs.mkdirSync(vscodePath, { recursive: true })
     }
 
-    fs.writeFileSync(profilePath, JSON.stringify(defaultProfile, null, 2), 'utf-8')
+    fs.writeFileSync(profilePath, JSON.stringify(defaultProfile, null, 2) + '\n', 'utf-8')
     logger.info('ProfileWriter: created .vscode/vibesense.json with default profile')
   } catch (err) {
     logger.warn('ProfileWriter: failed to write .vscode/vibesense.json', err)
