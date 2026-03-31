@@ -157,3 +157,49 @@
   font-size: var(--vs-font-size-sm);
 }
 
+/* ─── SessionSwitcher ───────────────────────────────────────────────────── */
+
+.session-switcher {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2000;
+  background: rgba(14, 14, 28, 0.94);
+  border: 1px solid var(--vs-border);
+  border-radius: var(--vs-radius-md);
+  padding: var(--vs-space-3) var(--vs-space-4, 1.5rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--vs-space-1, 0.25rem);
+  min-width: 160px;
+}
+
+.session-switcher--visible {
+  opacity: 1;
+  transition: opacity var(--vs-duration-fast, 120ms) ease-out;
+}
+
+.session-switcher--hidden {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease-out;
+}
+
+/* Session name — large primary text (NFR-A2: text label, not color alone) */
+.session-switcher__name {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--vs-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+
+/* Session counter — smaller subtext (e.g. "2 / 4") */
+.session-switcher__counter {
+  font-size: 0.875rem;
+  color: var(--vs-text2);
+}

@@ -12,7 +12,8 @@ const mockState = vi.hoisted(() => {
   }
   return {
     terminal,
-    activeTerminal: undefined as typeof terminal | undefined,
+    terminals: [] as { name: string; show: ReturnType<typeof vi.fn> }[],
+    activeTerminal: undefined as { name: string; show: ReturnType<typeof vi.fn> } | undefined,
     createTerminal: vi.fn(() => terminal),
     setStatusBarMessage: vi.fn(),
     executeCommand: vi.fn(),
@@ -29,6 +30,9 @@ vi.mock('vscode', () => ({
   window: {
     createTerminal: (...args: Parameters<typeof mockState.createTerminal>) =>
       mockState.createTerminal(...args),
+    get terminals() {
+      return mockState.terminals
+    },
     get activeTerminal() {
       return mockState.activeTerminal
     },
@@ -58,6 +62,11 @@ import { registerCommands } from '../../../../src/extension/commands/register'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+// Minimal SlidePanelManager stub (Story 3.3 added slidePanelManager param)
+const fakeSlidePanelManager = {
+  notifySessionSwitched: vi.fn(),
+} as unknown as import('../../../../src/extension/panels/slide-panel-manager').SlidePanelManager
+
 /**
  * Call registerCommands with a fake context and return a lookup map of
  * commandId → handler so each test can invoke handlers directly.
@@ -73,7 +82,7 @@ function captureHandlers(): Record<string, () => void | Promise<void>> {
     subscriptions: { push: vi.fn() },
   } as unknown as import('vscode').ExtensionContext
 
-  registerCommands(fakeContext)
+  registerCommands(fakeContext, fakeSlidePanelManager)
   return handlers
 }
 
@@ -92,7 +101,7 @@ describe('registerCommands', () => {
   })
 
   describe('registration', () => {
-    it('registers vibesense.openTerminal, vibesense.launchClaudeCode, vibesense.launchCopilotChat, and vibesense.voicePtt', () => {
+    it('registers all commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt, switchSessionNext, switchSessionPrev', () => {
       captureHandlers()
       const registeredIds = mockState.registerCommand.mock.calls.map(
         (call) => call[0] as string,
@@ -101,6 +110,8 @@ describe('registerCommands', () => {
       expect(registeredIds).toContain('vibesense.launchClaudeCode')
       expect(registeredIds).toContain('vibesense.launchCopilotChat')
       expect(registeredIds).toContain('vibesense.voicePtt')
+      expect(registeredIds).toContain('vibesense.switchSessionNext')
+      expect(registeredIds).toContain('vibesense.switchSessionPrev')
     })
 
     it('pushes all disposables to context.subscriptions (auto-dispose on deactivation)', () => {
@@ -110,8 +121,9 @@ describe('registerCommands', () => {
         subscriptions: { push: (...items: unknown[]) => fakeSubscriptions.push(...items) },
       } as unknown as import('vscode').ExtensionContext
 
-      registerCommands(fakeContext)
-      expect(fakeSubscriptions).toHaveLength(4)
+      registerCommands(fakeContext, fakeSlidePanelManager)
+      // 6 commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt, switchSessionNext, switchSessionPrev
+      expect(fakeSubscriptions).toHaveLength(6)
     })
   })
 
@@ -283,6 +295,147 @@ describe('registerCommands', () => {
       expect(() => handlers['vibesense.launchCopilotChat']()).not.toThrow()
       // And the async rejection handler must also not propagate
       await Promise.resolve()
+    })
+  })
+
+  // ── Session switching (Story 3.3) ─────────────────────────────────────────
+
+  describe('vibesense.switchSessionNext (AC 1, 3, 4)', () => {
+    // Convenience: 3-terminal array with fresh mocks
+    function threeTerminals() {
+      return [
+        { name: 'VibeSense', show: vi.fn() },
+        { name: 'Agent', show: vi.fn() },
+        { name: 'Copilot', show: vi.fn() },
+      ]
+    }
+
+    it('focuses the next terminal when 2+ terminals open', () => {
+      const terms = threeTerminals()
+      mockState.terminals = terms
+      mockState.activeTerminal = terms[0]
+      const handlers = captureHandlers()
+      handlers['vibesense.switchSessionNext']()
+      expect(terms[1].show).toHaveBeenCalledWith(false)
+    })
+
+    it('wraps from last terminal to first (index wrap)', () => {
+      const terms = threeTerminals()
+      mockState.terminals = terms
+      mockState.activeTerminal = terms[2]
+      const handlers = captureHandlers()
+      handlers['vibesense.switchSessionNext']()
+      expect(terms[0].show).toHaveBeenCalledWith(false)
+    })
+
+    it('calls notifySessionSwitched with correct args', () => {
+      const terms = threeTerminals()
+      mockState.terminals = terms
+      mockState.activeTerminal = terms[0]
+      fakeSlidePanelManager.notifySessionSwitched = vi.fn()
+      const handlers = captureHandlers()
+      handlers['vibesense.switchSessionNext']()
+      expect(fakeSlidePanelManager.notifySessionSwitched).toHaveBeenCalledWith(1, 'Agent', 3)
+    })
+
+    it('no-ops with only 1 terminal (AC 3)', () => {
+      const solo = [{ name: 'Solo', show: vi.fn() }]
+      mockState.terminals = solo
+      mockState.activeTerminal = solo[0]
+      fakeSlidePanelManager.notifySessionSwitched = vi.fn()
+      const handlers = captureHandlers()
+      handlers['vibesense.switchSessionNext']()
+      expect(solo[0].show).not.toHaveBeenCalled()
+      expect(fakeSlidePanelManager.notifySessionSwitched).not.toHaveBeenCalled()
+    })
+
+    it('no-ops with 0 terminals (AC 4)', () => {
+      mockState.terminals = []
+      mockState.activeTerminal = undefined
+      fakeSlidePanelManager.notifySessionSwitched = vi.fn()
+      const handlers = captureHandlers()
+      expect(() => handlers['vibesense.switchSessionNext']()).not.toThrow()
+      expect(fakeSlidePanelManager.notifySessionSwitched).not.toHaveBeenCalled()
+    })
+
+    it('starts from index 0 when no active terminal', () => {
+      const terms = threeTerminals()
+      mockState.terminals = terms
+      mockState.activeTerminal = undefined
+      fakeSlidePanelManager.notifySessionSwitched = vi.fn()
+      const handlers = captureHandlers()
+      handlers['vibesense.switchSessionNext']()
+      expect(terms[0].show).toHaveBeenCalledWith(false)
+      expect(fakeSlidePanelManager.notifySessionSwitched).toHaveBeenCalledWith(0, 'VibeSense', 3)
+    })
+  })
+
+  describe('vibesense.switchSessionPrev (AC 2, 3, 4)', () => {
+    function threeTerminals() {
+      return [
+        { name: 'VibeSense', show: vi.fn() },
+        { name: 'Agent', show: vi.fn() },
+        { name: 'Copilot', show: vi.fn() },
+      ]
+    }
+
+    it('focuses the previous terminal when 2+ terminals open', () => {
+      const terms = threeTerminals()
+      mockState.terminals = terms
+      mockState.activeTerminal = terms[1]
+      const handlers = captureHandlers()
+      handlers['vibesense.switchSessionPrev']()
+      expect(terms[0].show).toHaveBeenCalledWith(false)
+    })
+
+    it('wraps from first terminal to last (index wrap)', () => {
+      const terms = threeTerminals()
+      mockState.terminals = terms
+      mockState.activeTerminal = terms[0]
+      const handlers = captureHandlers()
+      handlers['vibesense.switchSessionPrev']()
+      expect(terms[2].show).toHaveBeenCalledWith(false)
+    })
+
+    it('calls notifySessionSwitched with correct args', () => {
+      const terms = threeTerminals()
+      mockState.terminals = terms
+      mockState.activeTerminal = terms[2]
+      fakeSlidePanelManager.notifySessionSwitched = vi.fn()
+      const handlers = captureHandlers()
+      handlers['vibesense.switchSessionPrev']()
+      expect(fakeSlidePanelManager.notifySessionSwitched).toHaveBeenCalledWith(1, 'Agent', 3)
+    })
+
+    it('no-ops with only 1 terminal (AC 3)', () => {
+      const solo = [{ name: 'Solo', show: vi.fn() }]
+      mockState.terminals = solo
+      mockState.activeTerminal = solo[0]
+      fakeSlidePanelManager.notifySessionSwitched = vi.fn()
+      const handlers = captureHandlers()
+      handlers['vibesense.switchSessionPrev']()
+      expect(solo[0].show).not.toHaveBeenCalled()
+      expect(fakeSlidePanelManager.notifySessionSwitched).not.toHaveBeenCalled()
+    })
+
+    it('no-ops with 0 terminals (AC 4)', () => {
+      mockState.terminals = []
+      mockState.activeTerminal = undefined
+      fakeSlidePanelManager.notifySessionSwitched = vi.fn()
+      const handlers = captureHandlers()
+      expect(() => handlers['vibesense.switchSessionPrev']()).not.toThrow()
+      expect(fakeSlidePanelManager.notifySessionSwitched).not.toHaveBeenCalled()
+    })
+
+    it('wraps to last terminal when no active terminal (treats as index 0)', () => {
+      const terms = threeTerminals()
+      mockState.terminals = terms
+      mockState.activeTerminal = undefined
+      fakeSlidePanelManager.notifySessionSwitched = vi.fn()
+      const handlers = captureHandlers()
+      handlers['vibesense.switchSessionPrev']()
+      expect(terms[2].show).toHaveBeenCalledWith(false)
+      expect(fakeSlidePanelManager.notifySessionSwitched).toHaveBeenCalledWith(2, 'Copilot', 3)
     })
   })
 })
