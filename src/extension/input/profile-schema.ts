@@ -20,6 +20,7 @@ export const CLAUDE_CODE_DEFAULT_PROFILE: VibeProfile = {
   bindings: {
     cross: 'vibesense.approve',
     circle: 'vibesense.deny',
+    square: 'vibesense.openTerminal', // Story 3.1: DualSense □ = new terminal
     l2: 'vibesense.openRadialWheel',
     l1: 'vibesense.switchSessionPrev',
     r1: 'vibesense.switchSessionNext',
@@ -31,6 +32,7 @@ export const CLAUDE_CODE_DEFAULT_PROFILE: VibeProfile = {
     right: 'workbench.action.navigateForward',
     a: 'vibesense.approve',
     b: 'vibesense.deny',
+    x: 'vibesense.openTerminal', // Story 3.1: Xbox X = new terminal
     y: 'workbench.action.terminal.focus',
     lt: 'vibesense.openRadialWheel',
     lb: 'vibesense.switchSessionPrev',
@@ -41,6 +43,9 @@ export const CLAUDE_CODE_DEFAULT_PROFILE: VibeProfile = {
     segments: [
       'vibesense.approve',
       'vibesense.deny',
+      'vibesense.openTerminal',
+      'vibesense.launchClaudeCode',
+      'vibesense.launchCopilotChat',
       'vibesense.switchSessionNext',
       'vibesense.switchSessionPrev',
       'workbench.action.terminal.focus',

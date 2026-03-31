@@ -3,6 +3,7 @@
   "bindings": {
     "cross": "vibesense.approve",
     "circle": "vibesense.deny",
+    "square": "vibesense.openTerminal",
     "l2": "vibesense.openRadialWheel",
     "l1": "vibesense.switchSessionPrev",
     "r1": "vibesense.switchSessionNext",
@@ -14,6 +15,7 @@
     "right": "workbench.action.navigateForward",
     "a": "vibesense.approve",
     "b": "vibesense.deny",
+    "x": "vibesense.openTerminal",
     "y": "workbench.action.terminal.focus",
     "lt": "vibesense.openRadialWheel",
     "lb": "vibesense.switchSessionPrev",
@@ -24,6 +26,9 @@
     "segments": [
       "vibesense.approve",
       "vibesense.deny",
+      "vibesense.openTerminal",
+      "vibesense.launchClaudeCode",
+      "vibesense.launchCopilotChat",
       "vibesense.switchSessionNext",
       "vibesense.switchSessionPrev",
       "workbench.action.terminal.focus",
