@@ -72,7 +72,7 @@ export class SlidePanelManager implements vscode.Disposable {
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}';">
+    content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
