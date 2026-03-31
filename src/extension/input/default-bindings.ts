@@ -11,6 +11,7 @@ export const CLAUDE_CODE_DEFAULT_BINDINGS: BindingMap = {
   // DualSense primary actions
   cross: 'vibesense.approve',
   circle: 'vibesense.deny',
+  square: 'vibesense.openTerminal', // Story 3.1: DualSense □ = new terminal (MVP; L1+R1 chord deferred)
   l2: 'vibesense.openRadialWheel',
   l1: 'vibesense.switchSessionPrev',
   r1: 'vibesense.switchSessionNext',
@@ -23,6 +24,7 @@ export const CLAUDE_CODE_DEFAULT_BINDINGS: BindingMap = {
   // Xbox equivalents
   a: 'vibesense.approve',
   b: 'vibesense.deny',
+  x: 'vibesense.openTerminal', // Story 3.1: Xbox X = new terminal (parity with DualSense □)
   y: 'workbench.action.terminal.focus',
   lt: 'vibesense.openRadialWheel',
   lb: 'vibesense.switchSessionPrev',
