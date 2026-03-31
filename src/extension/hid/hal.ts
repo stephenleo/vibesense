@@ -2,9 +2,9 @@
 // ControllerHAL interface — Facade pattern for unified controller access
 // All upper-layer code depends on this interface, never on a specific driver
 
-import type { ControllerEvent, HapticPattern } from '../../shared/types'
+import type { ControllerEvent, ControllerType, HapticPattern } from '../../shared/types'
 
-export type { ControllerEvent, HapticPattern }
+export type { ControllerEvent, ControllerType, HapticPattern }
 
 /**
  * Hardware Abstraction Layer interface for controller input.
@@ -17,6 +17,9 @@ export type { ControllerEvent, HapticPattern }
  * with Node.js EventEmitter. Upper-layer code uses the 'data' event string literal.
  */
 export interface ControllerHAL {
+  /** The type of controller this driver handles */
+  readonly controllerType: ControllerType
+
   /** Register a listener for normalized controller events */
   on(event: string | symbol, listener: (...args: unknown[]) => void): unknown
 

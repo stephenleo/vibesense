@@ -6,7 +6,7 @@ import { EventEmitter } from 'events'
 import { HID } from 'node-hid'
 import { logger } from '../logger'
 import type { ControllerHAL } from './hal'
-import type { ControllerEvent, ButtonId, AxisId, HapticPattern } from '../../shared/types'
+import type { ControllerEvent, ControllerType, ButtonId, AxisId, HapticPattern } from '../../shared/types'
 
 // Xbox Series controller VID/PIDs
 export const XBOX_VID = 0x045e
@@ -109,6 +109,8 @@ function parseXboxReport(data: Buffer): ControllerEvent[] {
  * setHaptic and setLED are no-ops (Xbox haptics deferred to Story 6.X).
  */
 export class XboxDriver extends EventEmitter implements ControllerHAL {
+  readonly controllerType: ControllerType = 'xbox'
+
   private device: HID | null = null
 
   constructor(
