@@ -62,6 +62,15 @@ export class InputRouter implements vscode.Disposable {
   }
 
   /**
+   * Hot-swap the active binding map.
+   * Called by the mode-change subscription in extension.ts when Guided ↔ Full
+   * mode transitions occur (Story 4.3, AC 2, 3).
+   */
+  updateBindings(newBindings: BindingMap): void {
+    this.bindings = newBindings
+  }
+
+  /**
    * Begin buffering incoming events.
    * After INPUT_BUFFER_WINDOW_MS, buffered events are automatically flushed in order.
    */

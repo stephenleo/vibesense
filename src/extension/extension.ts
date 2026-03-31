@@ -14,6 +14,7 @@ import { InputRouter } from './input/input-router'
 import { loadBindings } from './input/binding-loader'
 import { ensureWorkspaceProfile } from './input/profile-writer'
 import { CLAUDE_CODE_DEFAULT_PROFILE } from './input/profile-schema'
+import { ModeManager } from './input/mode-manager'
 import { SlidePanelManager } from './panels/slide-panel-manager'
 import { registerCommands } from './commands/register'
 import type { ControllerEvent, ControllerType } from '../shared/types'
@@ -37,9 +38,16 @@ export function activate(context: vscode.ExtensionContext): void {
   const slidePanelManager = new SlidePanelManager(context)
   context.subscriptions.push(slidePanelManager)
 
+  // Story 4.3: Instantiate ModeManager after context is ready but before InputRouter.
+  // ModeManager reads globalState to restore persisted mode (AC 4) and registers
+  // a configuration listener for vibesense.fullMode (AC 3).
+  const modeManager = new ModeManager(context)
+  context.subscriptions.push(modeManager)
+
   // Story 3.1: Register controller-triggered terminal and agent launch commands (FR10, FR11, FR12)
   // Story 3.3: Pass slidePanelManager so session-switch commands can notify the webview (FR13)
-  registerCommands(context, slidePanelManager)
+  // Story 4.3: Pass modeManager so vibesense.completeTutorial can call setFullMode() (AC 2)
+  registerCommands(context, slidePanelManager, modeManager)
 
   // Send initial empty session list on startup — panel shows empty state hint
   slidePanelManager.updateSessions([])
@@ -53,8 +61,18 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Story 2.5: Load binding profile (file may now exist from above)
   const bindings = loadBindings(workspaceRoot)
-  const inputRouter = new InputRouter(bindings)
+
+  // Story 4.3: Filter bindings based on current mode before passing to InputRouter (AC 1, 5).
+  // In Guided mode only core button IDs are exposed; in Full mode all bindings pass through.
+  const initialBindings = modeManager.getFilteredBindings(bindings)
+  const inputRouter = new InputRouter(initialBindings)
   context.subscriptions.push(inputRouter)
+
+  // Story 4.3: Subscribe to mode changes — hot-swap the binding map on mode transitions (AC 2, 3).
+  modeManager.onDidChangeMode(() => {
+    const filtered = modeManager.getFilteredBindings(bindings)
+    inputRouter.updateBindings(filtered)
+  })
 
   // Check HID access before enumeration — surfaces macOS/Linux permission guides (Story 2.6)
   const accessCheck = checkHidAccess()

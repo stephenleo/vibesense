@@ -338,4 +338,52 @@ describe('InputRouter', () => {
       expect(mockScrollDispose).toHaveBeenCalledOnce()
     })
   })
+
+  // ── updateBindings() — Story 4.3 (AC 2, 3) ───────────────────────────────
+  describe('updateBindings() (Story 4.3, AC 2, 3)', () => {
+    it('fires no command after updateBindings({}) when a previously-bound button is pressed', () => {
+      // Start with testBindings (cross → vibesense.approve)
+      router.handleEvent(buttonPress('cross'))
+      expect(mockExecuteCommand).toHaveBeenCalledOnce()
+      vi.clearAllMocks()
+
+      // Hot-swap to empty map
+      router.updateBindings({})
+      router.handleEvent(buttonPress('cross'))
+
+      expect(mockExecuteCommand).not.toHaveBeenCalled()
+    })
+
+    it('fires the command from the new map after updateBindings(newMap)', () => {
+      const newBindings: BindingMap = {
+        cross: 'vibesense.newCommand',
+        square: 'vibesense.anotherCommand',
+      }
+      router.updateBindings(newBindings)
+
+      router.handleEvent(buttonPress('cross'))
+      expect(mockExecuteCommand).toHaveBeenCalledWith('vibesense.newCommand')
+    })
+
+    it('does not affect previously-bound buttons that are not in the new map', () => {
+      // circle was in testBindings but not in newBindings
+      const newBindings: BindingMap = { cross: 'vibesense.newCommand' }
+      router.updateBindings(newBindings)
+
+      router.handleEvent(buttonPress('circle'))
+      expect(mockExecuteCommand).not.toHaveBeenCalled()
+    })
+
+    it('takes effect immediately — next event after update uses new bindings', () => {
+      // Verify old binding first
+      router.handleEvent(buttonPress('cross'))
+      expect(mockExecuteCommand).toHaveBeenCalledWith('vibesense.approve')
+      vi.clearAllMocks()
+
+      // Update and immediately verify new binding
+      router.updateBindings({ cross: 'vibesense.deny' })
+      router.handleEvent(buttonPress('cross'))
+      expect(mockExecuteCommand).toHaveBeenCalledWith('vibesense.deny')
+    })
+  })
 })
