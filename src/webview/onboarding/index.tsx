@@ -1,11 +1,11 @@
 // src/webview/onboarding/index.tsx
 // Onboarding tutorial webview entry point — React root for VibeSense Onboarding
 
-import React, { useReducer, useEffect, useCallback } from 'react'
+import React, { useReducer, useEffect, useCallback, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
 import { parseHostMessage } from '../../shared/messages'
 import type { ControllerType } from '../../shared/types'
-import { OnboardingFlow } from './OnboardingFlow'
+import { OnboardingFlow, TUTORIAL_STEPS, getExpectedButton } from './OnboardingFlow'
 import '../shared-ui/tokens.css'
 import './onboarding.css'
 
@@ -32,8 +32,18 @@ function reducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case 'ONBOARDING_INIT':
       return { ...state, controllerType: action.controllerType, status: 'ready' }
-    case 'BUTTON_PRESSED':
-      return { ...state, pressedButton: action.button }
+    case 'BUTTON_PRESSED': {
+      const nextState = { ...state, pressedButton: action.button }
+      // Auto-advance if the pressed button matches the expected button for the current step (AC 2)
+      const step = TUTORIAL_STEPS[state.currentStep]
+      if (step) {
+        const expected = getExpectedButton(step, state.controllerType)
+        if (expected !== null && action.button === expected && state.currentStep < TUTORIAL_STEPS.length) {
+          nextState.currentStep = state.currentStep + 1
+        }
+      }
+      return nextState
+    }
     case 'CLEAR_PRESSED_BUTTON':
       return { ...state, pressedButton: null }
     case 'ADVANCE_STEP':
@@ -83,18 +93,26 @@ function App(): React.ReactElement {
     }
   }, [])
 
+  // Track previous step to detect advances and send appropriate messages
+  const prevStepRef = useRef(state.currentStep)
+  useEffect(() => {
+    const TOTAL_STEPS = TUTORIAL_STEPS.length
+    if (state.currentStep !== prevStepRef.current && state.currentStep > prevStepRef.current) {
+      if (state.currentStep >= TOTAL_STEPS) {
+        // Final step completed — post ONBOARDING_COMPLETE
+        vscode.postMessage({ type: 'ONBOARDING_COMPLETE', payload: {} })
+      } else {
+        // Intermediate step completed — post step index of the step that was just completed
+        vscode.postMessage({ type: 'ONBOARDING_STEP_COMPLETE', payload: { stepIndex: prevStepRef.current } })
+      }
+      prevStepRef.current = state.currentStep
+    }
+  }, [state.currentStep])
+
   const advanceStep = useCallback(() => {
-    const TOTAL_STEPS = 6
+    const TOTAL_STEPS = TUTORIAL_STEPS.length
     // Guard: ignore advances after tutorial is already complete
     if (state.currentStep >= TOTAL_STEPS) return
-    const nextStep = state.currentStep + 1
-    if (nextStep >= TOTAL_STEPS) {
-      // Final step — post ONBOARDING_COMPLETE
-      vscode.postMessage({ type: 'ONBOARDING_COMPLETE', payload: {} })
-    } else {
-      // Post step complete notification
-      vscode.postMessage({ type: 'ONBOARDING_STEP_COMPLETE', payload: { stepIndex: state.currentStep } })
-    }
     dispatch({ type: 'ADVANCE_STEP' })
   }, [state.currentStep])
 

@@ -16,7 +16,7 @@ export interface TutorialStepConfig {
 
 // ─── Tutorial Step Definitions ────────────────────────────────────────────────
 
-const TUTORIAL_STEPS: TutorialStepConfig[] = [
+export const TUTORIAL_STEPS: TutorialStepConfig[] = [
   // Section 1 — Face Buttons
   {
     section: 1,
