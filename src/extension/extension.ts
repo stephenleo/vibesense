@@ -1,20 +1,20 @@
 // src/extension/extension.ts
 // VibeSense extension entry point
-// Stories 1.2–2.6: HID detection, permission handling, manual device selection
+// Full implementation across Stories 1.2 – 2.6
 
 import * as vscode from 'vscode'
 import { logger, disposeLogger } from './logger'
 import { HidManager } from './hid/hid-manager'
+import { ControllerLifecycleManager } from './hid/controller-lifecycle-manager'
+import { StatusBarController } from './status-bar'
 import { checkHidAccess, isHidPermissionError } from './platform/permission-checker'
 import { handleHidPermissionError } from './platform/platform-guide'
 import { showDeviceSelector } from './platform/device-selector'
 import type { ControllerEvent, ControllerType } from '../shared/types'
 
-function controllerLabel(type: ControllerType): string {
-  if (type === 'dualsense') return 'DualSense'
-  if (type === 'xbox') return 'Xbox'
-  return 'Controller'
-}
+// Module-level references — accessible for deactivate() and subscription dispose
+let lifecycleManager: ControllerLifecycleManager | undefined
+let hidManager: HidManager | undefined
 
 /**
  * Called when the extension is activated.
@@ -23,47 +23,70 @@ function controllerLabel(type: ControllerType): string {
 export function activate(context: vscode.ExtensionContext): void {
   logger.info('VibeSense activating')
 
-  // Minimal inline status bar — full StatusBarController is Story 2.3 (parallel branch)
-  const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100)
-  statusBarItem.text = '○ No controller — keyboard active'
-  statusBarItem.tooltip = 'VibeSense: No controller — keyboard active'
-  statusBarItem.show()
-  context.subscriptions.push(statusBarItem)
+  // Instantiate status bar immediately so it's always visible (FR27)
+  const statusBar = new StatusBarController()
+  context.subscriptions.push(statusBar)
 
-  // Check HID access before enumeration — surfaces macOS/Linux permission guides
+  // Check HID access before enumeration — surfaces macOS/Linux permission guides (Story 2.6)
   const accessCheck = checkHidAccess()
   if (!accessCheck.ok && isHidPermissionError(accessCheck.error)) {
     handleHidPermissionError(accessCheck.error)
     return
   }
 
-  const hidManager = new HidManager()
-  const driver = hidManager.start()
+  // Track current controller type for battery event correlation.
+  let currentControllerType: ControllerType | null = null
 
-  // Track manually-selected driver so it is stopped on deactivation
-  let manualDriver: import('./hid/hal').ControllerHAL | null = null
+  hidManager = new HidManager()
+  const initialDriver = hidManager.start()
 
-  if (driver !== null) {
-    statusBarItem.text = '⊙ Controller'
-    statusBarItem.tooltip = 'VibeSense: Controller connected'
+  // If a controller is already plugged in at startup, reflect that immediately (FR27)
+  if (initialDriver !== null) {
+    statusBar.update({ kind: 'connected', controllerType: initialDriver.controllerType })
+    currentControllerType = initialDriver.controllerType
+  }
 
+  /**
+   * Attach status-bar event listeners to a HAL driver.
+   * Called on initial connect and on every reconnect.
+   */
+  function attachStatusBarListeners(driver: { on: (event: string | symbol, listener: (...args: unknown[]) => void) => unknown; controllerType: ControllerType }): void {
     driver.on('data', (raw: unknown) => {
       try {
         const event = raw as ControllerEvent
         if (event.kind === 'connected') {
-          const label = controllerLabel(event.controllerType)
-          statusBarItem.text = `⊙ ${label}`
-          statusBarItem.tooltip = `VibeSense: ${label} connected`
+          currentControllerType = event.controllerType
+          statusBar.update({ kind: 'connected', controllerType: event.controllerType })
         } else if (event.kind === 'disconnected') {
-          statusBarItem.text = '○ No controller — keyboard active'
-          statusBarItem.tooltip = 'VibeSense: No controller — keyboard active'
+          currentControllerType = null
+          statusBar.update({ kind: 'disconnected' })
+        } else if (event.kind === 'battery' && currentControllerType !== null) {
+          // FR4: non-blocking battery warning when level < 20%
+          if (event.level < 20) {
+            statusBar.update({
+              kind: 'low-battery',
+              controllerType: currentControllerType,
+              level: event.level,
+            })
+          } else {
+            // Battery back above threshold — revert to connected state
+            statusBar.update({ kind: 'connected', controllerType: currentControllerType })
+          }
         }
       } catch (err) {
-        logger.error('extension: error handling controller event', err)
+        logger.error('StatusBar: error handling controller event', err)
+        // NFR-R1: swallow — never propagate to VSCode process
       }
     })
-  } else {
-    // Auto-detection failed — offer manual device selection
+  }
+
+  // Attach status-bar listeners to the initial driver (if any)
+  if (initialDriver !== null) {
+    attachStatusBarListeners(initialDriver)
+  }
+
+  // Auto-detection failed — offer manual device selection (Story 2.6, FR5)
+  if (initialDriver === null) {
     void vscode.window
       .showInformationMessage(
         'Controller not found. Check connection or select device manually.',
@@ -74,10 +97,9 @@ export function activate(context: vscode.ExtensionContext): void {
           try {
             const result = await showDeviceSelector()
             if (result) {
-              manualDriver = result.driver
-              const label = controllerLabel(result.controllerType)
-              statusBarItem.text = `⊙ ${label}`
-              statusBarItem.tooltip = `VibeSense: ${label} connected`
+              currentControllerType = result.controllerType
+              statusBar.update({ kind: 'connected', controllerType: result.controllerType })
+              attachStatusBarListeners(result.driver)
             }
           } catch (err) {
             logger.error('extension: showDeviceSelector failed', err)
@@ -86,13 +108,27 @@ export function activate(context: vscode.ExtensionContext): void {
       })
   }
 
+  lifecycleManager = new ControllerLifecycleManager(
+    initialDriver,
+    (driver) => {
+      logger.info('VibeSense: controller connected', driver.controllerType)
+      currentControllerType = driver.controllerType
+      statusBar.update({ kind: 'connected', controllerType: driver.controllerType })
+      attachStatusBarListeners(driver)
+    },
+    () => {
+      logger.info('VibeSense: controller disconnected — keyboard fallback active')
+      currentControllerType = null
+      statusBar.update({ kind: 'disconnected' })
+    },
+  )
+
   context.subscriptions.push({
     dispose: () => {
-      hidManager.stop()
-      if (manualDriver) {
-        manualDriver.stop()
-        manualDriver = null
-      }
+      lifecycleManager?.stop()
+      lifecycleManager = undefined
+      hidManager?.stop()
+      hidManager = undefined
     },
   })
 }
@@ -101,5 +137,9 @@ export function activate(context: vscode.ExtensionContext): void {
  * Called when the extension is deactivated.
  */
 export function deactivate(): void {
+  lifecycleManager?.stop()
+  lifecycleManager = undefined
+  hidManager?.stop()
+  hidManager = undefined
   disposeLogger()
 }
