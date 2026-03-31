@@ -1,6 +1,8 @@
 // test/unit/input/profile-schema.test.ts
 // Unit tests for VibeProfileSchema and CLAUDE_CODE_DEFAULT_PROFILE
 
+import * as fs from 'node:fs'
+import * as path from 'node:path'
 import { describe, it, expect } from 'vitest'
 import { VibeProfileSchema, CLAUDE_CODE_DEFAULT_PROFILE } from '../../../src/extension/input/profile-schema'
 
@@ -46,5 +48,23 @@ describe('CLAUDE_CODE_DEFAULT_PROFILE', () => {
 
   it('has bindings.l2 equal to "vibesense.openRadialWheel"', () => {
     expect(CLAUDE_CODE_DEFAULT_PROFILE.bindings?.l2).toBe('vibesense.openRadialWheel')
+  })
+})
+
+describe('Bundled JSON profiles match TypeScript constants', () => {
+  const profilesDir = path.resolve(__dirname, '../../../profiles')
+
+  it('claude-code-default.json matches CLAUDE_CODE_DEFAULT_PROFILE', () => {
+    const raw = fs.readFileSync(path.join(profilesDir, 'claude-code-default.json'), 'utf-8')
+    const parsed = JSON.parse(raw)
+    expect(parsed).toEqual(CLAUDE_CODE_DEFAULT_PROFILE)
+  })
+
+  it('copilot-default.json is a valid VibeProfile', () => {
+    const raw = fs.readFileSync(path.join(profilesDir, 'copilot-default.json'), 'utf-8')
+    const parsed = JSON.parse(raw)
+    const result = VibeProfileSchema.safeParse(parsed)
+    expect(result.success).toBe(true)
+    expect(parsed.profile).toBe('copilot-default')
   })
 })
