@@ -31,6 +31,10 @@ function log(level: string, message: string, args: unknown[]): void {
 }
 
 export const logger = {
+  debug(message: string, ...args: unknown[]): void {
+    log('DEBUG', message, args)
+  },
+
   info(message: string, ...args: unknown[]): void {
     log('INFO', message, args)
   },
