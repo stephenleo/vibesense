@@ -315,6 +315,7 @@ export function activate(context: vscode.ExtensionContext): void {
             const result = await showDeviceSelector()
             if (result) {
               currentControllerType = result.controllerType
+              currentDriver = result.driver  // Story 6.1: make manually-selected HAL available to HapticController
               statusBar.update({ kind: 'connected', controllerType: result.controllerType })
               attachStatusBarListeners(result.driver)
               attachInputListeners(result.driver)
