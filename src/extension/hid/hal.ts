@@ -17,7 +17,7 @@ export type { ControllerEvent, ControllerType, HapticPattern }
  * with Node.js EventEmitter. Upper-layer code uses the 'data' event string literal.
  */
 export interface ControllerHAL {
-  /** The type of controller this driver handles */
+  /** The type of controller this driver manages */
   readonly controllerType: ControllerType
 
   /** Register a listener for normalized controller events */
