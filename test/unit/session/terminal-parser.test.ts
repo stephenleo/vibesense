@@ -1,7 +1,7 @@
 // test/unit/session/terminal-parser.test.ts
 // Unit tests for TerminalOutputParser — AC 1, 2, 3, 4
 
-import { vi, describe, it, expect, beforeEach } from 'vitest'
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 
 // ── Hoisted mocks ─────────────────────────────────────────────────────────────
 // capturedCallback stores the handler registered with onDidWriteTerminalData
@@ -81,6 +81,11 @@ describe('TerminalOutputParser', () => {
     // Default: hookActive = () => false (hooks not live)
     parser = new TerminalOutputParser(sessionManager, () => false)
     fireTerminalData = makeFireFn(getCallback)
+  })
+
+  afterEach(() => {
+    parser.dispose()
+    sessionManager.dispose()
   })
 
   // ─── AC 1: matched pattern fires correct FSM transition ──────────────────

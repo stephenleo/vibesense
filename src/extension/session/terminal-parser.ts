@@ -93,12 +93,12 @@ export class TerminalOutputParser implements vscode.Disposable {
    * Strips ANSI escapes, matches patterns in priority order, dispatches FSM event.
    */
   private processOutput(terminal: vscode.Terminal, data: string): void {
-    // AC 3: Skip dispatch entirely when hooks are live — hooks take precedence
-    if (this.hookActive()) {
-      return
-    }
-
     try {
+      // AC 3: Skip dispatch entirely when hooks are live — hooks take precedence
+      if (this.hookActive()) {
+        return
+      }
+
       const clean = stripAnsi(data)
 
       // Priority: NEEDS_INPUT → PROCESSING → COMPLETE (only first match fires)
