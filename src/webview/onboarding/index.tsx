@@ -56,6 +56,8 @@ function App(): React.ReactElement {
   const [state, dispatch] = useReducer(reducer, initialState)
 
   useEffect(() => {
+    let highlightTimer: ReturnType<typeof setTimeout> | undefined
+
     function handleMessage(event: MessageEvent): void {
       const msg = parseHostMessage(event.data)
       if (!msg) return
@@ -64,9 +66,12 @@ function App(): React.ReactElement {
         dispatch({ type: 'ONBOARDING_INIT', controllerType: msg.payload.controllerType })
       } else if (msg.type === 'ONBOARDING_BUTTON_PRESSED') {
         dispatch({ type: 'BUTTON_PRESSED', button: msg.payload.button })
+        // Clear any previous highlight timer before scheduling a new one
+        if (highlightTimer !== undefined) clearTimeout(highlightTimer)
         // Clear pressed button after 800ms visual highlight delay
-        setTimeout(() => {
+        highlightTimer = setTimeout(() => {
           dispatch({ type: 'CLEAR_PRESSED_BUTTON' })
+          highlightTimer = undefined
         }, 800)
       }
     }
@@ -74,11 +79,14 @@ function App(): React.ReactElement {
     window.addEventListener('message', handleMessage)
     return () => {
       window.removeEventListener('message', handleMessage)
+      if (highlightTimer !== undefined) clearTimeout(highlightTimer)
     }
   }, [])
 
   const advanceStep = useCallback(() => {
     const TOTAL_STEPS = 6
+    // Guard: ignore advances after tutorial is already complete
+    if (state.currentStep >= TOTAL_STEPS) return
     const nextStep = state.currentStep + 1
     if (nextStep >= TOTAL_STEPS) {
       // Final step — post ONBOARDING_COMPLETE
@@ -94,6 +102,8 @@ function App(): React.ReactElement {
   useEffect(() => {
     const handler = (e: KeyboardEvent): void => {
       if (e.key === ' ' || e.key === 'Enter') {
+        // Skip if a <button> is focused — its own click handler will fire
+        if ((e.target as HTMLElement)?.tagName === 'BUTTON') return
         advanceStep()
       }
     }

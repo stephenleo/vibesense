@@ -21,7 +21,11 @@ export class OnboardingPanelManager implements vscode.Disposable {
    */
   open(controllerType: ControllerType | null): void {
     try {
-      // Dispose existing panel if any — ensures fresh start (AC 4)
+      // Dispose existing panel and drain stale listeners — ensures fresh start (AC 4)
+      for (const sub of this.subscriptions) {
+        sub.dispose()
+      }
+      this.subscriptions.length = 0
       this.panel?.dispose()
       this.panel = undefined
 
