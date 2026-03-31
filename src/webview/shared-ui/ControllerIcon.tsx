@@ -82,7 +82,6 @@ export function ControllerIcon({ button, controllerType, size = 20 }: Controller
     ariaLabel = `Xbox ${button}`
   } else {
     // generic-hid — text label only
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     glyph = BUTTON_LABELS[button] ?? button
     color = 'var(--vs-controller-generic)'
     ariaLabel = `Controller ${button}`
@@ -103,7 +102,7 @@ export function ControllerIcon({ button, controllerType, size = 20 }: Controller
         y="10"
         dominantBaseline="central"
         textAnchor="middle"
-        fontSize={size * 0.7}
+        fontSize={14}
         fill={color}
         fontFamily="var(--vs-font-family, sans-serif)"
         fontWeight="bold"
