@@ -103,6 +103,17 @@ export const HostMessageSchema = z.discriminatedUnion('type', [
       button: z.string(),
     }),
   }),
+  z.object({
+    type: z.literal('ERROR_MENU_OPEN'),
+    payload: z.object({
+      sessionId: z.string(),
+      hasLastCommand: z.boolean(),
+    }),
+  }),
+  z.object({
+    type: z.literal('ERROR_MENU_CLOSE'),
+    payload: z.object({}),
+  }),
 ])
 
 export type HostMessage = z.infer<typeof HostMessageSchema>
@@ -163,6 +174,16 @@ export const WebviewMessageSchema = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('ONBOARDING_DISMISSED'),
+    payload: z.object({}),
+  }),
+  z.object({
+    type: z.literal('ERROR_MENU_ACTION'),
+    payload: z.object({
+      action: z.enum(['retry', 'clear', 'new-session', 'view-log']),
+    }),
+  }),
+  z.object({
+    type: z.literal('ERROR_MENU_DISMISS'),
     payload: z.object({}),
   }),
 ])

@@ -24,14 +24,18 @@ import { SessionManager } from './session/session-manager'
 import { registerHooks } from './ipc/hook-writer'
 import { PipeServer } from './ipc/pipe-server'
 import { TerminalOutputParser } from './session/terminal-parser'
+import { LastCommandTracker } from './session/last-command-tracker'
 import type { ControllerEvent, ControllerType } from '../shared/types'
 import type { AggregateGameState } from './fsm/states'
+import type { AgentState } from '../shared/types'
 
 // Module-level references — accessible for deactivate() and subscription dispose
 let lifecycleManager: ControllerLifecycleManager | undefined
 let hidManager: HidManager | undefined
 // Story 5.1: Module-level sessionManager ref — Stories 5.2/5.3 call handleHookMessage() via this
 export let sessionManager: SessionManager | undefined
+// Story 5.5: Module-level lastCommandTracker ref — tracks last command per session for retry
+export let lastCommandTracker: LastCommandTracker | undefined
 
 /**
  * Called when the extension is activated.
@@ -57,6 +61,15 @@ export function activate(context: vscode.ExtensionContext): void {
   const pipeServer = new PipeServer(sessionManager)
   pipeServer.start()
   context.subscriptions.push({ dispose: () => pipeServer.stop() })
+
+  // Story 5.5: Instantiate LastCommandTracker — tracks last VibeSense-sent command per session
+  lastCommandTracker = new LastCommandTracker()
+  context.subscriptions.push({
+    dispose: () => {
+      lastCommandTracker?.dispose()
+      lastCommandTracker = undefined
+    },
+  })
 
   // Story 5.1: Log aggregateGameStateChanged events (haptic/LED/game integrations come in later epics)
   sessionManager.on('aggregateGameStateChanged', (state: AggregateGameState) => {
@@ -90,11 +103,20 @@ export function activate(context: vscode.ExtensionContext): void {
   const onboardingPanelManager = new OnboardingPanelManager(context)
   context.subscriptions.push(onboardingPanelManager)
 
+  // Story 5.5: Subscribe to per-session state changes — auto-open error menu on error transition (AC 1)
+  sessionManager.on('sessionStateChanged', (sid: string, _prev: AgentState, next: AgentState) => {
+    if (next === 'error') {
+      const lastCommand = lastCommandTracker?.getLastCommand(sid)
+      slidePanelManager.notifyErrorMenuOpen(sid, lastCommand !== undefined)
+    }
+  })
+
   // Story 3.1: Register controller-triggered terminal and agent launch commands (FR10, FR11, FR12)
   // Story 3.3: Pass slidePanelManager so session-switch commands can notify the webview (FR13)
   // Story 4.3: Pass modeManager so vibesense.completeTutorial can call setFullMode() (AC 2)
   // Story 4.4: Pass onboardingPanelManager so vibesense.startOnboarding command is registered
-  registerCommands(context, slidePanelManager, modeManager, onboardingPanelManager)
+  // Story 5.5: Pass sessionManager + lastCommandTracker for error recovery commands (FR56)
+  registerCommands(context, slidePanelManager, modeManager, onboardingPanelManager, sessionManager, lastCommandTracker)
 
   // Send initial empty session list on startup — panel shows empty state hint
   slidePanelManager.updateSessions([])
@@ -332,5 +354,7 @@ export function deactivate(): void {
   hidManager = undefined
   sessionManager?.dispose()
   sessionManager = undefined
+  lastCommandTracker?.dispose()
+  lastCommandTracker = undefined
   disposeLogger()
 }

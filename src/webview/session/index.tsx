@@ -9,6 +9,7 @@ import type { Session, ControllerType } from '../../shared/types'
 import { SlidePanel } from './SlidePanel'
 import { SessionSwitcher } from './SessionSwitcher'
 import { QuickPanel } from './QuickPanel'
+import { ErrorMenu } from './ErrorMenu'
 import '../shared-ui/tokens.css'
 import './session.css'
 
@@ -28,6 +29,9 @@ interface AppState {
   switcherTotalSessions: number
   quickPanelVisible: boolean
   quickPanelSelectedIndex: number
+  errorMenuVisible: boolean
+  errorMenuSessionId: string
+  errorMenuHasLastCommand: boolean
 }
 
 type AppAction =
@@ -42,6 +46,8 @@ type AppAction =
   | { type: 'OPEN_QUICK_PANEL'; sessions: Session[]; selectedIndex: number }
   | { type: 'CLOSE_QUICK_PANEL' }
   | { type: 'NAVIGATE_QUICK_PANEL'; selectedIndex: number }
+  | { type: 'OPEN_ERROR_MENU'; sessionId: string; hasLastCommand: boolean }
+  | { type: 'CLOSE_ERROR_MENU' }
 
 function reducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
@@ -72,6 +78,15 @@ function reducer(state: AppState, action: AppAction): AppState {
       return { ...state, quickPanelVisible: false }
     case 'NAVIGATE_QUICK_PANEL':
       return { ...state, quickPanelSelectedIndex: action.selectedIndex }
+    case 'OPEN_ERROR_MENU':
+      return {
+        ...state,
+        errorMenuVisible: true,
+        errorMenuSessionId: action.sessionId,
+        errorMenuHasLastCommand: action.hasLastCommand,
+      }
+    case 'CLOSE_ERROR_MENU':
+      return { ...state, errorMenuVisible: false }
     default:
       return state
   }
@@ -87,6 +102,9 @@ const initialState: AppState = {
   switcherTotalSessions: 1,
   quickPanelVisible: false,
   quickPanelSelectedIndex: 0,
+  errorMenuVisible: false,
+  errorMenuSessionId: '',
+  errorMenuHasLastCommand: false,
 }
 
 // ─── App Component ────────────────────────────────────────────────────────────
@@ -124,6 +142,14 @@ function App(): React.ReactElement {
         dispatch({ type: 'CLOSE_QUICK_PANEL' })
       } else if (msg.type === 'QUICK_PANEL_NAVIGATE') {
         dispatch({ type: 'NAVIGATE_QUICK_PANEL', selectedIndex: msg.payload.selectedIndex })
+      } else if (msg.type === 'ERROR_MENU_OPEN') {
+        dispatch({
+          type: 'OPEN_ERROR_MENU',
+          sessionId: msg.payload.sessionId,
+          hasLastCommand: msg.payload.hasLastCommand,
+        })
+      } else if (msg.type === 'ERROR_MENU_CLOSE') {
+        dispatch({ type: 'CLOSE_ERROR_MENU' })
       }
     }
 
@@ -152,6 +178,16 @@ function App(): React.ReactElement {
     dispatch({ type: 'CLOSE_QUICK_PANEL' })
   }
 
+  function handleErrorMenuAction(action: 'retry' | 'clear' | 'new-session' | 'view-log'): void {
+    vscode.postMessage({ type: 'ERROR_MENU_ACTION', payload: { action } })
+    dispatch({ type: 'CLOSE_ERROR_MENU' })
+  }
+
+  function handleErrorMenuDismiss(): void {
+    vscode.postMessage({ type: 'ERROR_MENU_DISMISS', payload: {} })
+    dispatch({ type: 'CLOSE_ERROR_MENU' })
+  }
+
   return (
     <>
       <SlidePanel
@@ -171,6 +207,12 @@ function App(): React.ReactElement {
         visible={state.quickPanelVisible}
         onSelect={handleQuickPanelSelect}
         onDismiss={handleQuickPanelDismiss}
+      />
+      <ErrorMenu
+        visible={state.errorMenuVisible}
+        hasLastCommand={state.errorMenuHasLastCommand}
+        onAction={handleErrorMenuAction}
+        onDismiss={handleErrorMenuDismiss}
       />
     </>
   )

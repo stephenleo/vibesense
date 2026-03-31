@@ -4,12 +4,15 @@
 // FR13: L1/R1 session switching (Story 3.3)
 // FR14: quick session panel (Story 3.5)
 // Story 4.3: vibesense.completeTutorial (Guided → Full mode unlock)
+// Story 5.5: vibesense.openErrorMenu + error recovery commands (FR56)
 
 import * as vscode from 'vscode'
 import { logger } from '../logger'
 import type { SlidePanelManager } from '../panels/slide-panel-manager'
 import type { ModeManager } from '../input/mode-manager'
 import type { OnboardingPanelManager } from '../panels/onboarding-panel'
+import type { SessionManager } from '../session/session-manager'
+import type { LastCommandTracker } from '../session/last-command-tracker'
 
 /**
  * Register all vibesense.* commands with the extension context.
@@ -20,6 +23,8 @@ export function registerCommands(
   slidePanelManager: SlidePanelManager,
   modeManager: ModeManager,
   onboardingPanelManager: OnboardingPanelManager,
+  sessionManager?: SessionManager,
+  lastCommandTracker?: LastCommandTracker,
 ): void {
   context.subscriptions.push(
     // FR10: Open a new VSCode integrated terminal and focus it
@@ -40,6 +45,11 @@ export function registerCommands(
           vscode.window.activeTerminal ?? vscode.window.createTerminal({ name: 'VibeSense' })
         terminal.show(false) // false = focus the terminal so user sees Claude Code start
         terminal.sendText('claude', true) // true = add newline (presses Enter)
+        // Story 5.5: Record 'claude' as the last command for retry support.
+        // NOTE: Uses terminal.name as the key. Hook-based session IDs (Story 5.2)
+        // will differ from terminal.name, so retry lookup will miss until Story 5.2
+        // aligns the key spaces. This is a known limitation pending hook integration.
+        lastCommandTracker?.setLastCommand(terminal.name, 'claude')
       } catch (err) {
         logger.error('vibesense.launchClaudeCode: failed', err)
         // NFR-R1: swallow — never propagate to VSCode process
@@ -195,6 +205,84 @@ export function registerCommands(
         onboardingPanelManager.open(null)
       } catch (err) {
         logger.error('vibesense.startOnboarding: failed', err)
+        // NFR-R1: swallow — never propagate to VSCode process
+      }
+    }),
+
+    // Story 5.5 / FR56: Open error recovery menu for currently active error session (manual trigger)
+    vscode.commands.registerCommand('vibesense.openErrorMenu', () => {
+      try {
+        const sessions = sessionManager?.getSessions()
+        if (!sessions) return
+        let errorSessionId = ''
+        for (const [id, fsm] of sessions) {
+          if (fsm.state === 'error') {
+            errorSessionId = id
+            break
+          }
+        }
+        if (!errorSessionId) return
+        const hasLastCommand = lastCommandTracker?.getLastCommand(errorSessionId) !== undefined
+        slidePanelManager.notifyErrorMenuOpen(errorSessionId, hasLastCommand)
+      } catch (err) {
+        logger.error('vibesense.openErrorMenu: failed', err)
+        // NFR-R1: swallow — never propagate to VSCode process
+      }
+    }),
+
+    // Story 5.5 / FR56: Retry last command in error session (AC 2)
+    vscode.commands.registerCommand('vibesense.errorRetryLastCommand', (sessionId: string) => {
+      try {
+        const terminal = vscode.window.activeTerminal
+        const lastCommand = lastCommandTracker?.getLastCommand(sessionId)
+        let didRetry = false
+        if (terminal) {
+          if (lastCommand) {
+            terminal.sendText(lastCommand, true)
+            didRetry = true
+          } else {
+            // Fallback: delegate to VSCode's built-in terminal history
+            vscode.commands
+              .executeCommand('workbench.action.terminal.runRecentCommand')
+              .then(undefined, (err: unknown) => {
+                logger.error('vibesense.errorRetryLastCommand: runRecentCommand failed', err)
+              })
+            didRetry = true
+          }
+        } else {
+          logger.warn('vibesense.errorRetryLastCommand: no active terminal — no-op')
+        }
+        // Transition FSM back to processing only when a retry was actually attempted (AC 2)
+        if (didRetry && sessionId) {
+          sessionManager?.getOrCreateFsm(sessionId).dispatch('AGENT_PROCESSING')
+        }
+      } catch (err) {
+        logger.error('vibesense.errorRetryLastCommand: failed', err)
+        // NFR-R1: swallow — never propagate to VSCode process
+      }
+    }),
+
+    // Story 5.5 / FR56: Clear terminal output
+    vscode.commands.registerCommand('vibesense.errorClearTerminal', () => {
+      try {
+        vscode.commands
+          .executeCommand('workbench.action.terminal.clear')
+          .then(undefined, (err: unknown) => {
+            logger.error('vibesense.errorClearTerminal: clear failed', err)
+          })
+      } catch (err) {
+        logger.error('vibesense.errorClearTerminal: failed', err)
+        // NFR-R1: swallow — never propagate to VSCode process
+      }
+    }),
+
+    // Story 5.5 / FR56: View error log — shows status bar message pointing to output panel
+    vscode.commands.registerCommand('vibesense.errorViewLog', () => {
+      try {
+        vscode.window.setStatusBarMessage('$(error) View VibeSense Output panel for error log', 5000)
+        logger.info('vibesense.errorViewLog: status bar message shown')
+      } catch (err) {
+        logger.error('vibesense.errorViewLog: failed', err)
         // NFR-R1: swallow — never propagate to VSCode process
       }
     }),

@@ -113,6 +113,21 @@ describe('SessionManager', () => {
     expect(handler).toHaveBeenCalledWith('abc', 'idle', 'processing')
   })
 
+  it('sessionStateChanged emitted with next==="error" when AGENT_ERROR is dispatched (Story 5.5 AC 1)', () => {
+    const handler = vi.fn()
+    manager.on('sessionStateChanged', handler)
+
+    const fsm = manager.getOrCreateFsm('error-session')
+    fsm.dispatch('AGENT_PROCESSING') // idle → processing
+    fsm.dispatch('AGENT_ERROR')      // processing → error
+
+    // The last call should carry next === 'error'
+    const calls = handler.mock.calls
+    const lastCall = calls[calls.length - 1] as [string, string, string]
+    expect(lastCall[0]).toBe('error-session')
+    expect(lastCall[2]).toBe('error')
+  })
+
   it('dispose() cleans up all FSMs and listeners', () => {
     manager.getOrCreateFsm('s1')
     manager.getOrCreateFsm('s2')
