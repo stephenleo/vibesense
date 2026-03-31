@@ -12,7 +12,8 @@ const mockState = vi.hoisted(() => {
   }
   return {
     terminal,
-    activeTerminal: undefined as typeof terminal | undefined,
+    terminals: [] as { name: string; show: ReturnType<typeof vi.fn> }[],
+    activeTerminal: undefined as { name: string; show: ReturnType<typeof vi.fn> } | undefined,
     createTerminal: vi.fn(() => terminal),
     setStatusBarMessage: vi.fn(),
     executeCommand: vi.fn(),
@@ -29,6 +30,9 @@ vi.mock('vscode', () => ({
   window: {
     createTerminal: (...args: Parameters<typeof mockState.createTerminal>) =>
       mockState.createTerminal(...args),
+    get terminals() {
+      return mockState.terminals
+    },
     get activeTerminal() {
       return mockState.activeTerminal
     },
@@ -228,6 +232,136 @@ describe('registerCommands', () => {
       expect(() => handlers['vibesense.launchCopilotChat']()).not.toThrow()
       // And the async rejection handler must also not propagate
       await Promise.resolve()
+    })
+  })
+
+  // ── Session switching (Story 3.3) ─────────────────────────────────────────
+
+  describe('vibesense.switchSessionNext (AC 1, 3, 4)', () => {
+    // Convenience: 3-terminal array with fresh mocks
+    function threeTerminals() {
+      return [
+        { name: 'VibeSense', show: vi.fn() },
+        { name: 'Agent', show: vi.fn() },
+        { name: 'Copilot', show: vi.fn() },
+      ]
+    }
+
+    it('focuses the next terminal when 2+ terminals open', () => {
+      const terms = threeTerminals()
+      mockState.terminals = terms
+      mockState.activeTerminal = terms[0]
+      const handlers = captureHandlers()
+      handlers['vibesense.switchSessionNext']()
+      expect(terms[1].show).toHaveBeenCalledWith(false)
+    })
+
+    it('wraps from last terminal to first (index wrap)', () => {
+      const terms = threeTerminals()
+      mockState.terminals = terms
+      mockState.activeTerminal = terms[2]
+      const handlers = captureHandlers()
+      handlers['vibesense.switchSessionNext']()
+      expect(terms[0].show).toHaveBeenCalledWith(false)
+    })
+
+    it('calls notifySessionSwitched with correct args', () => {
+      const terms = threeTerminals()
+      mockState.terminals = terms
+      mockState.activeTerminal = terms[0]
+      fakeSlidePanelManager.notifySessionSwitched = vi.fn()
+      const handlers = captureHandlers()
+      handlers['vibesense.switchSessionNext']()
+      expect(fakeSlidePanelManager.notifySessionSwitched).toHaveBeenCalledWith(1, 'Agent', 3)
+    })
+
+    it('no-ops with only 1 terminal (AC 3)', () => {
+      const solo = [{ name: 'Solo', show: vi.fn() }]
+      mockState.terminals = solo
+      mockState.activeTerminal = solo[0]
+      fakeSlidePanelManager.notifySessionSwitched = vi.fn()
+      const handlers = captureHandlers()
+      handlers['vibesense.switchSessionNext']()
+      expect(solo[0].show).not.toHaveBeenCalled()
+      expect(fakeSlidePanelManager.notifySessionSwitched).not.toHaveBeenCalled()
+    })
+
+    it('no-ops with 0 terminals (AC 4)', () => {
+      mockState.terminals = []
+      mockState.activeTerminal = undefined
+      fakeSlidePanelManager.notifySessionSwitched = vi.fn()
+      const handlers = captureHandlers()
+      expect(() => handlers['vibesense.switchSessionNext']()).not.toThrow()
+      expect(fakeSlidePanelManager.notifySessionSwitched).not.toHaveBeenCalled()
+    })
+
+    it('starts from index 0 when no active terminal', () => {
+      const terms = threeTerminals()
+      mockState.terminals = terms
+      mockState.activeTerminal = undefined
+      fakeSlidePanelManager.notifySessionSwitched = vi.fn()
+      const handlers = captureHandlers()
+      handlers['vibesense.switchSessionNext']()
+      expect(terms[0].show).toHaveBeenCalledWith(false)
+      expect(fakeSlidePanelManager.notifySessionSwitched).toHaveBeenCalledWith(0, 'VibeSense', 3)
+    })
+  })
+
+  describe('vibesense.switchSessionPrev (AC 2, 3, 4)', () => {
+    function threeTerminals() {
+      return [
+        { name: 'VibeSense', show: vi.fn() },
+        { name: 'Agent', show: vi.fn() },
+        { name: 'Copilot', show: vi.fn() },
+      ]
+    }
+
+    it('focuses the previous terminal when 2+ terminals open', () => {
+      const terms = threeTerminals()
+      mockState.terminals = terms
+      mockState.activeTerminal = terms[1]
+      const handlers = captureHandlers()
+      handlers['vibesense.switchSessionPrev']()
+      expect(terms[0].show).toHaveBeenCalledWith(false)
+    })
+
+    it('wraps from first terminal to last (index wrap)', () => {
+      const terms = threeTerminals()
+      mockState.terminals = terms
+      mockState.activeTerminal = terms[0]
+      const handlers = captureHandlers()
+      handlers['vibesense.switchSessionPrev']()
+      expect(terms[2].show).toHaveBeenCalledWith(false)
+    })
+
+    it('calls notifySessionSwitched with correct args', () => {
+      const terms = threeTerminals()
+      mockState.terminals = terms
+      mockState.activeTerminal = terms[2]
+      fakeSlidePanelManager.notifySessionSwitched = vi.fn()
+      const handlers = captureHandlers()
+      handlers['vibesense.switchSessionPrev']()
+      expect(fakeSlidePanelManager.notifySessionSwitched).toHaveBeenCalledWith(1, 'Agent', 3)
+    })
+
+    it('no-ops with only 1 terminal (AC 3)', () => {
+      const solo = [{ name: 'Solo', show: vi.fn() }]
+      mockState.terminals = solo
+      mockState.activeTerminal = solo[0]
+      fakeSlidePanelManager.notifySessionSwitched = vi.fn()
+      const handlers = captureHandlers()
+      handlers['vibesense.switchSessionPrev']()
+      expect(solo[0].show).not.toHaveBeenCalled()
+      expect(fakeSlidePanelManager.notifySessionSwitched).not.toHaveBeenCalled()
+    })
+
+    it('no-ops with 0 terminals (AC 4)', () => {
+      mockState.terminals = []
+      mockState.activeTerminal = undefined
+      fakeSlidePanelManager.notifySessionSwitched = vi.fn()
+      const handlers = captureHandlers()
+      expect(() => handlers['vibesense.switchSessionPrev']()).not.toThrow()
+      expect(fakeSlidePanelManager.notifySessionSwitched).not.toHaveBeenCalled()
     })
   })
 })

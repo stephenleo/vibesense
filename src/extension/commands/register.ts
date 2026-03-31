@@ -80,7 +80,9 @@ export function registerCommands(
         if (terminals.length < 2) return // AC 3: no-op with 0 or 1 terminal
 
         const activeTerminal = vscode.window.activeTerminal
-        const currentIndex = activeTerminal ? terminals.findIndex((t) => t === activeTerminal) : 0
+        const foundIndex = activeTerminal ? terminals.findIndex((t) => t === activeTerminal) : -1
+        // When no active terminal (or not found), treat as index 0 so prev wraps to last
+        const currentIndex = foundIndex === -1 ? 0 : foundIndex
         const prevIndex = (currentIndex - 1 + terminals.length) % terminals.length
         const prevTerminal = terminals[prevIndex]
 

@@ -30,6 +30,7 @@ export function SessionSwitcher({
       className={`session-switcher ${visibilityClass}`}
       role="status"
       aria-live="polite"
+      aria-hidden={!visible}
     >
       <div className="session-switcher__name">{sessionName}</div>
       <div className="session-switcher__counter">

@@ -120,6 +120,32 @@ describe('SessionSwitcher — accessibility', () => {
     const overlay = screen.getByRole('status')
     expect(overlay).toHaveAttribute('aria-live', 'polite')
   })
+
+  it('sets aria-hidden="false" when visible=true', () => {
+    render(
+      <SessionSwitcher
+        sessionIndex={0}
+        sessionName="VibeSense"
+        totalSessions={2}
+        visible={true}
+      />,
+    )
+    const overlay = screen.getByRole('status')
+    expect(overlay).toHaveAttribute('aria-hidden', 'false')
+  })
+
+  it('sets aria-hidden="true" when visible=false', () => {
+    const { container } = render(
+      <SessionSwitcher
+        sessionIndex={0}
+        sessionName="VibeSense"
+        totalSessions={2}
+        visible={false}
+      />,
+    )
+    const overlay = container.querySelector('.session-switcher')
+    expect(overlay).toHaveAttribute('aria-hidden', 'true')
+  })
 })
 
 describe('SessionSwitcher — counter display', () => {
