@@ -55,4 +55,4 @@ Reserved for Do Not Disturb mode (Story 6.5). Currently all priorities execute.
 
 ## Error Handling
 
-Invalid payloads are rejected and logged in the VibeSense output channel. No partial execution occurs — either all valid fields execute, or none do.
+Invalid payloads are rejected atomically and logged in the VibeSense output channel — no hardware channels fire. Valid payloads dispatch each channel (haptic, LED, audio) independently; a failure in one channel does not suppress the others.

@@ -7,7 +7,7 @@ import type { ControllerHAL } from '../hid/hal'
 import { logger } from '../logger'
 
 export class NotifyDispatcher {
-  private getHal: () => ControllerHAL | null
+  private readonly getHal: () => ControllerHAL | null
 
   constructor(getHal: () => ControllerHAL | null) {
     this.getHal = getHal
