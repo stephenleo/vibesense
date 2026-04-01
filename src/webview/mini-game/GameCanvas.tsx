@@ -1,15 +1,20 @@
 // src/webview/mini-game/GameCanvas.tsx
 // HTML5 Canvas wrapper for VibeSense Mini-Game (Story 8.1)
 // Manages devicePixelRatio scaling, window resize, and host message routing
+// Extended in Story 8.3 to support Tetris game mode and GAME_INPUT routing
 import React, { useRef, useEffect, useCallback, useReducer } from 'react'
 import { parseHostMessage } from '../../shared/messages'
 import { Snake } from './Snake'
+import { Tetris } from './Tetris'
+import type { GameInputAction } from './Tetris'
 
 export type Direction = 'up' | 'down' | 'left' | 'right'
 
 interface GameState {
   running: boolean
   direction: Direction
+  gameMode: 'snake' | 'tetris'  // Story 8.3: active game mode
+  gameInput: GameInputAction | null  // Story 8.3: latest Tetris input action
 }
 
 type GameAction =
@@ -17,6 +22,9 @@ type GameAction =
   | { type: 'PAUSE' }
   | { type: 'RESUME' }
   | { type: 'SET_DIRECTION'; direction: Direction }
+  | { type: 'SET_MODE'; mode: 'snake' | 'tetris' }  // Story 8.3
+  | { type: 'GAME_INPUT'; action: GameInputAction }  // Story 8.3
+  | { type: 'CLEAR_INPUT' }                          // Story 8.3
 
 function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
@@ -28,6 +36,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, running: true }
     case 'SET_DIRECTION':
       return { ...state, direction: action.direction }
+    case 'SET_MODE':
+      return { ...state, gameMode: action.mode }
+    case 'GAME_INPUT':
+      return { ...state, gameInput: action.action }
+    case 'CLEAR_INPUT':
+      return { ...state, gameInput: null }
     default:
       return state
   }
@@ -49,7 +63,12 @@ function stickToDirection(x: number, y: number): Direction | null {
 
 export function GameCanvas(): React.ReactElement {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [state, dispatch] = useReducer(gameReducer, { running: false, direction: 'right' })
+  const [state, dispatch] = useReducer(gameReducer, {
+    running: false,
+    direction: 'right',
+    gameMode: 'snake',   // Story 8.3: default to snake
+    gameInput: null,     // Story 8.3: no pending input initially
+  })
 
   // Scale canvas for devicePixelRatio (AC2)
   const scaleCanvas = useCallback(() => {
@@ -85,6 +104,12 @@ export function GameCanvas(): React.ReactElement {
       } else if (msg.type === 'GAME_STICK_UPDATE') {
         const dir = stickToDirection(msg.payload.x, msg.payload.y)
         if (dir) dispatch({ type: 'SET_DIRECTION', direction: dir })
+      } else if (msg.type === 'GAME_SET_MODE') {
+        // Story 8.3: switch active game mode
+        dispatch({ type: 'SET_MODE', mode: msg.payload.mode })
+      } else if (msg.type === 'GAME_INPUT') {
+        // Story 8.3: route Tetris input action
+        dispatch({ type: 'GAME_INPUT', action: msg.payload.action })
       }
     }
     window.addEventListener('message', handler)
@@ -94,8 +119,16 @@ export function GameCanvas(): React.ReactElement {
   return (
     <div className="game-container">
       <canvas ref={canvasRef} className="game-canvas" />
-      {state.running && (
+      {state.running && state.gameMode === 'snake' && (
         <Snake canvasRef={canvasRef} direction={state.direction} running={state.running} />
+      )}
+      {state.running && state.gameMode === 'tetris' && (
+        <Tetris
+          canvasRef={canvasRef}
+          gameInput={state.gameInput}
+          running={state.running}
+          onInputConsumed={() => dispatch({ type: 'CLEAR_INPUT' })}
+        />
       )}
     </div>
   )

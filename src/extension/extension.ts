@@ -357,6 +357,17 @@ export function activate(context: vscode.ExtensionContext): void {
             miniGamePanelManager.updateAxis(event.axis, event.value)
           }
         }
+        // Story 8.3: Route left-stick and D-pad inputs to Tetris when game panel is open
+        if (event.kind === 'axis' && (event.axis === 'left_x' || event.axis === 'left_y')) {
+          if (miniGamePanelManager.isOpen()) {
+            miniGamePanelManager.updateLeftAxis(event.axis, event.value)
+          }
+        }
+        if (event.kind === 'button') {
+          if (miniGamePanelManager.isOpen()) {
+            miniGamePanelManager.notifyButton(event.button, event.pressed)
+          }
+        }
       } catch (err) {
         logger.error('InputRouter: data handler error', err)
       }

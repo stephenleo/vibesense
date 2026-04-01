@@ -145,6 +145,17 @@
           "description": "Seconds to wait after an agent enters processing state before auto-launching the mini-game. Set to 0 to disable auto-launch.",
           "order": 6
         },
+        "vibesense.idleGame": {
+          "type": "string",
+          "enum": ["snake", "tetris"],
+          "enumDescriptions": [
+            "Classic Snake game controlled with the right analog stick",
+            "Tetris game controlled with the left analog stick / D-pad and rotate button"
+          ],
+          "default": "snake",
+          "description": "Which mini-game to launch during AI agent processing wait time.",
+          "order": 7
+        },
         "vibesense.binding.cross": {
           "type": "string",
           "default": "vibesense.approve",
