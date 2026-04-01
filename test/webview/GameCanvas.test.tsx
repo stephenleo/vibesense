@@ -161,7 +161,7 @@ describe('Snake — component output', () => {
   it('Snake component returns null (renders to canvas, not DOM)', () => {
     const canvasRef = { current: null } as React.RefObject<HTMLCanvasElement>
     const { container } = render(
-      <Snake canvasRef={canvasRef} direction="right" running={false} />,
+      <Snake canvasRef={canvasRef} direction="right" running={false} highScore={0} onNewHighScore={vi.fn()} />,
     )
     // Snake renders null — container should be empty
     expect(container.firstChild).toBeNull()
@@ -170,7 +170,7 @@ describe('Snake — component output', () => {
   it('Snake component accepts running=true without throwing', () => {
     const canvasRef = { current: null } as React.RefObject<HTMLCanvasElement>
     expect(() => {
-      render(<Snake canvasRef={canvasRef} direction="right" running={true} />)
+      render(<Snake canvasRef={canvasRef} direction="right" running={true} highScore={0} onNewHighScore={vi.fn()} />)
     }).not.toThrow()
   })
 })
@@ -183,5 +183,47 @@ describe('GameCanvas — stickToDirection edge cases', () => {
     expect(() => {
       dispatchHostMessage({ type: 'GAME_STICK_UPDATE', payload: { x: 0.5, y: 0 } })
     }).not.toThrow()
+  })
+})
+
+describe('GameCanvas — GAME_HIGH_SCORE message (Story 8.4, AC5)', () => {
+  it('handles GAME_HIGH_SCORE message without throwing', () => {
+    render(<GameCanvas />)
+    expect(() => {
+      dispatchHostMessage({ type: 'GAME_HIGH_SCORE', payload: { snake: 450, tetris: 1200 } })
+    }).not.toThrow()
+  })
+
+  it('handles GAME_HIGH_SCORE with zero scores without throwing', () => {
+    render(<GameCanvas />)
+    expect(() => {
+      dispatchHostMessage({ type: 'GAME_HIGH_SCORE', payload: { snake: 0, tetris: 0 } })
+    }).not.toThrow()
+  })
+
+  it('ignores GAME_HIGH_SCORE with invalid payload gracefully', () => {
+    render(<GameCanvas />)
+    // Missing payload fields — Zod will reject, parseHostMessage returns null — no crash
+    expect(() => {
+      dispatchHostMessage({ type: 'GAME_HIGH_SCORE', payload: { snake: -1, tetris: 0 } })
+    }).not.toThrow()
+  })
+})
+
+describe('GameCanvas — canvas resize on dock/undock (Story 8.4 AC3 verification)', () => {
+  it('canvas element is present and re-renders after window resize event without throwing', () => {
+    const { container } = render(<GameCanvas />)
+    const canvas = container.querySelector('canvas')
+    expect(canvas).toBeInTheDocument()
+
+    // Simulate dock/undock — window resize event
+    expect(() => {
+      act(() => {
+        window.dispatchEvent(new Event('resize'))
+      })
+    }).not.toThrow()
+
+    // Canvas still in DOM after resize (no reset)
+    expect(container.querySelector('canvas')).toBeInTheDocument()
   })
 })

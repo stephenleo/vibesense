@@ -184,6 +184,14 @@ export const HostMessageSchema = z.discriminatedUnion('type', [
       source: z.enum(['button', 'axis']),
     }),
   }),
+  // Story 8.4: Score persistence messages — Host → Webview
+  z.object({
+    type: z.literal('GAME_HIGH_SCORE'),
+    payload: z.object({
+      snake: z.number().int().nonnegative(),
+      tetris: z.number().int().nonnegative(),
+    }),
+  }),
   // Story 7.3: HUD overlay messages — Host → Webview
   z.object({
     type: z.literal('HUD_TOGGLE'),
@@ -277,6 +285,14 @@ export const WebviewMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('ERROR_MENU_DISMISS'),
     payload: z.object({}),
+  }),
+  // Story 8.4: Score persistence — webview reports new high score to host
+  z.object({
+    type: z.literal('GAME_SCORE_UPDATE'),
+    payload: z.object({
+      game: z.enum(['snake', 'tetris']),
+      score: z.number().int().nonnegative(),
+    }),
   }),
 ])
 

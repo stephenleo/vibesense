@@ -2,6 +2,7 @@
 // HTML5 Canvas wrapper for VibeSense Mini-Game (Story 8.1)
 // Manages devicePixelRatio scaling, window resize, and host message routing
 // Extended in Story 8.3 to support Tetris game mode and GAME_INPUT routing
+// Extended in Story 8.4 to handle GAME_HIGH_SCORE and report GAME_SCORE_UPDATE
 import React, { useRef, useEffect, useCallback, useReducer } from 'react'
 import { parseHostMessage } from '../../shared/messages'
 import { Snake } from './Snake'
@@ -10,11 +11,28 @@ import type { GameInputAction } from './Tetris'
 
 export type Direction = 'up' | 'down' | 'left' | 'right'
 
+// Story 8.4: Acquire VSCode API once per webview lifetime for postMessage back to host
+// Falls back to window.postMessage in test/jsdom environment where acquireVsCodeApi is unavailable
+declare function acquireVsCodeApi(): { postMessage: (msg: unknown) => void }
+const vscodeApi = ((): { postMessage: (msg: unknown) => void } => {
+  try {
+    return acquireVsCodeApi()
+  } catch {
+    // In tests (jsdom), acquireVsCodeApi is not injected — use window.postMessage as fallback
+    return {
+      postMessage: (msg: unknown) => {
+        window.postMessage(msg, '*')
+      },
+    }
+  }
+})()
+
 interface GameState {
   running: boolean
   direction: Direction
   gameMode: 'snake' | 'tetris'  // Story 8.3: active game mode
   gameInput: GameInputAction | null  // Story 8.3: latest Tetris input action
+  highScores: { snake: number; tetris: number }  // Story 8.4: persisted high scores
 }
 
 type GameAction =
@@ -25,6 +43,7 @@ type GameAction =
   | { type: 'SET_MODE'; mode: 'snake' | 'tetris' }  // Story 8.3
   | { type: 'GAME_INPUT'; action: GameInputAction }  // Story 8.3
   | { type: 'CLEAR_INPUT' }                          // Story 8.3
+  | { type: 'SET_HIGH_SCORES'; snake: number; tetris: number }  // Story 8.4
 
 function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
@@ -42,6 +61,8 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, gameInput: action.action }
     case 'CLEAR_INPUT':
       return { ...state, gameInput: null }
+    case 'SET_HIGH_SCORES':  // Story 8.4
+      return { ...state, highScores: { snake: action.snake, tetris: action.tetris } }
     default:
       return state
   }
@@ -68,6 +89,7 @@ export function GameCanvas(): React.ReactElement {
     direction: 'right',
     gameMode: 'snake',   // Story 8.3: default to snake
     gameInput: null,     // Story 8.3: no pending input initially
+    highScores: { snake: 0, tetris: 0 },  // Story 8.4: loaded from host on game start
   })
 
   // Scale canvas for devicePixelRatio (AC2)
@@ -110,17 +132,31 @@ export function GameCanvas(): React.ReactElement {
       } else if (msg.type === 'GAME_INPUT') {
         // Story 8.3: route Tetris input action
         dispatch({ type: 'GAME_INPUT', action: msg.payload.action })
+      } else if (msg.type === 'GAME_HIGH_SCORE') {
+        // Story 8.4: load persisted high scores from host (AC5)
+        dispatch({ type: 'SET_HIGH_SCORES', snake: msg.payload.snake, tetris: msg.payload.tetris })
       }
     }
     window.addEventListener('message', handler)
     return () => window.removeEventListener('message', handler)
   }, [])
 
+  // Story 8.4: Callback for Snake/Tetris to report a new high score to the host (AC6)
+  const handleNewHighScore = useCallback((game: 'snake' | 'tetris') => (score: number) => {
+    vscodeApi.postMessage({ type: 'GAME_SCORE_UPDATE', payload: { game, score } })
+  }, [])
+
   return (
     <div className="game-container">
       <canvas ref={canvasRef} className="game-canvas" />
       {state.running && state.gameMode === 'snake' && (
-        <Snake canvasRef={canvasRef} direction={state.direction} running={state.running} />
+        <Snake
+          canvasRef={canvasRef}
+          direction={state.direction}
+          running={state.running}
+          highScore={state.highScores.snake}
+          onNewHighScore={handleNewHighScore('snake')}
+        />
       )}
       {state.running && state.gameMode === 'tetris' && (
         <Tetris
@@ -128,6 +164,8 @@ export function GameCanvas(): React.ReactElement {
           gameInput={state.gameInput}
           running={state.running}
           onInputConsumed={() => dispatch({ type: 'CLEAR_INPUT' })}
+          highScore={state.highScores.tetris}
+          onNewHighScore={handleNewHighScore('tetris')}
         />
       )}
     </div>

@@ -3,6 +3,7 @@
 // Uses requestAnimationFrame game loop with delta-time accumulation
 // Renders directly onto the canvas ref passed from GameCanvas
 // Game state stored in useRef to survive pause/resume (AC3)
+// Extended in Story 8.4: accepts highScore prop, displays Best score, fires onNewHighScore on game-over
 
 import React, { useEffect, useRef } from 'react'
 
@@ -13,6 +14,8 @@ interface TetrisProps {
   gameInput: GameInputAction | null
   running: boolean
   onInputConsumed: () => void
+  highScore: number           // Story 8.4: persisted high score to display
+  onNewHighScore: (score: number) => void  // Story 8.4: called when score > highScore at game-over
 }
 
 const COLS = 10
@@ -67,10 +70,13 @@ function spawnPieceForRef(): Piece {
   }
 }
 
-export function Tetris({ canvasRef, gameInput, running, onInputConsumed }: TetrisProps): null {
+export function Tetris({ canvasRef, gameInput, running, onInputConsumed, highScore, onNewHighScore }: TetrisProps): null {
   const gameInputRef = useRef<GameInputAction | null>(gameInput)
   const onInputConsumedRef = useRef(onInputConsumed)
   const runningRef = useRef<boolean>(running)
+  // Story 8.4: sync high score refs so game loop sees latest values without re-creating RAF
+  const highScoreRef = useRef<number>(highScore)
+  const onNewHighScoreRef = useRef(onNewHighScore)
 
   // Persistent game state (survives pause/resume via useRef — AC3)
   const boardRef = useRef<number[][]>(Array.from({ length: ROWS }, () => new Array(COLS).fill(0)))
@@ -84,6 +90,8 @@ export function Tetris({ canvasRef, gameInput, running, onInputConsumed }: Tetri
   useEffect(() => { gameInputRef.current = gameInput }, [gameInput])
   useEffect(() => { onInputConsumedRef.current = onInputConsumed }, [onInputConsumed])
   useEffect(() => { runningRef.current = running }, [running])
+  useEffect(() => { highScoreRef.current = highScore }, [highScore])
+  useEffect(() => { onNewHighScoreRef.current = onNewHighScore }, [onNewHighScore])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -210,7 +218,9 @@ export function Tetris({ canvasRef, gameInput, running, onInputConsumed }: Tetri
     function drawScore(): void {
       ctx!.fillStyle = SCORE_COLOR
       ctx!.font = `bold 14px Inter, system-ui, sans-serif`
-      ctx!.fillText(`Score: ${scoreRef.current}  Level: ${levelRef.current}`, 8, 20)
+      // Story 8.4: display current score, level, and all-time best (AC4)
+      ctx!.fillText(`Score: ${scoreRef.current}  Best: ${highScoreRef.current}`, 8, 20)
+      ctx!.fillText(`Level: ${levelRef.current}`, 8, 40)
     }
 
     function lockAndSpawn(): void {
@@ -223,6 +233,10 @@ export function Tetris({ canvasRef, gameInput, running, onInputConsumed }: Tetri
       }
       const newPiece = spawnPieceForRef()
       if (!isValid(newPiece.cells)) {
+        // Story 8.4: Report new high score before resetting (AC6)
+        if (scoreRef.current > highScoreRef.current) {
+          onNewHighScoreRef.current(scoreRef.current)
+        }
         // Game over — reset board
         boardRef.current = Array.from({ length: ROWS }, () => new Array(COLS).fill(0))
         scoreRef.current = 0

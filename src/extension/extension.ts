@@ -35,6 +35,7 @@ import { RadialWheelDispatchTracker } from './input/radial-wheel-dispatch-tracke
 import { loadR2PersonalSegments } from './input/radial-wheel-segments'
 import { HudPanelManager } from './panels/hud-panel'
 import { MiniGamePanelManager } from './panels/mini-game-panel'
+import { GameHighScoreStore } from './panels/game-high-score-store'
 import type { ControllerEvent, ControllerType, Session } from '../shared/types'
 import type { ControllerHAL } from './hid/hal'
 import type { AggregateGameState } from './fsm/states'
@@ -167,8 +168,12 @@ export function activate(context: vscode.ExtensionContext): void {
   const hudPanelManager = new HudPanelManager(context)
   context.subscriptions.push(hudPanelManager)
 
+  // Story 8.4: Instantiate GameHighScoreStore — persists mini-game high scores across restarts (FR33)
+  const highScoreStore = new GameHighScoreStore(context.globalState)
+
   // Story 8.1: Instantiate MiniGamePanelManager — Snake game WebviewPanel (FR30, FR34)
-  const miniGamePanelManager = new MiniGamePanelManager(context)
+  // Story 8.4: Pass highScoreStore for persistence (AC1, AC2, AC5, AC6)
+  const miniGamePanelManager = new MiniGamePanelManager(context, highScoreStore)
   context.subscriptions.push(miniGamePanelManager)
 
   // Story 5.5: Subscribe to per-session state changes — auto-open error menu on error transition (AC 1)
