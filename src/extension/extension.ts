@@ -250,13 +250,6 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
   )
 
-  // Story 9.1: Session finalization on terminal close (AC3)
-  context.subscriptions.push(
-    vscode.window.onDidCloseTerminal(() => {
-      void ratioTracker.finalizeSession(context.globalState)
-    }),
-  )
-
   // Story 9.1: Session finalization on extension deactivate via subscriptions dispose (AC3)
   context.subscriptions.push({
     dispose: () => { void ratioTracker.finalizeSession(context.globalState) },
