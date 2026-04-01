@@ -180,7 +180,7 @@ export const HostMessageSchema = z.discriminatedUnion('type', [
     payload: z.object({
       // 'left'/'right'/'down' for piece movement; 'rotate' for clockwise rotation
       action: z.enum(['left', 'right', 'down', 'rotate']),
-      // 'press' = D-pad or button pressed; 'axis' = stick threshold crossed
+      // 'button' = D-pad or button pressed; 'axis' = stick threshold crossed
       source: z.enum(['button', 'axis']),
     }),
   }),

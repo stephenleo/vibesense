@@ -109,7 +109,7 @@ export function GameCanvas(): React.ReactElement {
         dispatch({ type: 'SET_MODE', mode: msg.payload.mode })
       } else if (msg.type === 'GAME_INPUT') {
         // Story 8.3: route Tetris input action
-        dispatch({ type: 'GAME_INPUT', action: msg.payload.action as GameInputAction })
+        dispatch({ type: 'GAME_INPUT', action: msg.payload.action })
       }
     }
     window.addEventListener('message', handler)

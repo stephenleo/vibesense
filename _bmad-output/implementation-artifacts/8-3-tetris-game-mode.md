@@ -1,6 +1,6 @@
 # Story 8.3: Tetris Game Mode
 
-**Status:** review
+**Status:** done
 **Epic:** 8 — Idle Mini-Games (Wait-Time Transformation)
 **Story ID:** 8.3
 **Story Key:** 8-3-tetris-game-mode
@@ -824,7 +824,7 @@ From **UX-DR7** and story context:
 - [x] AC4 verified: setting change takes effect on next `GAME_START` (mode read from config in `open()` → `getActiveGameMode()`)
 - [x] All existing tests pass (`npm run test`) — no regressions (830 tests, 46 files)
 - [x] `npm run lint` and `npm run typecheck` pass with no errors
-- [ ] Story status updated to `done` after code review passes
+- [x] Story status updated to `done` after code review passes
 
 ---
 
@@ -863,3 +863,4 @@ claude-sonnet-4-6
 ### Change Log
 
 - 2026-04-01: Implemented Story 8.3 — Tetris game mode with controller input routing, game mode selection setting, and board state preservation across pause/resume.
+- 2026-04-01: Code review passed (claude-opus-4-6). 2 patches applied: removed unnecessary `as GameInputAction` type assertion in GameCanvas.tsx; fixed misleading comment in messages.ts ('press' -> 'button'). 10 findings dismissed as noise/false positives.
