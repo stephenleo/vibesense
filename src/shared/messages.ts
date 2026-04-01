@@ -168,6 +168,22 @@ export const HostMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('GAME_RESUME'),
     payload: z.object({}),
   }),
+  // Story 8.3: Game mode and input messages
+  z.object({
+    type: z.literal('GAME_SET_MODE'),
+    payload: z.object({
+      mode: z.enum(['snake', 'tetris']),
+    }),
+  }),
+  z.object({
+    type: z.literal('GAME_INPUT'),
+    payload: z.object({
+      // 'left'/'right'/'down' for piece movement; 'rotate' for clockwise rotation
+      action: z.enum(['left', 'right', 'down', 'rotate']),
+      // 'press' = D-pad or button pressed; 'axis' = stick threshold crossed
+      source: z.enum(['button', 'axis']),
+    }),
+  }),
   // Story 7.3: HUD overlay messages — Host → Webview
   z.object({
     type: z.literal('HUD_TOGGLE'),

@@ -2,6 +2,7 @@
 // Host-side WebviewPanel manager for the VibeSense Mini-Game (Story 8.1)
 // Pattern: follows HudPanelManager — lazy panel creation, postMessage-only communication
 // FR30: auto-launch countdown; FR34: manual toggle; AC1–AC4 wired here
+// Extended in Story 8.3: game mode selection, left-stick routing, D-pad/button routing
 
 import * as vscode from 'vscode'
 import { logger } from '../logger'
@@ -11,6 +12,10 @@ export class MiniGamePanelManager implements vscode.Disposable {
   private countdownTimer: ReturnType<typeof setTimeout> | undefined
   private lastRightX = 0
   private lastRightY = 0
+  // Story 8.3: left-stick state and debounce
+  private lastLeftX = 0
+  private lastLeftY = 0
+  private leftAxisDebounceTimer: ReturnType<typeof setTimeout> | undefined
 
   constructor(private readonly context: vscode.ExtensionContext) {}
 
@@ -53,6 +58,7 @@ export class MiniGamePanelManager implements vscode.Disposable {
   /**
    * Open the GameWindow panel. Creates it on first call.
    * Posts GAME_START to the webview after panel is ready.
+   * Story 8.3: Also posts GAME_SET_MODE to deliver active game mode (AC1, AC4).
    */
   open(): void {
     try {
@@ -64,6 +70,11 @@ export class MiniGamePanelManager implements vscode.Disposable {
         undefined,
         (err: unknown) => logger.error('MiniGamePanelManager: postMessage GAME_START failed', err),
       )
+      // Story 8.3: Send mode immediately after GAME_START so webview knows which game to render
+      this.panel?.webview.postMessage({
+        type: 'GAME_SET_MODE',
+        payload: { mode: this.getActiveGameMode() },
+      }).then(undefined, (err: unknown) => logger.error('MiniGamePanelManager: postMessage GAME_SET_MODE failed', err))
       logger.info('MiniGamePanelManager: opened')
     } catch (err) {
       logger.error('MiniGamePanelManager: open failed', err)
@@ -106,6 +117,56 @@ export class MiniGamePanelManager implements vscode.Disposable {
     )
   }
 
+  /**
+   * Story 8.3: Route left-stick axis events to the active game as GAME_INPUT (AC2).
+   * Caches last_x/last_y; applies 100ms debounce to prevent input flooding (~10 moves/sec max).
+   */
+  updateLeftAxis(axis: 'left_x' | 'left_y', value: number): void {
+    if (axis === 'left_x') this.lastLeftX = value
+    else this.lastLeftY = value
+
+    // Determine action from dominant axis
+    const ax = Math.abs(this.lastLeftX)
+    const ay = Math.abs(this.lastLeftY)
+    const THRESHOLD = 0.5
+    let action: 'left' | 'right' | 'down' | null = null
+
+    if (ax > THRESHOLD || ay > THRESHOLD) {
+      if (ay > ax) {
+        if (this.lastLeftY > 0) action = 'down'
+        // up direction: no Tetris action (no 'up' in Tetris)
+      } else {
+        action = this.lastLeftX > 0 ? 'right' : 'left'
+      }
+    }
+
+    if (action && !this.leftAxisDebounceTimer) {
+      this.sendGameInput(action, 'axis')
+      this.leftAxisDebounceTimer = setTimeout(() => {
+        this.leftAxisDebounceTimer = undefined
+      }, 100)
+    }
+  }
+
+  /**
+   * Story 8.3: Route D-pad and face button presses to GAME_INPUT (AC2).
+   * D-pad left/right/down → piece movement; square/x/r3 → clockwise rotation.
+   * Button releases (pressed=false) are ignored.
+   */
+  notifyButton(button: string, pressed: boolean): void {
+    if (!pressed || !this.panel) return
+    const dpadMap: Record<string, 'left' | 'right' | 'down'> = {
+      left: 'left', right: 'right', down: 'down',
+    }
+    // Square (DualSense) / X (Xbox) = rotate
+    const rotateButtons = new Set(['square', 'x', 'r3'])
+    if (dpadMap[button] !== undefined) {
+      this.sendGameInput(dpadMap[button], 'button')
+    } else if (rotateButtons.has(button)) {
+      this.sendGameInput('rotate', 'button')
+    }
+  }
+
   /** Returns true if the game panel is currently open */
   isOpen(): boolean {
     return this.panel !== undefined
@@ -113,15 +174,37 @@ export class MiniGamePanelManager implements vscode.Disposable {
 
   dispose(): void {
     this.cancelCountdown()
+    if (this.leftAxisDebounceTimer !== undefined) {
+      clearTimeout(this.leftAxisDebounceTimer)
+      this.leftAxisDebounceTimer = undefined
+    }
     this.panel?.dispose()
     this.panel = undefined
     logger.info('MiniGamePanelManager: disposed')
   }
 
+  /** Story 8.3: Read active game mode from VSCode settings */
+  private getActiveGameMode(): 'snake' | 'tetris' {
+    const config = vscode.workspace.getConfiguration('vibesense')
+    return config.get<'snake' | 'tetris'>('idleGame') ?? 'snake'
+  }
+
+  /** Story 8.3: Send GAME_INPUT message to the game webview */
+  private sendGameInput(action: 'left' | 'right' | 'down' | 'rotate', source: 'button' | 'axis'): void {
+    this.panel?.webview.postMessage({ type: 'GAME_INPUT', payload: { action, source } }).then(
+      undefined,
+      (err: unknown) => logger.error('MiniGamePanelManager: postMessage GAME_INPUT failed', err),
+    )
+  }
+
   private createPanel(): void {
+    // Story 8.3: dynamic panel title based on selected game mode
+    const title = this.getActiveGameMode() === 'tetris'
+      ? 'VibeSense \u00b7 Tetris'
+      : 'VibeSense \u00b7 Game'
     this.panel = vscode.window.createWebviewPanel(
       'vibesense.miniGamePanel',
-      'VibeSense \u00b7 Game',
+      title,
       { viewColumn: vscode.ViewColumn.Two, preserveFocus: true },
       {
         enableScripts: true,
