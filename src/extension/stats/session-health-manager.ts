@@ -27,8 +27,9 @@ export class SessionHealthManager implements vscode.Disposable {
     private readonly xpManager: XpManager,
   ) {}
 
-  /** Start the 1s polling loop. */
+  /** Start the 1s polling loop. Safe to call multiple times — subsequent calls are no-ops. */
   start(): void {
+    if (this.timer !== undefined) return
     this.timer = setInterval(() => {
       this.pushUpdate()
     }, HEALTH_UPDATE_INTERVAL_MS)
@@ -41,13 +42,13 @@ export class SessionHealthManager implements vscode.Disposable {
   pushUpdate(): void {
     try {
       const stats = this.ratioTracker.getCurrentStats()
-      const durationMs = Date.now() - this.ratioTracker.getSessionStartTime()
+      const durationMs = Math.max(0, Date.now() - this.ratioTracker.getSessionStartTime())
       const featureCount = this.ratioTracker.getDistinctFeatureCount()
 
       // Read-only XP preview (same logic as XpManager.awardSessionXp but non-mutating)
       const xpRecord = this.xpManager.load()
       let sessionXp = 0
-      if (stats.keyboardActions === 0 && (stats.controllerActions + stats.keyboardActions) > 0) {
+      if (stats.keyboardActions === 0 && stats.controllerActions > 0) {
         sessionXp += XP_CONTROLLER_ONLY  // +100 for controller-only session
       }
       if (stats.ratio >= HIGH_RATIO_THRESHOLD) {
