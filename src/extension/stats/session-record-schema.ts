@@ -1,5 +1,5 @@
 // src/extension/stats/session-record-schema.ts
-// Zod validation schema for SessionRecord — used when reading from globalState (defensive parse)
+// Zod validation schemas for SessionRecord and XpRecord — used when reading from globalState (defensive parse)
 // Extension-host-only — do NOT import from webview code.
 import { z } from 'zod'
 
@@ -14,3 +14,11 @@ export const SessionRecordSchema = z.object({
 })
 
 export const SessionHistorySchema = z.array(SessionRecordSchema)
+
+/** Zod schema for XpRecord — used when reading from globalState (Story 9.3) */
+export const XpRecordSchema = z.object({
+  totalXp: z.number().int().nonnegative(),
+  level: z.number().int().min(1),
+  streakDays: z.number().int().nonnegative(),
+  lastSessionDate: z.string().nullable(),
+})

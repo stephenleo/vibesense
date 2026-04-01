@@ -53,9 +53,30 @@ export class InputRouter implements vscode.Disposable {
       logger.debug(`InputRouter: ${button} → ${commandId}`)
       void vscode.commands.executeCommand(commandId)
       this.ratioTracker?.recordControllerAction()  // Story 9.1: count controller action
+      // Story 9.3: track distinct feature usage for multi-feature XP bonus (AC3)
+      const feature = InputRouter.classifyFeature(commandId)
+      if (feature !== undefined) {
+        this.ratioTracker?.recordFeatureUsed(feature)
+      }
     } catch (err) {
       logger.error('InputRouter: executeCommand error', err)
     }
+  }
+
+  /**
+   * Classify a vibesense command ID into a feature category for Story 9.3 multi-feature XP tracking.
+   * Returns undefined for commands that don't map to a trackable feature.
+   */
+  static classifyFeature(commandId: string): string | undefined {
+    if (commandId === 'vibesense.switchSessionNext' || commandId === 'vibesense.switchSessionPrev') {
+      return 'sessionSwitch'
+    }
+    if (commandId === 'vibesense.toggleGame') return 'miniGame'
+    if (commandId === 'vibesense.voicePtt') return 'voicePtt'
+    if (commandId === 'vibesense.openQuickPanel') return 'quickPanel'
+    if (commandId === 'vibesense.toggleHud') return 'hud'
+    if (commandId === 'vibesense.quicksave') return 'quicksave'
+    return undefined
   }
 
   private handleAxis(axis: AxisId, value: number): void {

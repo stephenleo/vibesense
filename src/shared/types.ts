@@ -103,6 +103,18 @@ export interface QuickSaveState {
   r2Segments: string[]
 }
 
+/** XP, level, and streak record persisted in globalState (Story 9.3) */
+export interface XpRecord {
+  /** Cumulative XP earned across all sessions */
+  totalXp: number
+  /** Current level (starts at 1; Level 2 = 500 XP, doubling each level) */
+  level: number
+  /** Number of consecutive days with at least one session */
+  streakDays: number
+  /** ISO date string of the last session date (YYYY-MM-DD UTC), or null if no sessions yet */
+  lastSessionDate: string | null
+}
+
 /** Normalized HID HAL controller events */
 export type ControllerEvent =
   | { kind: 'button'; button: ButtonId; pressed: boolean }

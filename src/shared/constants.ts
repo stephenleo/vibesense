@@ -24,6 +24,32 @@ export const WHEEL_DEAD_ZONE = 0.25
 /** globalState key for session quicksave snapshot (Story 9.6) */
 export const QUICKSAVE_KEY = 'vibesense.quicksaveState'
 
+// ─── XP System constants (Story 9.3) ─────────────────────────────────────────
+
+/** globalState key for XP record (Story 9.3) */
+export const XP_KEY = 'vibesense.xpRecord'
+
+/** XP earned for a controller-only session (zero keyboard touches) */
+export const XP_CONTROLLER_ONLY = 100
+
+/** XP earned for a session with ≥80% controller action ratio */
+export const XP_HIGH_RATIO = 50
+
+/** XP earned for using 3+ distinct VibeSense features in a session */
+export const XP_MULTI_FEATURE = 25
+
+/** XP multiplier per streak day (earned XP = streakDays × XP_STREAK_PER_DAY) */
+export const XP_STREAK_PER_DAY = 10
+
+/** Minimum controller action ratio to qualify for the high-ratio XP bonus */
+export const HIGH_RATIO_THRESHOLD = 0.8
+
+/** Minimum number of distinct features used to qualify for the multi-feature XP bonus */
+export const MULTI_FEATURE_MIN_COUNT = 3
+
+/** XP threshold for Level 2 (each subsequent level doubles the previous threshold increment) */
+export const LEVEL_2_XP_THRESHOLD = 500
+
 /**
  * Converts right-stick (x, y) to a segment index (0–7) or -1 for dead zone.
  * Segment 0 = top (stick up), increasing clockwise.

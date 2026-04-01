@@ -20,10 +20,12 @@ const { mockExecuteCommand, mockLogger, mockScrollUpdate, mockScrollDispose } = 
 
 // ── Mock SessionRatioTracker ──────────────────────────────────────────────────
 const mockRecordControllerAction = vi.fn()
+const mockRecordFeatureUsed = vi.fn()
 vi.mock('../../../src/extension/stats/session-ratio-tracker', () => ({
   SessionRatioTracker: vi.fn(function () {
     return {
       recordControllerAction: mockRecordControllerAction,
+      recordFeatureUsed: mockRecordFeatureUsed,
     }
   }),
   SESSION_HISTORY_KEY: 'vibesense.sessionHistory',
@@ -461,5 +463,50 @@ describe('InputRouter', () => {
       routerWithTracker.handleEvent(buttonPress('cross'))
       expect(mockRecordControllerAction).not.toHaveBeenCalled()
     })
+  })
+})
+
+// ── InputRouter.classifyFeature() (Story 9.3 — AC3 feature tracking) ─────────
+
+describe('InputRouter.classifyFeature() (Story 9.3 — AC3)', () => {
+  it('classifies vibesense.switchSessionNext as sessionSwitch', () => {
+    expect(InputRouter.classifyFeature('vibesense.switchSessionNext')).toBe('sessionSwitch')
+  })
+
+  it('classifies vibesense.switchSessionPrev as sessionSwitch', () => {
+    expect(InputRouter.classifyFeature('vibesense.switchSessionPrev')).toBe('sessionSwitch')
+  })
+
+  it('classifies vibesense.toggleGame as miniGame', () => {
+    expect(InputRouter.classifyFeature('vibesense.toggleGame')).toBe('miniGame')
+  })
+
+  it('classifies vibesense.voicePtt as voicePtt', () => {
+    expect(InputRouter.classifyFeature('vibesense.voicePtt')).toBe('voicePtt')
+  })
+
+  it('classifies vibesense.openQuickPanel as quickPanel', () => {
+    expect(InputRouter.classifyFeature('vibesense.openQuickPanel')).toBe('quickPanel')
+  })
+
+  it('classifies vibesense.toggleHud as hud', () => {
+    expect(InputRouter.classifyFeature('vibesense.toggleHud')).toBe('hud')
+  })
+
+  it('classifies vibesense.quicksave as quicksave', () => {
+    expect(InputRouter.classifyFeature('vibesense.quicksave')).toBe('quicksave')
+  })
+
+  it('returns undefined for commands that are not feature-tracked (e.g. approve, deny, openTerminal)', () => {
+    expect(InputRouter.classifyFeature('vibesense.approve')).toBeUndefined()
+    expect(InputRouter.classifyFeature('vibesense.deny')).toBeUndefined()
+    expect(InputRouter.classifyFeature('vibesense.openTerminal')).toBeUndefined()
+    expect(InputRouter.classifyFeature('vibesense.launchClaudeCode')).toBeUndefined()
+    expect(InputRouter.classifyFeature('vibesense.openSettings')).toBeUndefined()
+  })
+
+  it('returns undefined for unknown command IDs', () => {
+    expect(InputRouter.classifyFeature('some.unknown.command')).toBeUndefined()
+    expect(InputRouter.classifyFeature('')).toBeUndefined()
   })
 })
