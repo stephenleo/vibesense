@@ -277,13 +277,14 @@ describe('RadialWheelApp — preview text for prompt segments', () => {
 describe('Story 7.2 — Dual Wheel rendering', () => {
   // Test 7.2-1: Both wheels render when wheel is open (R2 active)
   it('renders both L2 and R2 wheel SVGs when opened with R2 active', () => {
-    render(<RadialWheelApp />)
+    const { container } = render(<RadialWheelApp />)
     postHostMessage({
       type: 'WHEEL_OPEN',
       payload: { activeWheel: 'r2', l2Segments: mockL2Segments, r2Segments: mockR2Segments },
     })
-    expect(screen.getByRole('menu', { name: 'L2 Smart wheel' })).toBeInTheDocument()
+    // R2 is active (visible to a11y), L2 is inactive (aria-hidden) so use DOM query
     expect(screen.getByRole('menu', { name: 'R2 Personal wheel' })).toBeInTheDocument()
+    expect(container.querySelector('[aria-label="L2 Smart wheel"]')).toBeInTheDocument()
   })
 
   // Test 7.2-2: R2 active → R2 wrapper has active class, L2 wrapper has inactive class

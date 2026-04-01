@@ -111,6 +111,7 @@
   opacity: 0.5;
   filter: blur(1px);
   z-index: 1;
+  pointer-events: none;
 }
 
 /* R2 inactive: R2 wheel offset RIGHT (80px to the right, behind) */
@@ -119,6 +120,7 @@
   opacity: 0.5;
   filter: blur(1px);
   z-index: 1;
+  pointer-events: none;
 }
 
 /* Swap transition: ~50ms ease-out (applied only during swap, not on fresh open) */

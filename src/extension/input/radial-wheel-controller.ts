@@ -33,6 +33,12 @@ export class RadialWheelController {
 
   constructor(private readonly panelManager: RadialWheelPanelManager) {}
 
+  private resetStickState(): void {
+    this.selectedIndex = -1
+    this.stickX = 0
+    this.stickY = 0
+  }
+
   handleEvent(event: ControllerEvent): void {
     try {
       if (event.kind === 'button') {
@@ -56,44 +62,32 @@ export class RadialWheelController {
   }
 
   private onL2Press(): void {
+    this.l2Held = true
+    this.activeWheel = 'l2'
+    this.resetStickState()
+
     if (this.r2Held) {
       // Wheel already open (R2 active) — perform trigger swap to L2
-      this.l2Held = true
-      this.activeWheel = 'l2'
-      this.selectedIndex = -1
-      this.stickX = 0
-      this.stickY = 0
       this.panelManager.swap('l2', L2_SMART_WHEEL_SEGMENTS, R2_PERSONAL_WHEEL_SEGMENTS)
       logger.debug('RadialWheelController: trigger swap L2 → active')
     } else {
       // Wheel not open — open with L2 active
-      this.l2Held = true
-      this.activeWheel = 'l2'
-      this.selectedIndex = -1
-      this.stickX = 0
-      this.stickY = 0
       this.panelManager.open('l2', L2_SMART_WHEEL_SEGMENTS, R2_PERSONAL_WHEEL_SEGMENTS)
       logger.debug('RadialWheelController: L2 pressed — wheel opened')
     }
   }
 
   private onR2Press(): void {
+    this.r2Held = true
+    this.activeWheel = 'r2'
+    this.resetStickState()
+
     if (this.l2Held) {
       // Wheel already open (L2 active) — perform trigger swap to R2
-      this.r2Held = true
-      this.activeWheel = 'r2'
-      this.selectedIndex = -1
-      this.stickX = 0
-      this.stickY = 0
       this.panelManager.swap('r2', L2_SMART_WHEEL_SEGMENTS, R2_PERSONAL_WHEEL_SEGMENTS)
       logger.debug('RadialWheelController: trigger swap R2 → active')
     } else {
       // Wheel not open — open with R2 active
-      this.r2Held = true
-      this.activeWheel = 'r2'
-      this.selectedIndex = -1
-      this.stickX = 0
-      this.stickY = 0
       this.panelManager.open('r2', L2_SMART_WHEEL_SEGMENTS, R2_PERSONAL_WHEEL_SEGMENTS)
       logger.debug('RadialWheelController: R2 pressed — wheel opened')
     }
@@ -160,8 +154,12 @@ export class RadialWheelController {
       if (seg) {
         this.panelManager.close(false)
         try {
-          void vscode.commands.executeCommand('vibesense.dispatchPrompt', seg.promptText ?? seg.label)
-          logger.info(`RadialWheelController: R2 dispatched segment ${this.selectedIndex}`)
+          if (seg.promptText) {
+            void vscode.commands.executeCommand('vibesense.dispatchPrompt', seg.promptText)
+          } else {
+            void vscode.commands.executeCommand(seg.commandId)
+          }
+          logger.info(`RadialWheelController: R2 dispatched segment ${this.selectedIndex} → ${seg.commandId}`)
         } catch (err) {
           logger.error('RadialWheelController: R2 dispatch error', err)
         }

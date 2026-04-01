@@ -1,6 +1,6 @@
 # Story 7.2: Dual Layered Wheel System (R2 Personal Wheel)
 
-**Status:** review
+**Status:** done
 **Epic:** 7 — Prompt Radial Wheel & HUD Overlay
 **Story ID:** 7.2
 **Story Key:** 7-2-dual-layered-wheel-system-r2-personal-wheel
@@ -594,7 +594,7 @@ Both 7.1 and 7.3 are merged. This branch starts from a clean base with 726 passi
 - [x] AC1 verified: R2 hold shows both wheels, R2 centered, L2 offset left at 85%/50%
 - [x] AC2 verified: Trigger swap animates in ~50ms ease-out
 - [x] AC3 verified: Releasing receded trigger does nothing
-- [ ] Story status updated to `done` after code review
+- [x] Story status updated to `done` after code review
 
 ---
 
@@ -632,6 +632,15 @@ Story 7.2 extends Story 7.1 infrastructure to implement the dual-layered radial 
 - `test/unit/input/radial-wheel-controller.test.ts` — updated existing tests + 10 new Story 7.2 tests + 4 segment data tests
 - `_bmad-output/implementation-artifacts/7-2-dual-layered-wheel-system-r2-personal-wheel.md` — story status and DoD updated
 - `_bmad-output/implementation-artifacts/sprint-status.yaml` — status updated to review
+
+### Review Findings
+
+- [x] [Review][Patch] Extract `resetStickState()` helper to reduce duplicated state reset in `onL2Press`/`onR2Press` [radial-wheel-controller.ts] — fixed
+- [x] [Review][Patch] Add `pointer-events: none` to inactive wheel CSS to prevent unintended mouse interactions [radial-wheel.css] — fixed
+- [x] [Review][Patch] Add `aria-hidden` to inactive wheel wrapper to prevent screen readers from announcing both wheels equally [RadialWheel.tsx] — fixed
+- [x] [Review][Patch] Align R2 dispatch logic with L2 dispatch pattern (`seg.commandId` with `seg.promptText` check) for Story 7.4 extensibility [radial-wheel-controller.ts] — fixed
+- [x] [Review][Dismiss] Stale closure in useEffect message handler — React commit phase guarantees synchronous cleanup/re-register, no messages lost
+- [x] [Review][Dismiss] `onL2Release` resets `r2Held` unconditionally — intentional defensive cleanup after wheel close
 
 ### Change Log
 

@@ -206,7 +206,7 @@ export function RadialWheelApp(): React.ReactElement | null {
     <div className={containerClass}>
       <div className="radial-wheel__stage">
         {/* L2 Smart Wheel */}
-        <div className={l2WheelClass}>
+        <div className={l2WheelClass} aria-hidden={!isL2Active}>
           <svg
             className="radial-wheel__svg"
             viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`}
@@ -230,7 +230,7 @@ export function RadialWheelApp(): React.ReactElement | null {
         </div>
 
         {/* R2 Personal Wheel */}
-        <div className={r2WheelClass}>
+        <div className={r2WheelClass} aria-hidden={isL2Active}>
           <svg
             className="radial-wheel__svg"
             viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`}
