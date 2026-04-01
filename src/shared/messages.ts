@@ -271,6 +271,13 @@ export const HostMessageSchema = z.discriminatedUnion('type', [
       sessions: z.array(SessionSchema),
     }),
   }),
+  // Story 10.2: Live button-press animation trigger — Host → Webview
+  z.object({
+    type: z.literal('STREAMING_BUTTON_PRESSED'),
+    payload: z.object({
+      button: z.string(),  // ButtonId value (e.g. 'cross', 'a', 'l1')
+    }),
+  }),
 ])
 
 export type HostMessage = z.infer<typeof HostMessageSchema>

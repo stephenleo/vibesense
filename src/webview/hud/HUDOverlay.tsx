@@ -3,7 +3,7 @@
 // Manages state via useReducer; receives all data from host via postMessage (display-only)
 // Story 10.1: Extended to handle Streaming Mode (CINEMA overlay)
 
-import React, { useEffect, useReducer } from 'react'
+import React, { useEffect, useReducer, useRef, useState } from 'react'
 import { parseHostMessage } from '../../shared/messages'
 import type { ControllerType, Session } from '../../shared/types'
 import { ButtonMap } from './ButtonMap'
@@ -81,6 +81,12 @@ const initialState: HUDState = {
 
 export function HUDOverlay(): React.ReactElement {
   const [state, dispatch] = useReducer(hudReducer, initialState)
+  // Story 10.2: Active-press state — separate useState (not in useReducer) to allow timer side effects
+  // Uses Map<string, number> where number is a monotonically increasing press counter.
+  // The counter forces React key changes in ButtonMap, ensuring CSS animation restarts on rapid re-press.
+  const [pressedButtons, setPressedButtons] = useState<Map<string, number>>(new Map())
+  const pressTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+  const pressCounter = useRef(0)
 
   useEffect(() => {
     const handler = (event: MessageEvent) => {
@@ -109,10 +115,34 @@ export function HUDOverlay(): React.ReactElement {
         })
       } else if (msg.type === 'STREAMING_SESSION_STATE_CHANGED') {
         dispatch({ type: 'STREAMING_SESSION_STATE_CHANGED', sessions: msg.payload.sessions })
+      // Story 10.2: Handle button-press animation trigger
+      } else if (msg.type === 'STREAMING_BUTTON_PRESSED') {
+        const btn = msg.payload.button
+        // Clear existing timer for re-press (allows re-triggering if button held and re-pressed)
+        const existing = pressTimers.current.get(btn)
+        if (existing !== undefined) clearTimeout(existing)
+        // Add to pressed map with incrementing counter — forces React key change for animation restart
+        pressCounter.current += 1
+        const count = pressCounter.current
+        setPressedButtons(prev => new Map([...prev, [btn, count]]))
+        // Schedule removal after 300ms
+        const timer = setTimeout(() => {
+          setPressedButtons(prev => {
+            const next = new Map(prev)
+            next.delete(btn)
+            return next
+          })
+          pressTimers.current.delete(btn)
+        }, 300)
+        pressTimers.current.set(btn, timer)
       }
     }
     window.addEventListener('message', handler)
-    return () => window.removeEventListener('message', handler)
+    return () => {
+      window.removeEventListener('message', handler)
+      // Story 10.2: Clear all in-flight timers on unmount
+      pressTimers.current.forEach(clearTimeout)
+    }
   }, [])
 
   return (
@@ -136,6 +166,7 @@ export function HUDOverlay(): React.ReactElement {
           bindings={state.streamingBindings}
           controllerType={state.streamingControllerType}
           mode={state.streamingBindingsMode}
+          pressedButtons={pressedButtons}
         />
       )}
     </>

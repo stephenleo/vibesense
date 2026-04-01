@@ -11,6 +11,7 @@ interface StreamingOverlayProps {
   bindings: Record<string, string>
   controllerType: ControllerType | null
   mode: 'guided' | 'full'
+  pressedButtons?: Map<string, number>  // Story 10.2: active button-press state (Map<buttonId, pressCounter>)
 }
 
 function agentStateToClass(state: Session['agentState']): string {
@@ -23,7 +24,7 @@ function agentStateToClass(state: Session['agentState']): string {
   }
 }
 
-export function StreamingOverlay({ sessions, bindings, controllerType, mode }: StreamingOverlayProps): React.ReactElement {
+export function StreamingOverlay({ sessions, bindings, controllerType, mode, pressedButtons }: StreamingOverlayProps): React.ReactElement {
   return (
     <div className="streaming-overlay" role="region" aria-label="VibeSense Streaming Overlay">
       {/* Left: session state indicators */}
@@ -42,7 +43,7 @@ export function StreamingOverlay({ sessions, bindings, controllerType, mode }: S
       </div>
       {/* Right: button-map-visible */}
       <div className="streaming-section">
-        <ButtonMap bindings={bindings} controllerType={controllerType} mode={mode} />
+        <ButtonMap bindings={bindings} controllerType={controllerType} mode={mode} pressedButtons={pressedButtons} />
       </div>
     </div>
   )

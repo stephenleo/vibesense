@@ -495,6 +495,10 @@ export function activate(context: vscode.ExtensionContext): void {
             miniGamePanelManager.notifyButton(event.button, event.pressed)
           }
         }
+        // Story 10.2: Forward button-press events to streaming overlay when active
+        if (event.kind === 'button' && event.pressed) {
+          hudPanelManager.notifyButtonPressed(event.button)
+        }
       } catch (err) {
         logger.error('InputRouter: data handler error', err)
       }

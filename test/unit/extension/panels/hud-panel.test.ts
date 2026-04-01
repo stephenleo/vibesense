@@ -176,6 +176,53 @@ describe('HudPanelManager — updateSessionState (Story 10.1)', () => {
   })
 })
 
+describe('HudPanelManager — notifyButtonPressed (Story 10.2, AC3)', () => {
+  beforeEach(() => {
+    mockState.postedMessages.length = 0
+    mockState.postMessage.mockClear()
+    mockState.loggerError.mockClear()
+  })
+
+  it('sends STREAMING_BUTTON_PRESSED postMessage when streaming is active', async () => {
+    const manager = new HudPanelManager(makeContext() as never)
+    manager.toggleStreamingMode(true)
+    mockState.postedMessages.length = 0
+    manager.notifyButtonPressed('cross')
+    await Promise.resolve()
+    const msg = mockState.postedMessages.find(
+      (m) => (m as { type: string }).type === 'STREAMING_BUTTON_PRESSED',
+    ) as { type: string; payload: { button: string } } | undefined
+    expect(msg).toBeDefined()
+    expect(msg?.payload.button).toBe('cross')
+  })
+
+  it('no-ops when streaming is disabled', async () => {
+    const manager = new HudPanelManager(makeContext() as never)
+    // Create panel but do not enable streaming
+    manager.toggle()
+    mockState.postedMessages.length = 0
+    manager.notifyButtonPressed('cross')
+    await Promise.resolve()
+    const msg = mockState.postedMessages.find(
+      (m) => (m as { type: string }).type === 'STREAMING_BUTTON_PRESSED',
+    )
+    expect(msg).toBeUndefined()
+  })
+
+  it('no-ops when panel is not created', async () => {
+    const manager = new HudPanelManager(makeContext() as never)
+    // Enable streaming flag but panel not created (simulate direct state without panel)
+    // toggleStreamingMode(false) keeps streamingMode=false so we can't create without a panel
+    // Instead verify that calling on a brand-new manager (no panel, no streaming) is a no-op
+    manager.notifyButtonPressed('cross')
+    await Promise.resolve()
+    const msg = mockState.postedMessages.find(
+      (m) => (m as { type: string }).type === 'STREAMING_BUTTON_PRESSED',
+    )
+    expect(msg).toBeUndefined()
+  })
+})
+
 describe('HudPanelManager — dispose resets streaming state (Story 10.1)', () => {
   it('resets streamingMode to false on dispose', () => {
     const manager = new HudPanelManager(makeContext() as never)

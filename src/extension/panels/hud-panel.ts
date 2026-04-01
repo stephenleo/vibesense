@@ -4,7 +4,7 @@
 
 import * as vscode from 'vscode'
 import { logger } from '../logger'
-import type { ControllerType, Session } from '../../shared/types'
+import type { ButtonId, ControllerType, Session } from '../../shared/types'
 import type { BindingMap, BindingMode } from '../input/default-bindings'
 
 export class HudPanelManager implements vscode.Disposable {
@@ -121,6 +121,21 @@ export class HudPanelManager implements vscode.Disposable {
     }
     logger.info(`HudPanelManager: streaming mode ${enabled ? 'enabled' : 'disabled'}`)
     return this.streamingMode
+  }
+
+  /**
+   * Story 10.2: Forward a button-press event to the streaming overlay.
+   * No-op when streaming is disabled or panel is not created.
+   */
+  notifyButtonPressed(button: ButtonId): void {
+    if (!this.streamingMode || !this.panel) return
+    this.panel.webview.postMessage({
+      type: 'STREAMING_BUTTON_PRESSED',
+      payload: { button },
+    }).then(
+      undefined,
+      (err: unknown) => logger.error('HudPanelManager: postMessage failed (buttonPressed)', err),
+    )
   }
 
   /**
