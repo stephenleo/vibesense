@@ -278,6 +278,28 @@ export const HostMessageSchema = z.discriminatedUnion('type', [
       button: z.string(),  // ButtonId value (e.g. 'cross', 'a', 'l1')
     }),
   }),
+  // Story 10.3: Streaming wheel mirror messages — Host → Webview
+  z.object({
+    type: z.literal('STREAMING_WHEEL_OPEN'),
+    payload: z.object({
+      activeWheel: z.enum(['l2', 'r2']),
+      l2Segments: z.array(WheelSegmentDefSchema),
+      r2Segments: z.array(WheelSegmentDefSchema),
+      selectedIndex: z.number().int(),
+    }),
+  }),
+  z.object({
+    type: z.literal('STREAMING_WHEEL_STICK_UPDATE'),
+    payload: z.object({
+      selectedIndex: z.number().int(),
+    }),
+  }),
+  z.object({
+    type: z.literal('STREAMING_WHEEL_CLOSE'),
+    payload: z.object({
+      dispatched: z.boolean(),
+    }),
+  }),
 ])
 
 export type HostMessage = z.infer<typeof HostMessageSchema>

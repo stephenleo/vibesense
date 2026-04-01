@@ -2,10 +2,11 @@
 // Main React component for the VibeSense HUD Overlay (Story 7.3)
 // Manages state via useReducer; receives all data from host via postMessage (display-only)
 // Story 10.1: Extended to handle Streaming Mode (CINEMA overlay)
+// Story 10.3: Extended to handle streaming wheel mirror messages
 
 import React, { useEffect, useReducer, useRef, useState } from 'react'
 import { parseHostMessage } from '../../shared/messages'
-import type { ControllerType, Session } from '../../shared/types'
+import type { ControllerType, Session, WheelSegmentDef } from '../../shared/types'
 import { ButtonMap } from './ButtonMap'
 import { StreamingOverlay } from './StreamingOverlay'
 
@@ -20,6 +21,14 @@ interface HUDState {
   streamingBindings: Record<string, string>
   streamingControllerType: ControllerType | null
   streamingBindingsMode: 'guided' | 'full'
+  // Story 10.3: Streaming wheel mirror state
+  streamingWheelOpen: boolean
+  streamingWheelActiveWheel: 'l2' | 'r2'
+  streamingWheelL2Segments: WheelSegmentDef[]
+  streamingWheelR2Segments: WheelSegmentDef[]
+  streamingWheelSelectedIndex: number
+  streamingWheelIsClosing: boolean
+  streamingWheelDispatched: boolean
 }
 
 type HUDAction =
@@ -35,6 +44,11 @@ type HUDAction =
   | { type: 'STREAMING_MODE_TOGGLED'; enabled: boolean }
   | { type: 'STREAMING_BINDINGS_UPDATED'; bindings: Record<string, string>; controllerType: ControllerType | null; mode: 'guided' | 'full' }
   | { type: 'STREAMING_SESSION_STATE_CHANGED'; sessions: Session[] }
+  // Story 10.3: Streaming wheel mirror actions
+  | { type: 'STREAMING_WHEEL_OPEN'; activeWheel: 'l2' | 'r2'; l2Segments: WheelSegmentDef[]; r2Segments: WheelSegmentDef[] }
+  | { type: 'STREAMING_WHEEL_STICK_UPDATE'; selectedIndex: number }
+  | { type: 'STREAMING_WHEEL_CLOSE'; dispatched: boolean }
+  | { type: 'STREAMING_WHEEL_OPEN_CLEAR' }
 
 function hudReducer(state: HUDState, action: HUDAction): HUDState {
   switch (action.type) {
@@ -61,6 +75,24 @@ function hudReducer(state: HUDState, action: HUDAction): HUDState {
       }
     case 'STREAMING_SESSION_STATE_CHANGED':
       return { ...state, streamingSessions: action.sessions }
+    // Story 10.3: Streaming wheel mirror reducers
+    case 'STREAMING_WHEEL_OPEN':
+      return {
+        ...state,
+        streamingWheelOpen: true,
+        streamingWheelActiveWheel: action.activeWheel,
+        streamingWheelL2Segments: action.l2Segments,
+        streamingWheelR2Segments: action.r2Segments,
+        streamingWheelIsClosing: false,
+        streamingWheelSelectedIndex: -1,
+        streamingWheelDispatched: false,
+      }
+    case 'STREAMING_WHEEL_STICK_UPDATE':
+      return { ...state, streamingWheelSelectedIndex: action.selectedIndex }
+    case 'STREAMING_WHEEL_CLOSE':
+      return { ...state, streamingWheelIsClosing: true, streamingWheelDispatched: action.dispatched }
+    case 'STREAMING_WHEEL_OPEN_CLEAR':
+      return { ...state, streamingWheelOpen: false, streamingWheelIsClosing: false }
     default:
       return state
   }
@@ -77,6 +109,14 @@ const initialState: HUDState = {
   streamingBindings: {},
   streamingControllerType: null,
   streamingBindingsMode: 'guided',
+  // Story 10.3: Streaming wheel mirror initial state
+  streamingWheelOpen: false,
+  streamingWheelActiveWheel: 'l2',
+  streamingWheelL2Segments: [],
+  streamingWheelR2Segments: [],
+  streamingWheelSelectedIndex: -1,
+  streamingWheelIsClosing: false,
+  streamingWheelDispatched: false,
 }
 
 export function HUDOverlay(): React.ReactElement {
@@ -89,6 +129,7 @@ export function HUDOverlay(): React.ReactElement {
   const pressCounter = useRef(0)
 
   useEffect(() => {
+    let wheelCloseTimer: ReturnType<typeof setTimeout> | undefined
     const handler = (event: MessageEvent) => {
       const msg = parseHostMessage(event.data)
       if (!msg) return
@@ -135,6 +176,31 @@ export function HUDOverlay(): React.ReactElement {
           pressTimers.current.delete(btn)
         }, 300)
         pressTimers.current.set(btn, timer)
+      // Story 10.3: Handle streaming wheel mirror messages
+      } else if (msg.type === 'STREAMING_WHEEL_OPEN') {
+        // Cancel any pending close timer from a previous wheel session
+        if (wheelCloseTimer !== undefined) {
+          clearTimeout(wheelCloseTimer)
+          wheelCloseTimer = undefined
+        }
+        dispatch({
+          type: 'STREAMING_WHEEL_OPEN',
+          activeWheel: msg.payload.activeWheel,
+          l2Segments: msg.payload.l2Segments,
+          r2Segments: msg.payload.r2Segments,
+        })
+      } else if (msg.type === 'STREAMING_WHEEL_STICK_UPDATE') {
+        dispatch({ type: 'STREAMING_WHEEL_STICK_UPDATE', selectedIndex: msg.payload.selectedIndex })
+      } else if (msg.type === 'STREAMING_WHEEL_CLOSE') {
+        dispatch({ type: 'STREAMING_WHEEL_CLOSE', dispatched: msg.payload.dispatched })
+        // Clear wheel open state after animation completes (200ms dispatch + buffer)
+        if (wheelCloseTimer !== undefined) {
+          clearTimeout(wheelCloseTimer)
+        }
+        wheelCloseTimer = setTimeout(() => {
+          wheelCloseTimer = undefined
+          dispatch({ type: 'STREAMING_WHEEL_OPEN_CLEAR' })
+        }, 250)
       }
     }
     window.addEventListener('message', handler)
@@ -142,6 +208,9 @@ export function HUDOverlay(): React.ReactElement {
       window.removeEventListener('message', handler)
       // Story 10.2: Clear all in-flight timers on unmount
       pressTimers.current.forEach(clearTimeout)
+      if (wheelCloseTimer !== undefined) {
+        clearTimeout(wheelCloseTimer)
+      }
     }
   }, [])
 
@@ -167,6 +236,13 @@ export function HUDOverlay(): React.ReactElement {
           controllerType={state.streamingControllerType}
           mode={state.streamingBindingsMode}
           pressedButtons={pressedButtons}
+          wheelOpen={state.streamingWheelOpen}
+          wheelActiveWheel={state.streamingWheelActiveWheel}
+          wheelL2Segments={state.streamingWheelL2Segments}
+          wheelR2Segments={state.streamingWheelR2Segments}
+          wheelSelectedIndex={state.streamingWheelSelectedIndex}
+          wheelIsClosing={state.streamingWheelIsClosing}
+          wheelDispatched={state.streamingWheelDispatched}
         />
       )}
     </>

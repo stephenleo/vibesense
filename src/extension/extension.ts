@@ -252,7 +252,8 @@ export function activate(context: vscode.ExtensionContext): void {
   }
 
   // Story 9.3: Pass ratioTracker so radial wheel dispatches are counted as feature usage (AC3)
-  const radialWheelController = new RadialWheelController(radialWheelPanelManager, dispatchTracker, getR2Segments, ratioTracker)
+  // Story 10.3: Pass hudPanelManager to mirror wheel events in streaming overlay
+  const radialWheelController = new RadialWheelController(radialWheelPanelManager, dispatchTracker, getR2Segments, ratioTracker, hudPanelManager)
   context.subscriptions.push({ dispose: () => radialWheelController.dispose() })
 
   // Story 9.3: XP, level, and streak manager — gamified session rewards (FR53)

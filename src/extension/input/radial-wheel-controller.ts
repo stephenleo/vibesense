@@ -8,6 +8,7 @@ import type { ControllerEvent, WheelSegmentDef } from '../../shared/types'
 import type { RadialWheelPanelManager } from '../panels/radial-wheel-panel'
 import type { RadialWheelDispatchTracker } from './radial-wheel-dispatch-tracker'
 import type { SessionRatioTracker } from '../stats/session-ratio-tracker'
+import type { HudPanelManager } from '../panels/hud-panel'
 import { L2_SMART_WHEEL_SEGMENTS } from './radial-wheel-segments'
 import { computeWheelSegmentIndex } from '../../shared/constants'
 
@@ -38,6 +39,7 @@ export class RadialWheelController {
     private readonly dispatchTracker?: RadialWheelDispatchTracker,
     private readonly getR2Segments?: () => WheelSegmentDef[],
     private readonly ratioTracker?: SessionRatioTracker,
+    private readonly hudPanelManager?: HudPanelManager,
   ) {}
 
   private resetStickState(): void {
@@ -77,10 +79,12 @@ export class RadialWheelController {
     if (this.r2Held) {
       // Wheel already open (R2 active) — perform trigger swap to L2
       this.panelManager.swap('l2', L2_SMART_WHEEL_SEGMENTS, r2Segments)
+      this.hudPanelManager?.notifyStreamingWheelOpen('l2', L2_SMART_WHEEL_SEGMENTS, r2Segments)
       logger.debug('RadialWheelController: trigger swap L2 → active')
     } else {
       // Wheel not open — open with L2 active
       this.panelManager.open('l2', L2_SMART_WHEEL_SEGMENTS, r2Segments)
+      this.hudPanelManager?.notifyStreamingWheelOpen('l2', L2_SMART_WHEEL_SEGMENTS, r2Segments)
       logger.debug('RadialWheelController: L2 pressed — wheel opened')
     }
   }
@@ -94,10 +98,12 @@ export class RadialWheelController {
     if (this.l2Held) {
       // Wheel already open (L2 active) — perform trigger swap to R2
       this.panelManager.swap('r2', L2_SMART_WHEEL_SEGMENTS, r2Segments)
+      this.hudPanelManager?.notifyStreamingWheelOpen('r2', L2_SMART_WHEEL_SEGMENTS, r2Segments)
       logger.debug('RadialWheelController: trigger swap R2 → active')
     } else {
       // Wheel not open — open with R2 active
       this.panelManager.open('r2', L2_SMART_WHEEL_SEGMENTS, r2Segments)
+      this.hudPanelManager?.notifyStreamingWheelOpen('r2', L2_SMART_WHEEL_SEGMENTS, r2Segments)
       logger.debug('RadialWheelController: R2 pressed — wheel opened')
     }
   }
@@ -118,6 +124,7 @@ export class RadialWheelController {
     if (this.selectedIndex >= 0) {
       const seg = L2_SMART_WHEEL_SEGMENTS[this.selectedIndex]
       if (seg) {
+        this.hudPanelManager?.notifyStreamingWheelClose(true)
         this.panelManager.close(false)
         // Story 9.3: track radial wheel feature usage for multi-feature XP bonus (AC3)
         this.ratioTracker?.recordFeatureUsed('radialWheel')
@@ -132,10 +139,12 @@ export class RadialWheelController {
           logger.error('RadialWheelController: dispatch error', err)
         }
       } else {
+        this.hudPanelManager?.notifyStreamingWheelClose(false)
         this.panelManager.close(true)
         logger.debug('RadialWheelController: L2 released — segment not found, cancelled')
       }
     } else {
+      this.hudPanelManager?.notifyStreamingWheelClose(false)
       this.panelManager.close(true) // cancel — stick was in dead zone
       logger.debug('RadialWheelController: L2 released — dead zone, cancelled')
     }
@@ -165,6 +174,7 @@ export class RadialWheelController {
       const r2Segments = this.getR2Segments ? this.getR2Segments() : []
       const seg = r2Segments[this.selectedIndex]
       if (seg) {
+        this.hudPanelManager?.notifyStreamingWheelClose(true)
         this.panelManager.close(false)
         // Story 7.4: Increment dispatch count after successful dispatch
         void this.dispatchTracker?.increment(this.selectedIndex)
@@ -181,10 +191,12 @@ export class RadialWheelController {
           logger.error('RadialWheelController: R2 dispatch error', err)
         }
       } else {
+        this.hudPanelManager?.notifyStreamingWheelClose(false)
         this.panelManager.close(true)
         logger.debug('RadialWheelController: R2 released — segment not found, cancelled')
       }
     } else {
+      this.hudPanelManager?.notifyStreamingWheelClose(false)
       this.panelManager.close(true) // cancel — stick was in dead zone
       logger.debug('RadialWheelController: R2 released — dead zone, cancelled')
     }
@@ -193,10 +205,15 @@ export class RadialWheelController {
   private onStickUpdate(): void {
     if (!this.l2Held && !this.r2Held) return
     const newIndex = computeWheelSegmentIndex(this.stickX, this.stickY)
-    if (newIndex !== this.selectedIndex) {
+    const indexChanged = newIndex !== this.selectedIndex
+    if (indexChanged) {
       this.selectedIndex = newIndex
     }
     this.panelManager.updateStick(this.stickX, this.stickY)
+    // Only notify streaming overlay when selection actually changes (avoid redundant messages)
+    if (indexChanged) {
+      this.hudPanelManager?.notifyStreamingWheelStickUpdate(this.selectedIndex)
+    }
   }
 
   dispose(): void {

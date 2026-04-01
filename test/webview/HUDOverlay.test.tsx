@@ -1,5 +1,7 @@
 // test/webview/HUDOverlay.test.tsx
 // Component tests for HUDOverlay using Vitest + @testing-library/react (jsdom)
+// Story 10.1: Streaming Mode tests
+// Story 10.3: Streaming wheel mirror tests
 
 // CSS mocks must appear before imports (Vitest hoisting)
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
@@ -11,6 +13,19 @@ import React from 'react'
 import { render, screen, act } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { HUDOverlay } from '../../src/webview/hud/HUDOverlay'
+
+// jsdom does not implement window.matchMedia — provide a minimal stub for StreamingWheelMirror
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+})
 
 /**
  * Dispatch a host message to the HUDOverlay via window.dispatchEvent.
@@ -303,6 +318,141 @@ describe('HUDOverlay — STREAMING_BUTTON_PRESSED animation (Story 10.2, AC1/AC2
     // Both rows should have the animation class
     const pressedRows = container.querySelectorAll('.streaming-button-pressed')
     expect(pressedRows.length).toBe(2)
+  })
+})
+
+describe('HUDOverlay — Streaming Wheel Mirror (Story 10.3, AC1–AC6)', () => {
+  it('renders wheel mirror when STREAMING_WHEEL_OPEN message received and streaming is active', () => {
+    render(<HUDOverlay />)
+    dispatchHostMessage({ type: 'STREAMING_MODE_TOGGLED', payload: { enabled: true } })
+    dispatchHostMessage({
+      type: 'STREAMING_WHEEL_OPEN',
+      payload: {
+        activeWheel: 'l2',
+        l2Segments: Array.from({ length: 8 }, (_, i) => ({
+          index: i, label: `L2-${i}`, commandId: `vibesense.cmd${i}`,
+        })),
+        r2Segments: [],
+        selectedIndex: -1,
+      },
+    })
+    expect(screen.getByRole('img', { name: 'Radial wheel: L2 Smart wheel' })).toBeInTheDocument()
+  })
+
+  it('does not render wheel mirror when streaming is disabled', () => {
+    render(<HUDOverlay />)
+    // streaming not enabled — wheel message should still not show mirror since streaming overlay is hidden
+    dispatchHostMessage({
+      type: 'STREAMING_WHEEL_OPEN',
+      payload: {
+        activeWheel: 'l2',
+        l2Segments: [],
+        r2Segments: [],
+        selectedIndex: -1,
+      },
+    })
+    expect(screen.queryByRole('img', { name: /Radial wheel/i })).not.toBeInTheDocument()
+  })
+
+  it('updates selectedIndex when STREAMING_WHEEL_STICK_UPDATE received', () => {
+    const { container } = render(<HUDOverlay />)
+    dispatchHostMessage({ type: 'STREAMING_MODE_TOGGLED', payload: { enabled: true } })
+    const l2Segments = Array.from({ length: 8 }, (_, i) => ({
+      index: i, label: `L2-${i}`, commandId: `vibesense.cmd${i}`,
+    }))
+    dispatchHostMessage({
+      type: 'STREAMING_WHEEL_OPEN',
+      payload: { activeWheel: 'l2', l2Segments, r2Segments: [], selectedIndex: -1 },
+    })
+    dispatchHostMessage({
+      type: 'STREAMING_WHEEL_STICK_UPDATE',
+      payload: { selectedIndex: 5 },
+    })
+    // Segment 5 (index 5) should now have accent fill
+    const paths = container.querySelectorAll('.streaming-wheel-mirror__svg path')
+    expect(paths[5]).toHaveAttribute('fill', 'var(--vs-accent, #00C8FF)')
+  })
+
+  it('sets isClosing+dispatched=true on STREAMING_WHEEL_CLOSE with dispatched=true', () => {
+    const { container } = render(<HUDOverlay />)
+    dispatchHostMessage({ type: 'STREAMING_MODE_TOGGLED', payload: { enabled: true } })
+    const l2Segments = Array.from({ length: 8 }, (_, i) => ({
+      index: i, label: `L2-${i}`, commandId: `vibesense.cmd${i}`,
+    }))
+    dispatchHostMessage({
+      type: 'STREAMING_WHEEL_OPEN',
+      payload: { activeWheel: 'l2', l2Segments, r2Segments: [], selectedIndex: -1 },
+    })
+    dispatchHostMessage({
+      type: 'STREAMING_WHEEL_CLOSE',
+      payload: { dispatched: true },
+    })
+    // Component should show dispatching animation class
+    expect(container.querySelector('.streaming-wheel-mirror--dispatching')).toBeInTheDocument()
+  })
+
+  it('sets isClosing+dispatched=false on STREAMING_WHEEL_CLOSE with dispatched=false', () => {
+    const { container } = render(<HUDOverlay />)
+    dispatchHostMessage({ type: 'STREAMING_MODE_TOGGLED', payload: { enabled: true } })
+    const l2Segments = Array.from({ length: 8 }, (_, i) => ({
+      index: i, label: `L2-${i}`, commandId: `vibesense.cmd${i}`,
+    }))
+    dispatchHostMessage({
+      type: 'STREAMING_WHEEL_OPEN',
+      payload: { activeWheel: 'l2', l2Segments, r2Segments: [], selectedIndex: -1 },
+    })
+    dispatchHostMessage({
+      type: 'STREAMING_WHEEL_CLOSE',
+      payload: { dispatched: false },
+    })
+    // Component should show cancelling animation class
+    expect(container.querySelector('.streaming-wheel-mirror--cancelling')).toBeInTheDocument()
+  })
+
+  it('clears wheel open state after 250ms cleanup timer (STREAMING_WHEEL_OPEN_CLEAR)', async () => {
+    vi.useFakeTimers()
+    render(<HUDOverlay />)
+    dispatchHostMessage({ type: 'STREAMING_MODE_TOGGLED', payload: { enabled: true } })
+    const l2Segments = Array.from({ length: 8 }, (_, i) => ({
+      index: i, label: `L2-${i}`, commandId: `vibesense.cmd${i}`,
+    }))
+    dispatchHostMessage({
+      type: 'STREAMING_WHEEL_OPEN',
+      payload: { activeWheel: 'l2', l2Segments, r2Segments: [], selectedIndex: -1 },
+    })
+    expect(screen.getByRole('img', { name: 'Radial wheel: L2 Smart wheel' })).toBeInTheDocument()
+
+    dispatchHostMessage({
+      type: 'STREAMING_WHEEL_CLOSE',
+      payload: { dispatched: true },
+    })
+
+    // Wheel still visible (isClosing, but open)
+    expect(screen.getByRole('img', { name: 'Radial wheel: L2 Smart wheel' })).toBeInTheDocument()
+
+    // Advance timer past 250ms cleanup
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
+
+    // Now wheel should be cleared
+    expect(screen.queryByRole('img', { name: 'Radial wheel: L2 Smart wheel' })).not.toBeInTheDocument()
+
+    vi.useRealTimers()
+  })
+
+  it('shows R2 wheel when activeWheel=r2 in STREAMING_WHEEL_OPEN (AC5)', () => {
+    render(<HUDOverlay />)
+    dispatchHostMessage({ type: 'STREAMING_MODE_TOGGLED', payload: { enabled: true } })
+    const r2Segments = Array.from({ length: 8 }, (_, i) => ({
+      index: i, label: `R2-${i}`, commandId: `vibesense.r2cmd${i}`,
+    }))
+    dispatchHostMessage({
+      type: 'STREAMING_WHEEL_OPEN',
+      payload: { activeWheel: 'r2', l2Segments: [], r2Segments, selectedIndex: -1 },
+    })
+    expect(screen.getByRole('img', { name: 'Radial wheel: R2 Personal wheel' })).toBeInTheDocument()
+    expect(screen.getByText('R2')).toBeInTheDocument()
   })
 })
 

@@ -184,3 +184,48 @@
     backdrop-filter: none;
   }
 }
+
+/* ─── Story 10.3: Streaming Wheel Mirror ─────────────────────────────────────── */
+
+.streaming-wheel-mirror {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.streaming-wheel-mirror__svg {
+  width: 100px;
+  height: 100px;
+}
+
+.streaming-wheel-mirror__label {
+  /* Reuses .streaming-badge styles — no additional rules needed */
+}
+
+@keyframes streaming-wheel-dispatch {
+  0%   { transform: scale(1);    opacity: 1; }
+  60%  { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(0);    opacity: 0; }
+}
+
+@keyframes streaming-wheel-cancel {
+  from { opacity: 1; transform: scale(1);   }
+  to   { opacity: 0; transform: scale(0.9); }
+}
+
+.streaming-wheel-mirror--dispatching {
+  animation: streaming-wheel-dispatch 200ms ease-out forwards;
+}
+
+.streaming-wheel-mirror--cancelling {
+  animation: streaming-wheel-cancel 150ms ease-in forwards;
+}
+
+/* Suppress wheel animations when reduced motion is preferred */
+@media (prefers-reduced-motion: reduce) {
+  .streaming-wheel-mirror--dispatching,
+  .streaming-wheel-mirror--cancelling {
+    animation: none;
+  }
+}

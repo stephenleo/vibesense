@@ -1,5 +1,5 @@
 // test/webview/StreamingOverlay.test.tsx
-// Unit tests for StreamingOverlay component (Story 10.1)
+// Unit tests for StreamingOverlay component (Story 10.1, Story 10.3)
 
 // CSS mocks must appear before imports (Vitest hoisting)
 import { vi, describe, it, expect } from 'vitest'
@@ -11,10 +11,34 @@ import React from 'react'
 import { render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { StreamingOverlay } from '../../src/webview/hud/StreamingOverlay'
-import type { Session } from '../../src/shared/types'
+import type { Session, WheelSegmentDef } from '../../src/shared/types'
+
+// jsdom does not implement window.matchMedia — provide a minimal stub
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+})
 
 const emptySessions: Session[] = []
 const emptyBindings: Record<string, string> = {}
+
+// Default wheel-closed props (Story 10.3 new required props)
+const defaultWheelProps = {
+  wheelOpen: false,
+  wheelActiveWheel: 'l2' as const,
+  wheelL2Segments: [] as WheelSegmentDef[],
+  wheelR2Segments: [] as WheelSegmentDef[],
+  wheelSelectedIndex: -1,
+  wheelIsClosing: false,
+  wheelDispatched: false,
+}
 
 describe('StreamingOverlay — basic rendering', () => {
   it('renders CINEMA band with correct role and aria-label', () => {
@@ -24,6 +48,7 @@ describe('StreamingOverlay — basic rendering', () => {
         bindings={emptyBindings}
         controllerType={null}
         mode="guided"
+        {...defaultWheelProps}
       />,
     )
     expect(screen.getByRole('region', { name: 'VibeSense Streaming Overlay' })).toBeInTheDocument()
@@ -36,6 +61,7 @@ describe('StreamingOverlay — basic rendering', () => {
         bindings={emptyBindings}
         controllerType={null}
         mode="guided"
+        {...defaultWheelProps}
       />,
     )
     expect(screen.getByText('CINEMA')).toBeInTheDocument()
@@ -48,6 +74,7 @@ describe('StreamingOverlay — basic rendering', () => {
         bindings={emptyBindings}
         controllerType={null}
         mode="guided"
+        {...defaultWheelProps}
       />,
     )
     expect(container.querySelector('.streaming-overlay')).toBeInTheDocument()
@@ -60,6 +87,7 @@ describe('StreamingOverlay — basic rendering', () => {
         bindings={emptyBindings}
         controllerType={null}
         mode="guided"
+        {...defaultWheelProps}
       />,
     )
     expect(container.querySelector('.streaming-badge')).toBeInTheDocument()
@@ -78,6 +106,7 @@ describe('StreamingOverlay — session indicator dots (AC2, UX-DR4)', () => {
         bindings={emptyBindings}
         controllerType={null}
         mode="guided"
+        {...defaultWheelProps}
       />,
     )
     expect(container.querySelectorAll('.streaming-session-dot')).toHaveLength(2)
@@ -90,6 +119,7 @@ describe('StreamingOverlay — session indicator dots (AC2, UX-DR4)', () => {
         bindings={emptyBindings}
         controllerType={null}
         mode="guided"
+        {...defaultWheelProps}
       />,
     )
     expect(container.querySelectorAll('.streaming-session-dot')).toHaveLength(0)
@@ -103,6 +133,7 @@ describe('StreamingOverlay — session indicator dots (AC2, UX-DR4)', () => {
         bindings={emptyBindings}
         controllerType={null}
         mode="guided"
+        {...defaultWheelProps}
       />,
     )
     expect(container.querySelector('.streaming-session-dot--processing')).toBeInTheDocument()
@@ -116,6 +147,7 @@ describe('StreamingOverlay — session indicator dots (AC2, UX-DR4)', () => {
         bindings={emptyBindings}
         controllerType={null}
         mode="guided"
+        {...defaultWheelProps}
       />,
     )
     expect(container.querySelector('.streaming-session-dot--needs-input')).toBeInTheDocument()
@@ -129,6 +161,7 @@ describe('StreamingOverlay — session indicator dots (AC2, UX-DR4)', () => {
         bindings={emptyBindings}
         controllerType={null}
         mode="guided"
+        {...defaultWheelProps}
       />,
     )
     expect(container.querySelector('.streaming-session-dot--idle')).toBeInTheDocument()
@@ -142,6 +175,7 @@ describe('StreamingOverlay — session indicator dots (AC2, UX-DR4)', () => {
         bindings={emptyBindings}
         controllerType={null}
         mode="guided"
+        {...defaultWheelProps}
       />,
     )
     expect(container.querySelector('.streaming-session-dot--error')).toBeInTheDocument()
@@ -155,6 +189,7 @@ describe('StreamingOverlay — session indicator dots (AC2, UX-DR4)', () => {
         bindings={emptyBindings}
         controllerType={null}
         mode="guided"
+        {...defaultWheelProps}
       />,
     )
     const dot = screen.getByLabelText('Session Claude: processing')
@@ -169,6 +204,7 @@ describe('StreamingOverlay — session indicator dots (AC2, UX-DR4)', () => {
         bindings={emptyBindings}
         controllerType={null}
         mode="guided"
+        {...defaultWheelProps}
       />,
     )
     const dot = screen.getByLabelText('Session session-123: idle')
@@ -188,6 +224,7 @@ describe('StreamingOverlay — button-map section (AC4)', () => {
         bindings={bindings}
         controllerType="dualsense"
         mode="guided"
+        {...defaultWheelProps}
       />,
     )
     // ButtonMap renders labels for known commands
@@ -202,6 +239,7 @@ describe('StreamingOverlay — button-map section (AC4)', () => {
         bindings={{}}
         controllerType={null}
         mode="guided"
+        {...defaultWheelProps}
       />,
     )
     expect(screen.getByText('No bindings configured')).toBeInTheDocument()
@@ -222,6 +260,7 @@ describe('StreamingOverlay — pressedButtons animation class (Story 10.2, AC1/A
         controllerType="dualsense"
         mode="full"
         pressedButtons={new Map([['cross', 1]])}
+        {...defaultWheelProps}
       />,
     )
     const rows = container.querySelectorAll('.hud-binding-row')
@@ -237,6 +276,7 @@ describe('StreamingOverlay — pressedButtons animation class (Story 10.2, AC1/A
         controllerType="dualsense"
         mode="full"
         pressedButtons={new Map([['cross', 1]])}
+        {...defaultWheelProps}
       />,
     )
     // circle row should NOT have the pressed class
@@ -253,6 +293,7 @@ describe('StreamingOverlay — pressedButtons animation class (Story 10.2, AC1/A
         controllerType="dualsense"
         mode="full"
         pressedButtons={new Map()}
+        {...defaultWheelProps}
       />,
     )
     const pressedRows = container.querySelectorAll('.streaming-button-pressed')
@@ -266,9 +307,195 @@ describe('StreamingOverlay — pressedButtons animation class (Story 10.2, AC1/A
         bindings={bindings}
         controllerType="dualsense"
         mode="full"
+        {...defaultWheelProps}
       />,
     )
     const pressedRows = container.querySelectorAll('.streaming-button-pressed')
     expect(pressedRows).toHaveLength(0)
   })
+})
+
+describe('StreamingOverlay — wheel-visible state (Story 10.3, AC1–AC6)', () => {
+  const sampleSegment: WheelSegmentDef = {
+    index: 0,
+    label: 'Approve',
+    commandId: 'vibesense.approve',
+  }
+  const l2Segments: WheelSegmentDef[] = Array.from({ length: 8 }, (_, i) => ({
+    index: i,
+    label: `L2-${i}`,
+    commandId: `vibesense.cmd${i}`,
+  }))
+  const r2Segments: WheelSegmentDef[] = Array.from({ length: 8 }, (_, i) => ({
+    index: i,
+    label: `R2-${i}`,
+    commandId: `vibesense.r2cmd${i}`,
+  }))
+
+  it('renders StreamingWheelMirror when wheelOpen=true (AC1)', () => {
+    render(
+      <StreamingOverlay
+        sessions={emptySessions}
+        bindings={emptyBindings}
+        controllerType={null}
+        mode="guided"
+        wheelOpen={true}
+        wheelActiveWheel="l2"
+        wheelL2Segments={l2Segments}
+        wheelR2Segments={r2Segments}
+        wheelSelectedIndex={-1}
+        wheelIsClosing={false}
+        wheelDispatched={false}
+      />,
+    )
+    // StreamingWheelMirror renders with role="img"
+    expect(screen.getByRole('img', { name: /Radial wheel/i })).toBeInTheDocument()
+  })
+
+  it('does not render StreamingWheelMirror when wheelOpen=false (AC6)', () => {
+    render(
+      <StreamingOverlay
+        sessions={emptySessions}
+        bindings={emptyBindings}
+        controllerType={null}
+        mode="guided"
+        {...defaultWheelProps}
+      />,
+    )
+    expect(screen.queryByRole('img', { name: /Radial wheel/i })).not.toBeInTheDocument()
+  })
+
+  it('shows CINEMA badge when wheel is closed (AC6)', () => {
+    render(
+      <StreamingOverlay
+        sessions={emptySessions}
+        bindings={emptyBindings}
+        controllerType={null}
+        mode="guided"
+        {...defaultWheelProps}
+      />,
+    )
+    expect(screen.getByText('CINEMA')).toBeInTheDocument()
+  })
+
+  it('hides CINEMA badge when wheel is open (AC1)', () => {
+    render(
+      <StreamingOverlay
+        sessions={emptySessions}
+        bindings={emptyBindings}
+        controllerType={null}
+        mode="guided"
+        wheelOpen={true}
+        wheelActiveWheel="l2"
+        wheelL2Segments={l2Segments}
+        wheelR2Segments={r2Segments}
+        wheelSelectedIndex={-1}
+        wheelIsClosing={false}
+        wheelDispatched={false}
+      />,
+    )
+    expect(screen.queryByText('CINEMA')).not.toBeInTheDocument()
+  })
+
+  it('shows active wheel label L2 when activeWheel=l2 (AC5)', () => {
+    render(
+      <StreamingOverlay
+        sessions={emptySessions}
+        bindings={emptyBindings}
+        controllerType={null}
+        mode="guided"
+        wheelOpen={true}
+        wheelActiveWheel="l2"
+        wheelL2Segments={l2Segments}
+        wheelR2Segments={r2Segments}
+        wheelSelectedIndex={-1}
+        wheelIsClosing={false}
+        wheelDispatched={false}
+      />,
+    )
+    expect(screen.getByText('L2')).toBeInTheDocument()
+  })
+
+  it('shows active wheel label R2 when activeWheel=r2 (AC5)', () => {
+    render(
+      <StreamingOverlay
+        sessions={emptySessions}
+        bindings={emptyBindings}
+        controllerType={null}
+        mode="guided"
+        wheelOpen={true}
+        wheelActiveWheel="r2"
+        wheelL2Segments={l2Segments}
+        wheelR2Segments={r2Segments}
+        wheelSelectedIndex={-1}
+        wheelIsClosing={false}
+        wheelDispatched={false}
+      />,
+    )
+    expect(screen.getByText('R2')).toBeInTheDocument()
+  })
+
+  it('passes selectedIndex through to mirror — segment 3 is selected (AC2)', () => {
+    const { container } = render(
+      <StreamingOverlay
+        sessions={emptySessions}
+        bindings={emptyBindings}
+        controllerType={null}
+        mode="guided"
+        wheelOpen={true}
+        wheelActiveWheel="l2"
+        wheelL2Segments={l2Segments}
+        wheelR2Segments={r2Segments}
+        wheelSelectedIndex={3}
+        wheelIsClosing={false}
+        wheelDispatched={false}
+      />,
+    )
+    // The SVG paths should be in the container (8 segments rendered)
+    const paths = container.querySelectorAll('svg path')
+    expect(paths).toHaveLength(8)
+    // The 4th path (index 3) should have the accent fill
+    const activePath = paths[3]
+    expect(activePath).toHaveAttribute('fill', 'var(--vs-accent, #00C8FF)')
+  })
+
+  it('renders correct ARIA label for L2 Smart wheel', () => {
+    render(
+      <StreamingOverlay
+        sessions={emptySessions}
+        bindings={emptyBindings}
+        controllerType={null}
+        mode="guided"
+        wheelOpen={true}
+        wheelActiveWheel="l2"
+        wheelL2Segments={l2Segments}
+        wheelR2Segments={r2Segments}
+        wheelSelectedIndex={-1}
+        wheelIsClosing={false}
+        wheelDispatched={false}
+      />,
+    )
+    expect(screen.getByRole('img', { name: 'Radial wheel: L2 Smart wheel' })).toBeInTheDocument()
+  })
+
+  it('renders correct ARIA label for R2 Personal wheel', () => {
+    render(
+      <StreamingOverlay
+        sessions={emptySessions}
+        bindings={emptyBindings}
+        controllerType={null}
+        mode="guided"
+        wheelOpen={true}
+        wheelActiveWheel="r2"
+        wheelL2Segments={l2Segments}
+        wheelR2Segments={r2Segments}
+        wheelSelectedIndex={-1}
+        wheelIsClosing={false}
+        wheelDispatched={false}
+      />,
+    )
+    expect(screen.getByRole('img', { name: 'Radial wheel: R2 Personal wheel' })).toBeInTheDocument()
+  })
+
+  void sampleSegment // suppress unused warning
 })
