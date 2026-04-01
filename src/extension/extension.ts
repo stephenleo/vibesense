@@ -37,6 +37,7 @@ import { HudPanelManager } from './panels/hud-panel'
 import { MiniGamePanelManager } from './panels/mini-game-panel'
 import { GameHighScoreStore } from './panels/game-high-score-store'
 import { SessionRatioTracker } from './stats/session-ratio-tracker'
+import { QuickSaveManager } from './session/quicksave-manager'
 import type { ControllerEvent, ControllerType, Session } from '../shared/types'
 import type { ControllerHAL } from './hid/hal'
 import type { AggregateGameState } from './fsm/states'
@@ -195,15 +196,6 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   })
 
-  // Story 3.1: Register controller-triggered terminal and agent launch commands (FR10, FR11, FR12)
-  // Story 3.3: Pass slidePanelManager so session-switch commands can notify the webview (FR13)
-  // Story 4.3: Pass modeManager so vibesense.completeTutorial can call setFullMode() (AC 2)
-  // Story 4.4: Pass onboardingPanelManager so vibesense.startOnboarding command is registered
-  // Story 5.5: Pass sessionManager + lastCommandTracker for error recovery commands (FR56)
-  // Story 7.3: Pass hudPanelManager so vibesense.toggleHud command can toggle the HUD overlay
-  // Story 8.1: Pass miniGamePanelManager so vibesense.toggleGame command is registered (FR34)
-  registerCommands(context, slidePanelManager, modeManager, onboardingPanelManager, sessionManager, lastCommandTracker, hudPanelManager, miniGamePanelManager)
-
   // Send initial empty session list on startup — panel shows empty state hint
   slidePanelManager.updateSessions([])
 
@@ -213,6 +205,19 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Story 2.7: Create .vscode/vibesense.json if not present
   ensureWorkspaceProfile(workspaceRoot, CLAUDE_CODE_DEFAULT_PROFILE)
+
+  // Story 9.6: Instantiate QuickSaveManager — persists session state for next-launch resume
+  const quickSaveManager = new QuickSaveManager(context.globalState, sessionManager, workspaceRoot)
+
+  // Story 3.1: Register controller-triggered terminal and agent launch commands (FR10, FR11, FR12)
+  // Story 3.3: Pass slidePanelManager so session-switch commands can notify the webview (FR13)
+  // Story 4.3: Pass modeManager so vibesense.completeTutorial can call setFullMode() (AC 2)
+  // Story 4.4: Pass onboardingPanelManager so vibesense.startOnboarding command is registered
+  // Story 5.5: Pass sessionManager + lastCommandTracker for error recovery commands (FR56)
+  // Story 7.3: Pass hudPanelManager so vibesense.toggleHud command can toggle the HUD overlay
+  // Story 8.1: Pass miniGamePanelManager so vibesense.toggleGame command is registered (FR34)
+  // Story 9.6: Pass quickSaveManager so vibesense.quicksave command is registered (FR58)
+  registerCommands(context, slidePanelManager, modeManager, onboardingPanelManager, sessionManager, lastCommandTracker, hudPanelManager, miniGamePanelManager, quickSaveManager)
 
   // Story 7.4: Instantiate DispatchTracker + getR2Segments closure for live label fading
   // Must be after workspaceRoot is defined so the closure can read .vscode/vibesense.json
@@ -433,6 +438,22 @@ export function activate(context: vscode.ExtensionContext): void {
   const onboardingDone = context.globalState.get<boolean>('vibesense.onboardingComplete') === true
   if (!onboardingDone) {
     onboardingPanelManager.open(currentControllerType)
+  }
+
+  // Story 9.6: Show resume prompt if quicksave state exists (AC2, AC3, AC4)
+  // Fire-and-forget — must NOT block activation (AC2)
+  const savedState = quickSaveManager.load()
+  if (savedState !== null) {
+    void vscode.window
+      .showInformationMessage('Resume previous session?', 'Yes', 'Dismiss')
+      .then(async (selection) => {
+        if (selection === 'Yes') {
+          await quickSaveManager.restore(savedState)
+        } else {
+          // Dismissed (or notification closed) — clear the snapshot so it won't re-appear (AC4)
+          await quickSaveManager.clear()
+        }
+      })
   }
 
   // Auto-detection failed — offer manual device selection (Story 2.6, FR5)

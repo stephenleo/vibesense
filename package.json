@@ -86,6 +86,11 @@
         "command": "vibesense.toggleGame",
         "title": "Toggle Mini-Game",
         "category": "VibeSense"
+      },
+      {
+        "command": "vibesense.quicksave",
+        "title": "VibeSense: Quick Save Session",
+        "category": "VibeSense"
       }
     ],
     "configuration": {

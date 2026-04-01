@@ -15,6 +15,7 @@ import type { SessionManager } from '../session/session-manager'
 import type { LastCommandTracker } from '../session/last-command-tracker'
 import type { HudPanelManager } from '../panels/hud-panel'
 import type { MiniGamePanelManager } from '../panels/mini-game-panel'
+import type { QuickSaveManager } from '../session/quicksave-manager'
 
 /**
  * Register all vibesense.* commands with the extension context.
@@ -29,6 +30,7 @@ export function registerCommands(
   lastCommandTracker?: LastCommandTracker,
   hudPanelManager?: HudPanelManager,
   miniGamePanelManager?: MiniGamePanelManager,
+  quickSaveManager?: QuickSaveManager, // Story 9.6
 ): void {
   context.subscriptions.push(
     // FR10: Open a new VSCode integrated terminal and focus it
@@ -333,6 +335,12 @@ export function registerCommands(
         logger.error('vibesense.toggleGame: failed', err)
         // NFR-R1: swallow — never propagate to VSCode process
       }
+    }),
+
+    // Story 9.6 / FR58: Session quicksave — snapshot terminals + wheel config
+    vscode.commands.registerCommand('vibesense.quicksave', () => {
+      // save() is async fire-and-forget; it has its own internal try/catch (NFR-R1)
+      void quickSaveManager?.save()
     }),
   )
 }
