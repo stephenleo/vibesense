@@ -1,6 +1,6 @@
 # Story 8.4: Game State Persistence & Session Continuity
 
-**Status:** review
+**Status:** done
 **Epic:** 8 — Idle Mini-Games (Wait-Time Transformation)
 **Story ID:** 8.4
 **Story Key:** 8-4-game-state-persistence-session-continuity
@@ -101,6 +101,11 @@ And the host persists the new high score to `ExtensionContext.globalState`.
   - [x] 9.2 Unit test `MiniGamePanelManager`: `open()` posts `GAME_HIGH_SCORE` after `GAME_START`; incoming `GAME_SCORE_UPDATE` triggers store update
   - [x] 9.3 Webview test `GameCanvas.test.tsx`: `GAME_HIGH_SCORE` message dispatches `SET_HIGH_SCORES`
   - [x] 9.4 Webview test `GameCanvas.test.tsx`: canvas re-scales on resize (AC3 dock/undock verification)
+
+### Review Findings
+
+- [x] [Review][Patch] Tetris.test.tsx test #3 missing `highScore`/`onNewHighScore` props [test/webview/Tetris.test.tsx:94-99] — fixed
+- [x] [Review][Patch] Tetris.test.tsx test #4 missing `highScore`/`onNewHighScore` props on initial render and rerender [test/webview/Tetris.test.tsx:120-138] — fixed
 
 ---
 

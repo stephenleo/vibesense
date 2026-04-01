@@ -96,6 +96,8 @@ describe('Tetris — component output', () => {
           gameInput={null}
           running={false}
           onInputConsumed={vi.fn()}
+          highScore={0}
+          onNewHighScore={vi.fn()}
         />,
       )
     }).not.toThrow()
@@ -123,6 +125,8 @@ describe('Tetris — input consumption', () => {
         gameInput={null}
         running={true}
         onInputConsumed={onInputConsumed}
+        highScore={0}
+        onNewHighScore={vi.fn()}
       />,
     )
 
@@ -134,6 +138,8 @@ describe('Tetris — input consumption', () => {
           gameInput="left"
           running={true}
           onInputConsumed={onInputConsumed}
+          highScore={0}
+          onNewHighScore={vi.fn()}
         />,
       )
     })
