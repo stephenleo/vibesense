@@ -416,13 +416,8 @@ describe('RadialWheelController', () => {
 
   describe('Story 7.4 — dispatchTracker.increment() called on R2 dispatch', () => {
     it('calls dispatchTracker.increment(selectedIndex) after successful R2 dispatch', async () => {
-      let capturedDispatchTracker: ReturnType<typeof makeMockDispatchTracker> | undefined
-      let capturedGetR2Segments: ReturnType<typeof vi.fn> | undefined
-
       const mockTracker = makeMockDispatchTracker()
       const mockR2 = vi.fn().mockReturnValue(R2_PERSONAL_WHEEL_SEGMENTS)
-      capturedDispatchTracker = mockTracker
-      capturedGetR2Segments = mockR2
 
       const localController = new RadialWheelController(panelManager, mockTracker as never, mockR2)
 
@@ -433,7 +428,7 @@ describe('RadialWheelController', () => {
       localController.handleEvent({ kind: 'button', button: 'r2', pressed: false })
 
       // Should have called increment with index 0
-      expect(capturedDispatchTracker.increment).toHaveBeenCalledWith(0)
+      expect(mockTracker.increment).toHaveBeenCalledWith(0)
       localController.dispose()
     })
 
