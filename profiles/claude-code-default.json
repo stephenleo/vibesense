@@ -21,20 +21,5 @@
     "lb": "vibesense.switchSessionPrev",
     "rb": "vibesense.switchSessionNext",
     "menu": "vibesense.openSettings"
-  },
-  "radialWheel": {
-    "segments": [
-      "vibesense.approve",
-      "vibesense.deny",
-      "vibesense.openTerminal",
-      "vibesense.launchClaudeCode",
-      "vibesense.launchCopilotChat",
-      "vibesense.switchSessionNext",
-      "vibesense.switchSessionPrev",
-      "workbench.action.terminal.focus",
-      "workbench.action.terminal.scrollUp",
-      "workbench.action.terminal.scrollDown",
-      "vibesense.openSettings"
-    ]
   }
 }

@@ -224,6 +224,7 @@ export function RadialWheelApp(): React.ReactElement | null {
                 centerX={CENTER}
                 centerY={CENTER}
                 radius={WHEEL_RADIUS}
+                labelMode={seg.labelMode}
               />
             ))}
           </svg>
@@ -248,6 +249,7 @@ export function RadialWheelApp(): React.ReactElement | null {
                 centerX={CENTER}
                 centerY={CENTER}
                 radius={WHEEL_RADIUS}
+                labelMode={seg.labelMode}
               />
             ))}
           </svg>

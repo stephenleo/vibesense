@@ -31,6 +31,8 @@ import { NotifyDispatcher } from './ipc/notify-dispatcher'
 import { DndController } from './output/dnd-controller'
 import { RadialWheelPanelManager } from './panels/radial-wheel-panel'
 import { RadialWheelController } from './input/radial-wheel-controller'
+import { RadialWheelDispatchTracker } from './input/radial-wheel-dispatch-tracker'
+import { loadR2PersonalSegments } from './input/radial-wheel-segments'
 import { HudPanelManager } from './panels/hud-panel'
 import type { ControllerEvent, ControllerType } from '../shared/types'
 import type { ControllerHAL } from './hid/hal'
@@ -147,12 +149,9 @@ export function activate(context: vscode.ExtensionContext): void {
   const onboardingPanelManager = new OnboardingPanelManager(context)
   context.subscriptions.push(onboardingPanelManager)
 
-  // Story 7.1: Instantiate RadialWheelPanelManager (lazy panel creation) + RadialWheelController (L2 hold/release)
+  // Story 7.1: Instantiate RadialWheelPanelManager (lazy panel creation)
   const radialWheelPanelManager = new RadialWheelPanelManager(context)
   context.subscriptions.push(radialWheelPanelManager)
-
-  const radialWheelController = new RadialWheelController(radialWheelPanelManager)
-  context.subscriptions.push({ dispose: () => radialWheelController.dispose() })
 
   // Story 7.3: Instantiate HudPanelManager — floating button map overlay (FR29)
   const hudPanelManager = new HudPanelManager(context)
@@ -183,6 +182,19 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Story 2.7: Create .vscode/vibesense.json if not present
   ensureWorkspaceProfile(workspaceRoot, CLAUDE_CODE_DEFAULT_PROFILE)
+
+  // Story 7.4: Instantiate DispatchTracker + getR2Segments closure for live label fading
+  // Must be after workspaceRoot is defined so the closure can read .vscode/vibesense.json
+  const dispatchTracker = new RadialWheelDispatchTracker(context.globalState)
+
+  const getR2Segments = () => {
+    const forceIconOnly =
+      vscode.workspace.getConfiguration('vibesense').get<boolean>('radialWheel.forceIconOnly') ?? false
+    return loadR2PersonalSegments(workspaceRoot, dispatchTracker, forceIconOnly)
+  }
+
+  const radialWheelController = new RadialWheelController(radialWheelPanelManager, dispatchTracker, getR2Segments)
+  context.subscriptions.push({ dispose: () => radialWheelController.dispose() })
 
   // Story 4.1: Create SettingsBridge (reads VSCode config API + writes profile atomically)
   const settingsBridge = new SettingsBridge(workspaceRoot)

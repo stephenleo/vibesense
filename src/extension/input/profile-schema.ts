@@ -39,19 +39,7 @@ export const CLAUDE_CODE_DEFAULT_PROFILE: VibeProfile = {
     rb: 'vibesense.switchSessionNext',
     menu: 'vibesense.openSettings',
   },
-  radialWheel: {
-    segments: [
-      'vibesense.approve',
-      'vibesense.deny',
-      'vibesense.openTerminal',
-      'vibesense.launchClaudeCode',
-      'vibesense.launchCopilotChat',
-      'vibesense.switchSessionNext',
-      'vibesense.switchSessionPrev',
-      'workbench.action.terminal.focus',
-      'workbench.action.terminal.scrollUp',
-      'workbench.action.terminal.scrollDown',
-      'vibesense.openSettings',
-    ],
-  },
+  // Note: radialWheel.segments is intentionally absent — R2 Personal Wheel uses
+  // R2_PERSONAL_WHEEL_SEGMENTS defaults until the user adds their own prompt strings.
+  // (Story 7.4: segments must be human-readable prompt text, not command IDs)
 }
