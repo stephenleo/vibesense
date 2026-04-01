@@ -36,6 +36,7 @@ import { loadR2PersonalSegments } from './input/radial-wheel-segments'
 import { HudPanelManager } from './panels/hud-panel'
 import { MiniGamePanelManager } from './panels/mini-game-panel'
 import { GameHighScoreStore } from './panels/game-high-score-store'
+import { SessionRatioTracker } from './stats/session-ratio-tracker'
 import type { ControllerEvent, ControllerType, Session } from '../shared/types'
 import type { ControllerHAL } from './hid/hal'
 import type { AggregateGameState } from './fsm/states'
@@ -232,10 +233,32 @@ export function activate(context: vscode.ExtensionContext): void {
   // Story 2.5: Load binding profile (file may now exist from above)
   const bindings = loadBindings(workspaceRoot)
 
+  // Story 9.1: Controller action ratio tracker — data foundation for Epic 9 gamification
+  const ratioTracker = new SessionRatioTracker()
+
+  // Story 9.1: Keyboard action detection via text document change events (AC2)
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeTextDocument((event) => {
+      // Ignore undo/redo — not user-initiated keyboard actions
+      if (
+        event.reason === vscode.TextDocumentChangeReason.Undo ||
+        event.reason === vscode.TextDocumentChangeReason.Redo
+      ) return
+      if (event.contentChanges.length > 0) {
+        ratioTracker.recordKeyboardAction()
+      }
+    }),
+  )
+
+  // Story 9.1: Session finalization on extension deactivate via subscriptions dispose (AC3)
+  context.subscriptions.push({
+    dispose: () => { void ratioTracker.finalizeSession(context.globalState) },
+  })
+
   // Story 4.3: Filter bindings based on current mode before passing to InputRouter (AC 1, 5).
   // In Guided mode only core button IDs are exposed; in Full mode all bindings pass through.
   const initialBindings = modeManager.getFilteredBindings(bindings)
-  const inputRouter = new InputRouter(initialBindings)
+  const inputRouter = new InputRouter(initialBindings, ratioTracker)
   context.subscriptions.push(inputRouter)
 
   // Story 4.3: Subscribe to mode changes — hot-swap the binding map on mode transitions (AC 2, 3).

@@ -7,6 +7,7 @@ import { INPUT_BUFFER_WINDOW_MS } from '../../shared/constants'
 import type { ControllerEvent, ButtonId, AxisId } from '../../shared/types'
 import type { BindingMap } from './default-bindings'
 import { AnalogScrollController } from './analog-scroll-controller'
+import type { SessionRatioTracker } from '../stats/session-ratio-tracker'
 
 export class InputRouter implements vscode.Disposable {
   private bindings: BindingMap
@@ -14,10 +15,12 @@ export class InputRouter implements vscode.Disposable {
   private buffer: ControllerEvent[] = []
   private bufferTimer: ReturnType<typeof setTimeout> | undefined = undefined
   private scrollController: AnalogScrollController
+  private ratioTracker: SessionRatioTracker | undefined
 
-  constructor(bindings: BindingMap) {
+  constructor(bindings: BindingMap, ratioTracker?: SessionRatioTracker) {
     this.bindings = bindings
     this.scrollController = new AnalogScrollController()
+    this.ratioTracker = ratioTracker
   }
 
   /**
@@ -49,6 +52,7 @@ export class InputRouter implements vscode.Disposable {
     try {
       logger.debug(`InputRouter: ${button} → ${commandId}`)
       void vscode.commands.executeCommand(commandId)
+      this.ratioTracker?.recordControllerAction()  // Story 9.1: count controller action
     } catch (err) {
       logger.error('InputRouter: executeCommand error', err)
     }

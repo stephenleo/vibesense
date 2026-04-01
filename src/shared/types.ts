@@ -82,6 +82,17 @@ export interface WheelSegmentDef {
   labelMode?: LabelMode  // controls rendering; undefined = 'full' (Story 7.4)
 }
 
+/** Record of a single VibeSense session's controller action ratio (Story 9.1) */
+export interface SessionRecord {
+  sessionId: string        // unique identifier (timestamp-based)
+  startedAt: number        // Unix epoch ms
+  endedAt: number          // Unix epoch ms
+  controllerActions: number
+  keyboardActions: number
+  ratio: number            // controllerActions / totalActions; 1.0 if totalActions === 0
+  controllerOnly: boolean  // true iff keyboardActions === 0
+}
+
 /** Normalized HID HAL controller events */
 export type ControllerEvent =
   | { kind: 'button'; button: ButtonId; pressed: boolean }
