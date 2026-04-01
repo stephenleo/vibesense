@@ -85,6 +85,7 @@ function hudReducer(state: HUDState, action: HUDAction): HUDState {
         streamingWheelR2Segments: action.r2Segments,
         streamingWheelIsClosing: false,
         streamingWheelSelectedIndex: -1,
+        streamingWheelDispatched: false,
       }
     case 'STREAMING_WHEEL_STICK_UPDATE':
       return { ...state, streamingWheelSelectedIndex: action.selectedIndex }
@@ -128,6 +129,7 @@ export function HUDOverlay(): React.ReactElement {
   const pressCounter = useRef(0)
 
   useEffect(() => {
+    let wheelCloseTimer: ReturnType<typeof setTimeout> | undefined
     const handler = (event: MessageEvent) => {
       const msg = parseHostMessage(event.data)
       if (!msg) return
@@ -176,6 +178,11 @@ export function HUDOverlay(): React.ReactElement {
         pressTimers.current.set(btn, timer)
       // Story 10.3: Handle streaming wheel mirror messages
       } else if (msg.type === 'STREAMING_WHEEL_OPEN') {
+        // Cancel any pending close timer from a previous wheel session
+        if (wheelCloseTimer !== undefined) {
+          clearTimeout(wheelCloseTimer)
+          wheelCloseTimer = undefined
+        }
         dispatch({
           type: 'STREAMING_WHEEL_OPEN',
           activeWheel: msg.payload.activeWheel,
@@ -187,7 +194,11 @@ export function HUDOverlay(): React.ReactElement {
       } else if (msg.type === 'STREAMING_WHEEL_CLOSE') {
         dispatch({ type: 'STREAMING_WHEEL_CLOSE', dispatched: msg.payload.dispatched })
         // Clear wheel open state after animation completes (200ms dispatch + buffer)
-        setTimeout(() => {
+        if (wheelCloseTimer !== undefined) {
+          clearTimeout(wheelCloseTimer)
+        }
+        wheelCloseTimer = setTimeout(() => {
+          wheelCloseTimer = undefined
           dispatch({ type: 'STREAMING_WHEEL_OPEN_CLEAR' })
         }, 250)
       }
@@ -197,6 +208,9 @@ export function HUDOverlay(): React.ReactElement {
       window.removeEventListener('message', handler)
       // Story 10.2: Clear all in-flight timers on unmount
       pressTimers.current.forEach(clearTimeout)
+      if (wheelCloseTimer !== undefined) {
+        clearTimeout(wheelCloseTimer)
+      }
     }
   }, [])
 

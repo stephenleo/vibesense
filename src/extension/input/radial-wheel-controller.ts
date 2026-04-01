@@ -205,11 +205,15 @@ export class RadialWheelController {
   private onStickUpdate(): void {
     if (!this.l2Held && !this.r2Held) return
     const newIndex = computeWheelSegmentIndex(this.stickX, this.stickY)
-    if (newIndex !== this.selectedIndex) {
+    const indexChanged = newIndex !== this.selectedIndex
+    if (indexChanged) {
       this.selectedIndex = newIndex
     }
     this.panelManager.updateStick(this.stickX, this.stickY)
-    this.hudPanelManager?.notifyStreamingWheelStickUpdate(this.selectedIndex)
+    // Only notify streaming overlay when selection actually changes (avoid redundant messages)
+    if (indexChanged) {
+      this.hudPanelManager?.notifyStreamingWheelStickUpdate(this.selectedIndex)
+    }
   }
 
   dispose(): void {
