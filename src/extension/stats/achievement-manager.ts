@@ -73,7 +73,9 @@ export class AchievementManager extends EventEmitter {
    */
   async unlock(id: string): Promise<boolean> {
     try {
-      if (this.isUnlocked(id)) {
+      const store = this.load()
+      const existing = store.find((r) => r.id === id)
+      if (existing !== undefined && existing.unlockedAt !== null) {
         return false  // already unlocked — idempotent (AC2)
       }
 
@@ -83,7 +85,6 @@ export class AchievementManager extends EventEmitter {
         return false
       }
 
-      const store = this.load()
       const existingIndex = store.findIndex((r) => r.id === id)
       const now = Date.now()
 
@@ -102,7 +103,12 @@ export class AchievementManager extends EventEmitter {
         tier: definition.tier,
         description: definition.description,
       }
-      this.emit('achievementUnlocked', payload)
+
+      try {
+        this.emit('achievementUnlocked', payload)
+      } catch (emitErr) {
+        logger.error('AchievementManager: achievementUnlocked listener threw', emitErr)
+      }
 
       return true
     } catch (err) {
