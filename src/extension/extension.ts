@@ -199,6 +199,8 @@ export function activate(context: vscode.ExtensionContext): void {
         agentState: fsm.state,
       }))
       slidePanelManager.updateSessions(sessions)
+      // Story 10.1: Forward session state to streaming overlay if active
+      hudPanelManager.updateSessionState(sessions)
     }
   })
 

@@ -90,3 +90,85 @@
     backdrop-filter: none;
   }
 }
+
+/* ─── Story 10.1: Streaming Overlay (CINEMA mode frame) ─────────────────────── */
+
+.streaming-overlay {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 72px;
+  backdrop-filter: blur(16px);
+  background: rgba(14, 14, 28, 0.94);
+  border-top: 1px solid var(--vs-border);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: var(--vs-space-4, 16px);
+  padding: 0 var(--vs-space-4, 16px);
+  font-family: var(--vs-font-family, Inter, system-ui, -apple-system, sans-serif);
+}
+
+.streaming-section {
+  display: flex;
+  align-items: center;
+  gap: var(--vs-space-2, 8px);
+}
+
+.streaming-badge {
+  font-size: var(--vs-font-size-sm, 11px);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--vs-accent, #00C8FF);
+  padding: 2px 8px;
+  border: 1px solid var(--vs-accent, #00C8FF);
+  border-radius: var(--vs-radius-full, 9999px);
+}
+
+.streaming-session-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.streaming-session-dot--processing {
+  background-color: #00C8FF;
+  animation: streaming-slow-pulse 2s ease-in-out infinite;
+}
+
+.streaming-session-dot--needs-input {
+  background-color: #FFB800;
+  animation: streaming-fast-pulse 0.8s ease-in-out infinite;
+}
+
+.streaming-session-dot--idle {
+  background-color: #7A8BAA;
+}
+
+.streaming-session-dot--error {
+  background-color: #E05555;
+}
+
+@keyframes streaming-slow-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+@keyframes streaming-fast-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.25; }
+}
+
+/* Respect prefers-reduced-motion — suppress pulse animations */
+@media (prefers-reduced-motion: reduce) {
+  .streaming-session-dot--processing,
+  .streaming-session-dot--needs-input {
+    animation: none;
+  }
+  .streaming-overlay {
+    backdrop-filter: none;
+  }
+}

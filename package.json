@@ -96,6 +96,18 @@
         "command": "vibesense.openStats",
         "title": "VibeSense: Open Stats",
         "category": "VibeSense"
+      },
+      {
+        "command": "vibesense.toggleStreamingMode",
+        "title": "VibeSense: Toggle Streaming Mode"
+      },
+      {
+        "command": "vibesense.enableStreamingMode",
+        "title": "VibeSense: Enable Streaming Mode"
+      },
+      {
+        "command": "vibesense.disableStreamingMode",
+        "title": "VibeSense: Disable Streaming Mode"
       }
     ],
     "configuration": {
