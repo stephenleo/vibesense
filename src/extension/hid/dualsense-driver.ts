@@ -7,7 +7,7 @@ import { Dualsense } from 'dualsense-ts'
 import type { Momentary, Axis, Trigger } from 'dualsense-ts'
 import { logger } from '../logger'
 import type { ControllerHAL } from './hal'
-import type { ControllerEvent, ControllerType, ButtonId, AxisId, HapticPattern } from '../../shared/types'
+import type { ControllerEvent, ControllerType, ButtonId, AxisId, HapticPattern, AudioTone } from '../../shared/types'
 
 /**
  * Parse a hex color string (#RRGGBB) into [R, G, B] byte values (0–255).
@@ -123,6 +123,11 @@ export class DualSenseDriver extends EventEmitter implements ControllerHAL {
     } catch (err) {
       logger.error('DualSense setHaptic error', err)
     }
+  }
+
+  /** No-op stub: DualSense audio output deferred to Story 6.3 (Audio Tone System) */
+  playAudio(_tone: AudioTone): void {
+    // Intentional no-op — audio controller (Story 6.3) handles audio output
   }
 
   setLED(color: string): void {

@@ -211,6 +211,28 @@ export function parseHostMessage(raw: unknown): HostMessage | null {
   return result.success ? result.data : null
 }
 
+// ─── vibeSense.notify() inbound IPC payload ───────────────────────────────────
+
+export const NotifySchema = z.object({
+  event: z.string(),
+  haptic: z.enum(['single_pulse', 'double_pulse', 'triple_pulse', 'slow_rumble', 'none']).optional(),
+  led: z.object({ color: z.string().regex(/^#[0-9a-f]{6}$/i) }).optional(),
+  audio: z.enum(['success', 'warning', 'error', 'none']).optional(),
+  priority: z.enum(['low', 'normal', 'high']).default('normal'),
+})
+
+export type NotifyMessage = z.infer<typeof NotifySchema>
+
+/**
+ * Parse a raw unknown value as a NotifyMessage.
+ * Returns the parsed message on success, or null on failure.
+ * Unknown fields are stripped by Zod's default behavior.
+ */
+export function parseNotifyMessage(raw: unknown): NotifyMessage | null {
+  const result = NotifySchema.safeParse(raw)
+  return result.success ? result.data : null
+}
+
 // ─── Inbound hook messages (Claude Code hooks → extension) ───────────────────
 
 export const HookMessageSchema = z.object({

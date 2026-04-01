@@ -6,7 +6,7 @@ import { EventEmitter } from 'events'
 import { HID } from 'node-hid'
 import { logger } from '../logger'
 import type { ControllerHAL } from './hal'
-import type { ControllerEvent, ControllerType, ButtonId, AxisId, HapticPattern } from '../../shared/types'
+import type { ControllerEvent, ControllerType, ButtonId, AxisId, HapticPattern, AudioTone } from '../../shared/types'
 
 /**
  * Parse a generic HID gamepad report using best-effort standard USB gamepad layout.
@@ -170,6 +170,11 @@ export class GenericHidDriver extends EventEmitter implements ControllerHAL {
 
   /** No-op: generic HID devices do not support LED control (NFR-C2) */
   setLED(_color: string): void {
+    // Intentional no-op
+  }
+
+  /** No-op: generic HID devices do not support audio output (NFR-C2) */
+  playAudio(_tone: AudioTone): void {
     // Intentional no-op
   }
 }

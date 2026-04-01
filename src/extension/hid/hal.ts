@@ -2,9 +2,9 @@
 // ControllerHAL interface — Facade pattern for unified controller access
 // All upper-layer code depends on this interface, never on a specific driver
 
-import type { ControllerEvent, ControllerType, HapticPattern } from '../../shared/types'
+import type { ControllerEvent, ControllerType, HapticPattern, AudioTone } from '../../shared/types'
 
-export type { ControllerEvent, ControllerType, HapticPattern }
+export type { ControllerEvent, ControllerType, HapticPattern, AudioTone }
 
 /**
  * Hardware Abstraction Layer interface for controller input.
@@ -34,4 +34,7 @@ export interface ControllerHAL {
 
   /** Set the controller LED/lightbar color (no-op for unsupported devices) */
   setLED(color: string): void
+
+  /** Play an audio tone via the controller speaker (no-op for unsupported devices) */
+  playAudio(tone: AudioTone): void
 }
