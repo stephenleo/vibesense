@@ -14,6 +14,7 @@ import type { OnboardingPanelManager } from '../panels/onboarding-panel'
 import type { SessionManager } from '../session/session-manager'
 import type { LastCommandTracker } from '../session/last-command-tracker'
 import type { HudPanelManager } from '../panels/hud-panel'
+import type { MiniGamePanelManager } from '../panels/mini-game-panel'
 
 /**
  * Register all vibesense.* commands with the extension context.
@@ -27,6 +28,7 @@ export function registerCommands(
   sessionManager?: SessionManager,
   lastCommandTracker?: LastCommandTracker,
   hudPanelManager?: HudPanelManager,
+  miniGamePanelManager?: MiniGamePanelManager,
 ): void {
   context.subscriptions.push(
     // FR10: Open a new VSCode integrated terminal and focus it
@@ -319,6 +321,16 @@ export function registerCommands(
         hudPanelManager?.toggle()
       } catch (err) {
         logger.error('vibesense.toggleHud: failed', err)
+        // NFR-R1: swallow — never propagate to VSCode process
+      }
+    }),
+
+    // Story 8.1 / FR34: Toggle mini-game panel — opens if closed; closes if open
+    vscode.commands.registerCommand('vibesense.toggleGame', () => {
+      try {
+        miniGamePanelManager?.toggle()
+      } catch (err) {
+        logger.error('vibesense.toggleGame: failed', err)
         // NFR-R1: swallow — never propagate to VSCode process
       }
     }),

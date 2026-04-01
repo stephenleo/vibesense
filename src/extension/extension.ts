@@ -34,6 +34,7 @@ import { RadialWheelController } from './input/radial-wheel-controller'
 import { RadialWheelDispatchTracker } from './input/radial-wheel-dispatch-tracker'
 import { loadR2PersonalSegments } from './input/radial-wheel-segments'
 import { HudPanelManager } from './panels/hud-panel'
+import { MiniGamePanelManager } from './panels/mini-game-panel'
 import type { ControllerEvent, ControllerType } from '../shared/types'
 import type { ControllerHAL } from './hid/hal'
 import type { AggregateGameState } from './fsm/states'
@@ -117,9 +118,18 @@ export function activate(context: vscode.ExtensionContext): void {
   // TODO(6.5): Wire dndController.forPriority() into AudioController when Story 6.3 merges
   context.subscriptions.push({ dispose: () => { ledController?.dispose(); ledController = undefined } })
 
-  // Story 5.1: Log aggregateGameStateChanged events (haptic/LED/game integrations come in later epics)
+  // Story 5.1: Log aggregateGameStateChanged events
+  // Story 8.1: Wire MiniGamePanelManager countdown on PLAY/PAUSE transitions (AC1, FR30)
   sessionManager.on('aggregateGameStateChanged', (state: AggregateGameState) => {
     logger.info(`SessionManager: aggregateGameState → ${state}`)
+    if (state === 'PLAY') {
+      // Session moved to processing — start auto-launch countdown (AC1, FR30)
+      miniGamePanelManager.startCountdown()
+    } else {
+      // Session needs attention — cancel pending countdown
+      // Story 8.2 will also call pause here
+      miniGamePanelManager.cancelCountdown()
+    }
   })
 
   // Story 5.1: Per-session state transitions are already logged inside SessionManager.getOrCreateFsm()
@@ -157,6 +167,10 @@ export function activate(context: vscode.ExtensionContext): void {
   const hudPanelManager = new HudPanelManager(context)
   context.subscriptions.push(hudPanelManager)
 
+  // Story 8.1: Instantiate MiniGamePanelManager — Snake game WebviewPanel (FR30, FR34)
+  const miniGamePanelManager = new MiniGamePanelManager(context)
+  context.subscriptions.push(miniGamePanelManager)
+
   // Story 5.5: Subscribe to per-session state changes — auto-open error menu on error transition (AC 1)
   sessionManager.on('sessionStateChanged', (sid: string, _prev: AgentState, next: AgentState) => {
     if (next === 'error') {
@@ -171,7 +185,8 @@ export function activate(context: vscode.ExtensionContext): void {
   // Story 4.4: Pass onboardingPanelManager so vibesense.startOnboarding command is registered
   // Story 5.5: Pass sessionManager + lastCommandTracker for error recovery commands (FR56)
   // Story 7.3: Pass hudPanelManager so vibesense.toggleHud command can toggle the HUD overlay
-  registerCommands(context, slidePanelManager, modeManager, onboardingPanelManager, sessionManager, lastCommandTracker, hudPanelManager)
+  // Story 8.1: Pass miniGamePanelManager so vibesense.toggleGame command is registered (FR34)
+  registerCommands(context, slidePanelManager, modeManager, onboardingPanelManager, sessionManager, lastCommandTracker, hudPanelManager, miniGamePanelManager)
 
   // Send initial empty session list on startup — panel shows empty state hint
   slidePanelManager.updateSessions([])
@@ -326,6 +341,12 @@ export function activate(context: vscode.ExtensionContext): void {
         inputRouter.handleEvent(event)
         // Story 7.1: RadialWheelController intercepts L2/LT + right-stick events
         radialWheelController.handleEvent(event)
+        // Story 8.1: Route right-stick axis events to game panel when open (AC2)
+        if (event.kind === 'axis' && (event.axis === 'right_x' || event.axis === 'right_y')) {
+          if (miniGamePanelManager.isOpen()) {
+            miniGamePanelManager.updateAxis(event.axis, event.value)
+          }
+        }
       } catch (err) {
         logger.error('InputRouter: data handler error', err)
       }
