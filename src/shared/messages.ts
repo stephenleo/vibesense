@@ -218,6 +218,16 @@ export const HostMessageSchema = z.discriminatedUnion('type', [
       streak: z.number().int().nonnegative(),
     }),
   }),
+  // Story 9.5: Achievement burst overlay — Host → Webview
+  z.object({
+    type: z.literal('ACHIEVEMENT_BURST_SHOW'),
+    payload: z.object({
+      id: z.string(),
+      label: z.string(),
+      tier: z.enum(['bronze', 'silver', 'gold', 'platinum']),
+      description: z.string(),
+    }),
+  }),
   // Story 7.3: HUD overlay messages — Host → Webview
   z.object({
     type: z.literal('HUD_TOGGLE'),

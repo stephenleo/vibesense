@@ -49,6 +49,7 @@ const webviewConfig = {
     hud: './src/webview/hud/index.tsx',
     'mini-game': './src/webview/mini-game/index.tsx',
     stats: './src/webview/stats/index.tsx',  // Story 9.2
+    'achievement-burst': './src/webview/achievement-burst/index.tsx',  // Story 9.5
   },
   output: {
     path: path.resolve(__dirname, 'dist/webview'),
