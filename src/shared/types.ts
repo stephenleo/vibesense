@@ -103,6 +103,12 @@ export interface QuickSaveState {
   r2Segments: string[]
 }
 
+/** Achievement record persisted in globalState (Story 9.5) */
+export interface AchievementRecord {
+  id: string
+  unlockedAt: number | null  // Unix epoch ms, or null if not yet unlocked
+}
+
 /** XP, level, and streak record persisted in globalState (Story 9.3) */
 export interface XpRecord {
   /** Cumulative XP earned across all sessions */

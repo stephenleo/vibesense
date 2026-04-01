@@ -15,6 +15,15 @@ export const SessionRecordSchema = z.object({
 
 export const SessionHistorySchema = z.array(SessionRecordSchema)
 
+/** Zod schema for AchievementRecord — used when reading from globalState (Story 9.5) */
+export const AchievementRecordSchema = z.object({
+  id: z.string(),
+  unlockedAt: z.number().nullable(),
+})
+
+/** Zod schema for the full achievements store (Story 9.5) */
+export const AchievementsStoreSchema = z.array(AchievementRecordSchema)
+
 /** Zod schema for XpRecord — used when reading from globalState (Story 9.3) */
 export const XpRecordSchema = z.object({
   totalXp: z.number().int().nonnegative(),

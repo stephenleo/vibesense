@@ -24,6 +24,9 @@ export const WHEEL_DEAD_ZONE = 0.25
 /** globalState key for session quicksave snapshot (Story 9.6) */
 export const QUICKSAVE_KEY = 'vibesense.quicksaveState'
 
+/** globalState key for achievements store (Story 9.5) */
+export const ACHIEVEMENT_KEY = 'vibesense.achievements'
+
 // ─── XP System constants (Story 9.3) ─────────────────────────────────────────
 
 /** globalState key for XP record (Story 9.3) */

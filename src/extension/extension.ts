@@ -40,6 +40,8 @@ import { SessionRatioTracker, SESSION_HISTORY_KEY } from './stats/session-ratio-
 import { SessionHistorySchema } from './stats/session-record-schema'
 import { XpManager } from './stats/xp-manager'
 import { SessionHealthManager } from './stats/session-health-manager'
+import { AchievementManager } from './stats/achievement-manager'
+import { AchievementBurstPanelManager } from './panels/achievement-burst-panel'
 import { QuickSaveManager } from './session/quicksave-manager'
 import { StatsPanelManager } from './panels/stats-panel'
 import type { ControllerEvent, ControllerType, Session } from '../shared/types'
@@ -253,15 +255,58 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Story 9.3: XP, level, and streak manager — gamified session rewards (FR53)
   const xpManager = new XpManager(context.globalState)
-  // Story 9.3: Log level-up events (Story 9.5 will wire AchievementBurst here)
+
+  // Story 9.5: Achievement system — unlock logic + burst celebration
+  const achievementManager = new AchievementManager(context.globalState)
+  const achievementBurstPanelManager = new AchievementBurstPanelManager(context)
+  context.subscriptions.push(achievementBurstPanelManager)
+
+  // Story 9.5: Wire achievementUnlocked → haptic-first burst + rainbow LED cycle
+  achievementManager.on('achievementUnlocked', (event: { id: string; label: string; tier: string; description: string }) => {
+    try {
+      // Haptic-first (UX-DR14): fire haptic before visual burst
+      if (currentDriver?.controllerType === 'dualsense') {
+        currentDriver.setHaptic('triple_pulse')
+      }
+
+      // Show achievement burst overlay
+      achievementBurstPanelManager.show(event.id, event.label, event.tier, event.description)
+
+      // Rainbow LED cycle (only for DualSense): 6 colors × 200ms = 1200ms, then restore
+      if (currentDriver?.controllerType === 'dualsense') {
+        const rainbowColors = ['#FF0000', '#FF8800', '#FFFF00', '#00FF00', '#00C8FF', '#7B5CFA']
+        let step = 0
+        const rainbowInterval = setInterval(() => {
+          if (step < rainbowColors.length && currentDriver) {
+            currentDriver.setLED(rainbowColors[step])
+            step++
+          } else {
+            clearInterval(rainbowInterval)
+            // Restore LED to off (idle state — LedController will re-drive next event)
+            currentDriver?.setLED('#000000')
+          }
+        }, 200)
+      }
+    } catch (err) {
+      logger.error('extension: achievementUnlocked handler failed', err)
+      // NFR-R1: never rethrow
+    }
+  })
+
+  // Story 9.5: Level-up → check achievements (replaces Story 9.3 log-only stub)
   xpManager.on('levelUp', (event: { previousLevel: number; newLevel: number; totalXp: number }) => {
     logger.info(`VibeSense: level up! ${event.previousLevel} → ${event.newLevel} (${event.totalXp} XP)`)
+    achievementManager.checkAndUnlockForLevelUp(event.newLevel).catch((err: unknown) => {
+      logger.error('extension: checkAndUnlockForLevelUp failed', err)
+    })
   })
 
   // Story 9.4: Session health bar — live polling loop (FR57)
   const sessionHealthManager = new SessionHealthManager(slidePanelManager, ratioTracker, xpManager)
   sessionHealthManager.start()
   context.subscriptions.push(sessionHealthManager)
+
+  context.subscriptions.push({ dispose: () => achievementManager.removeAllListeners() })
 
   // Story 9.1: Keyboard action detection via text document change events (AC2)
   context.subscriptions.push(
@@ -293,6 +338,8 @@ export function activate(context: vscode.ExtensionContext): void {
           const latest = history.length > 0 ? history[history.length - 1] : undefined
           if (latest !== undefined) {
             await xpManager.awardSessionXp(latest, distinctFeatureCount)
+            // Story 9.5: Check session-triggered achievements after XP award
+            await achievementManager.checkAndUnlockForSession(latest, xpManager.load())
           }
         } catch (err) {
           logger.error('extension: XP award on session finalize failed', err)
