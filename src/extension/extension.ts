@@ -179,11 +179,14 @@ export function activate(context: vscode.ExtensionContext): void {
       slidePanelManager.notifyErrorMenuOpen(sid, lastCommand !== undefined)
     }
     // Update SlidePanel session list so SessionCard shows current agent states (UX-DR4)
-    const sessions: Session[] = [...sessionManager!.getSessions().entries()].map(([sessionId, fsm]) => ({
-      sessionId,
-      agentState: fsm.state,
-    }))
-    slidePanelManager.updateSessions(sessions)
+    const allSessions = sessionManager?.getSessions()
+    if (allSessions) {
+      const sessions: Session[] = [...allSessions.entries()].map(([sessionId, fsm]) => ({
+        sessionId,
+        agentState: fsm.state,
+      }))
+      slidePanelManager.updateSessions(sessions)
+    }
   })
 
   // Story 3.1: Register controller-triggered terminal and agent launch commands (FR10, FR11, FR12)

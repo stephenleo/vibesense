@@ -186,4 +186,26 @@ describe('MiniGamePanelManager — pauseGame() / resumeGame() (Story 8.2)', () =
     )
     expect(pauseMsg).toBeUndefined()
   })
+
+  // ── Test 7: Panel disposed mid-game: resumeGame() is no-op ────────────────
+  it('resumeGame() is a no-op after panel is disposed externally — no throw, no postMessage', () => {
+    const manager = new MiniGamePanelManager(makeContext())
+
+    manager.open()
+    mockState.postedMessages.length = 0 // clear GAME_START
+
+    // Simulate external panel disposal (user closes the panel tab)
+    const disposeListener = mockState.getDisposeListener()
+    disposeListener?.()
+
+    // Panel ref is now undefined — resumeGame() must be a no-op
+    expect(() => {
+      manager.resumeGame()
+    }).not.toThrow()
+
+    const resumeMsg = mockState.postedMessages.find(
+      (m) => (m as { type: string }).type === 'GAME_RESUME',
+    )
+    expect(resumeMsg).toBeUndefined()
+  })
 })
