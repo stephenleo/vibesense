@@ -46,6 +46,7 @@ const webviewConfig = {
     session: './src/webview/session/index.tsx',
     settings: './src/webview/settings/index.tsx',
     onboarding: './src/webview/onboarding/index.tsx',
+    hud: './src/webview/hud/index.tsx',
   },
   output: {
     path: path.resolve(__dirname, 'dist/webview'),

@@ -1,7 +1,7 @@
 {
   "name": "vibesense",
   "displayName": "VibeSense",
-  "description": "Controller-driven vibe coding for VSCode — haptic feedback, radial wheel prompts, idle mini-games, and gamified stats.",
+  "description": "Controller-driven vibe coding for VSCode \u2014 haptic feedback, radial wheel prompts, idle mini-games, and gamified stats.",
   "version": "0.1.0",
   "publisher": "stephenleo",
   "private": true,
@@ -76,6 +76,11 @@
       {
         "command": "vibesense.openRadialWheel",
         "title": "VibeSense: Open Radial Wheel"
+      },
+      {
+        "command": "vibesense.toggleHud",
+        "title": "Toggle HUD Overlay",
+        "category": "VibeSense"
       }
     ],
     "configuration": {
@@ -96,7 +101,7 @@
         "vibesense.fullMode": {
           "type": "boolean",
           "default": false,
-          "description": "Enable Full mode — all bindings active. When false, Guided mode restricts to core bindings (approve, deny, scroll, session switch). Full mode is also auto-unlocked when the onboarding tutorial is completed.",
+          "description": "Enable Full mode \u2014 all bindings active. When false, Guided mode restricts to core bindings (approve, deny, scroll, session switch). Full mode is also auto-unlocked when the onboarding tutorial is completed.",
           "order": 2
         },
         "vibesense.dndEnabled": {
@@ -107,7 +112,11 @@
         },
         "vibesense.dndThreshold": {
           "type": "string",
-          "enum": ["low", "normal", "high"],
+          "enum": [
+            "low",
+            "normal",
+            "high"
+          ],
           "enumDescriptions": [
             "Suppress only 'low' priority events (most feedback passes through)",
             "Suppress 'low' and 'normal' priority events (only critical/high events play)",
@@ -120,169 +129,169 @@
         "vibesense.binding.cross": {
           "type": "string",
           "default": "vibesense.approve",
-          "markdownDescription": "**✕ Cross** — DualSense face button (bottom)",
+          "markdownDescription": "**\u2715 Cross** \u2014 DualSense face button (bottom)",
           "order": 10
         },
         "vibesense.binding.circle": {
           "type": "string",
           "default": "vibesense.deny",
-          "markdownDescription": "**○ Circle** — DualSense face button (right)",
+          "markdownDescription": "**\u25cb Circle** \u2014 DualSense face button (right)",
           "order": 11
         },
         "vibesense.binding.square": {
           "type": "string",
           "default": "vibesense.openTerminal",
-          "markdownDescription": "**□ Square** — DualSense face button (left)",
+          "markdownDescription": "**\u25a1 Square** \u2014 DualSense face button (left)",
           "order": 12
         },
         "vibesense.binding.triangle": {
           "type": "string",
           "default": "workbench.action.terminal.focus",
-          "markdownDescription": "**△ Triangle** — DualSense face button (top)",
+          "markdownDescription": "**\u25b3 Triangle** \u2014 DualSense face button (top)",
           "order": 13
         },
         "vibesense.binding.l1": {
           "type": "string",
           "default": "vibesense.switchSessionPrev",
-          "markdownDescription": "**L1** — DualSense left shoulder button",
+          "markdownDescription": "**L1** \u2014 DualSense left shoulder button",
           "order": 14
         },
         "vibesense.binding.r1": {
           "type": "string",
           "default": "vibesense.switchSessionNext",
-          "markdownDescription": "**R1** — DualSense right shoulder button",
+          "markdownDescription": "**R1** \u2014 DualSense right shoulder button",
           "order": 15
         },
         "vibesense.binding.l2": {
           "type": "string",
           "default": "vibesense.openRadialWheel",
-          "markdownDescription": "**L2** — DualSense left trigger",
+          "markdownDescription": "**L2** \u2014 DualSense left trigger",
           "order": 16
         },
         "vibesense.binding.r2": {
           "type": "string",
           "default": "vibesense.openQuickPanel",
-          "markdownDescription": "**R2** — DualSense right trigger",
+          "markdownDescription": "**R2** \u2014 DualSense right trigger",
           "order": 17
         },
         "vibesense.binding.l3": {
           "type": "string",
           "default": "",
-          "markdownDescription": "**L3** — DualSense left analog stick click",
+          "markdownDescription": "**L3** \u2014 DualSense left analog stick click",
           "order": 18
         },
         "vibesense.binding.r3": {
           "type": "string",
           "default": "",
-          "markdownDescription": "**R3** — DualSense right analog stick click",
+          "markdownDescription": "**R3** \u2014 DualSense right analog stick click",
           "order": 19
         },
         "vibesense.binding.up": {
           "type": "string",
           "default": "workbench.action.terminal.scrollUp",
-          "markdownDescription": "**↑ D-Pad Up** — DualSense directional pad up",
+          "markdownDescription": "**\u2191 D-Pad Up** \u2014 DualSense directional pad up",
           "order": 20
         },
         "vibesense.binding.down": {
           "type": "string",
           "default": "workbench.action.terminal.scrollDown",
-          "markdownDescription": "**↓ D-Pad Down** — DualSense directional pad down",
+          "markdownDescription": "**\u2193 D-Pad Down** \u2014 DualSense directional pad down",
           "order": 21
         },
         "vibesense.binding.left": {
           "type": "string",
           "default": "workbench.action.navigateBack",
-          "markdownDescription": "**← D-Pad Left** — DualSense directional pad left",
+          "markdownDescription": "**\u2190 D-Pad Left** \u2014 DualSense directional pad left",
           "order": 22
         },
         "vibesense.binding.right": {
           "type": "string",
           "default": "workbench.action.navigateForward",
-          "markdownDescription": "**→ D-Pad Right** — DualSense directional pad right",
+          "markdownDescription": "**\u2192 D-Pad Right** \u2014 DualSense directional pad right",
           "order": 23
         },
         "vibesense.binding.options": {
           "type": "string",
           "default": "vibesense.openSettings",
-          "markdownDescription": "**Options** — DualSense options button",
+          "markdownDescription": "**Options** \u2014 DualSense options button",
           "order": 24
         },
         "vibesense.binding.touchpad": {
           "type": "string",
           "default": "vibesense.voicePtt",
-          "markdownDescription": "**Touchpad** — DualSense touchpad click",
+          "markdownDescription": "**Touchpad** \u2014 DualSense touchpad click",
           "order": 25
         },
         "vibesense.binding.a": {
           "type": "string",
           "default": "vibesense.approve",
-          "markdownDescription": "**A** — Xbox face button (bottom)",
+          "markdownDescription": "**A** \u2014 Xbox face button (bottom)",
           "order": 30
         },
         "vibesense.binding.b": {
           "type": "string",
           "default": "vibesense.deny",
-          "markdownDescription": "**B** — Xbox face button (right)",
+          "markdownDescription": "**B** \u2014 Xbox face button (right)",
           "order": 31
         },
         "vibesense.binding.x": {
           "type": "string",
           "default": "vibesense.openTerminal",
-          "markdownDescription": "**X** — Xbox face button (left)",
+          "markdownDescription": "**X** \u2014 Xbox face button (left)",
           "order": 32
         },
         "vibesense.binding.y": {
           "type": "string",
           "default": "workbench.action.terminal.focus",
-          "markdownDescription": "**Y** — Xbox face button (top)",
+          "markdownDescription": "**Y** \u2014 Xbox face button (top)",
           "order": 33
         },
         "vibesense.binding.lb": {
           "type": "string",
           "default": "vibesense.switchSessionPrev",
-          "markdownDescription": "**LB** — Xbox left bumper",
+          "markdownDescription": "**LB** \u2014 Xbox left bumper",
           "order": 34
         },
         "vibesense.binding.rb": {
           "type": "string",
           "default": "vibesense.switchSessionNext",
-          "markdownDescription": "**RB** — Xbox right bumper",
+          "markdownDescription": "**RB** \u2014 Xbox right bumper",
           "order": 35
         },
         "vibesense.binding.lt": {
           "type": "string",
           "default": "vibesense.openRadialWheel",
-          "markdownDescription": "**LT** — Xbox left trigger",
+          "markdownDescription": "**LT** \u2014 Xbox left trigger",
           "order": 36
         },
         "vibesense.binding.rt": {
           "type": "string",
           "default": "vibesense.openQuickPanel",
-          "markdownDescription": "**RT** — Xbox right trigger",
+          "markdownDescription": "**RT** \u2014 Xbox right trigger",
           "order": 37
         },
         "vibesense.binding.ls": {
           "type": "string",
           "default": "",
-          "markdownDescription": "**LS** — Xbox left analog stick click",
+          "markdownDescription": "**LS** \u2014 Xbox left analog stick click",
           "order": 38
         },
         "vibesense.binding.rs": {
           "type": "string",
           "default": "",
-          "markdownDescription": "**RS** — Xbox right analog stick click",
+          "markdownDescription": "**RS** \u2014 Xbox right analog stick click",
           "order": 39
         },
         "vibesense.binding.menu": {
           "type": "string",
           "default": "vibesense.openSettings",
-          "markdownDescription": "**Menu** — Xbox menu button",
+          "markdownDescription": "**Menu** \u2014 Xbox menu button",
           "order": 40
         },
         "vibesense.binding.view": {
           "type": "string",
           "default": "vibesense.voicePtt",
-          "markdownDescription": "**View** — Xbox view button",
+          "markdownDescription": "**View** \u2014 Xbox view button",
           "order": 41
         }
       }

@@ -1,0 +1,92 @@
+/* src/webview/hud/hud.css */
+/* Import shared VOID design tokens */
+@import '../shared-ui/tokens.css';
+
+.hud-overlay {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  width: 220px;
+  background: var(--vs-surface);
+  border: 1px solid var(--vs-border);
+  border-radius: 10px;
+  padding: var(--spacing-md, 12px);
+  z-index: 1000;
+  backdrop-filter: blur(16px);
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  color: var(--vs-text);
+}
+
+.hud-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.hud-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--vs-text2);
+}
+
+.hud-mode-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--vs-accent);
+  padding: 2px 6px;
+  border: 1px solid var(--vs-accent);
+  border-radius: 6px;
+}
+
+.hud-binding-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hud-binding-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.hud-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hud-binding-label {
+  color: var(--vs-text);
+  font-size: 12px;
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hud-empty {
+  color: var(--vs-text2);
+  font-size: 12px;
+  font-style: italic;
+  text-align: center;
+  margin: 8px 0;
+}
+
+/* Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .hud-overlay {
+    backdrop-filter: none;
+  }
+}

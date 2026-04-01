@@ -146,6 +146,28 @@ export const HostMessageSchema = z.discriminatedUnion('type', [
       cancelled: z.boolean(),
     }),
   }),
+  // Story 7.3: HUD overlay messages — Host → Webview
+  z.object({
+    type: z.literal('HUD_TOGGLE'),
+    payload: z.object({
+      visible: z.boolean(),
+    }),
+  }),
+  z.object({
+    type: z.literal('HUD_BINDINGS_UPDATED'),
+    payload: z.object({
+      bindings: z.record(z.string(), z.string()),
+      controllerType: ControllerTypeSchema.nullable(),
+      mode: z.enum(['guided', 'full']),
+    }),
+  }),
+  z.object({
+    type: z.literal('HUD_MODE_CHANGED'),
+    payload: z.object({
+      mode: z.enum(['guided', 'full']),
+      bindings: z.record(z.string(), z.string()),
+    }),
+  }),
 ])
 
 export type HostMessage = z.infer<typeof HostMessageSchema>

@@ -13,6 +13,7 @@ import type { ModeManager } from '../input/mode-manager'
 import type { OnboardingPanelManager } from '../panels/onboarding-panel'
 import type { SessionManager } from '../session/session-manager'
 import type { LastCommandTracker } from '../session/last-command-tracker'
+import type { HudPanelManager } from '../panels/hud-panel'
 
 /**
  * Register all vibesense.* commands with the extension context.
@@ -25,6 +26,7 @@ export function registerCommands(
   onboardingPanelManager: OnboardingPanelManager,
   sessionManager?: SessionManager,
   lastCommandTracker?: LastCommandTracker,
+  hudPanelManager?: HudPanelManager,
 ): void {
   context.subscriptions.push(
     // FR10: Open a new VSCode integrated terminal and focus it
@@ -309,6 +311,16 @@ export function registerCommands(
     vscode.commands.registerCommand('vibesense.openRadialWheel', () => {
       // No-op: RadialWheelController handles L2 hold/release directly
       logger.debug('vibesense.openRadialWheel: handled by RadialWheelController')
+    }),
+
+    // Story 7.3 / FR29: Toggle HUD overlay — shows/hides floating button map
+    vscode.commands.registerCommand('vibesense.toggleHud', () => {
+      try {
+        hudPanelManager?.toggle()
+      } catch (err) {
+        logger.error('vibesense.toggleHud: failed', err)
+        // NFR-R1: swallow — never propagate to VSCode process
+      }
     }),
   )
 }

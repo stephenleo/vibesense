@@ -31,6 +31,7 @@ import { NotifyDispatcher } from './ipc/notify-dispatcher'
 import { DndController } from './output/dnd-controller'
 import { RadialWheelPanelManager } from './panels/radial-wheel-panel'
 import { RadialWheelController } from './input/radial-wheel-controller'
+import { HudPanelManager } from './panels/hud-panel'
 import type { ControllerEvent, ControllerType } from '../shared/types'
 import type { ControllerHAL } from './hid/hal'
 import type { AggregateGameState } from './fsm/states'
@@ -153,6 +154,10 @@ export function activate(context: vscode.ExtensionContext): void {
   const radialWheelController = new RadialWheelController(radialWheelPanelManager)
   context.subscriptions.push({ dispose: () => radialWheelController.dispose() })
 
+  // Story 7.3: Instantiate HudPanelManager — floating button map overlay (FR29)
+  const hudPanelManager = new HudPanelManager(context)
+  context.subscriptions.push(hudPanelManager)
+
   // Story 5.5: Subscribe to per-session state changes — auto-open error menu on error transition (AC 1)
   sessionManager.on('sessionStateChanged', (sid: string, _prev: AgentState, next: AgentState) => {
     if (next === 'error') {
@@ -166,7 +171,8 @@ export function activate(context: vscode.ExtensionContext): void {
   // Story 4.3: Pass modeManager so vibesense.completeTutorial can call setFullMode() (AC 2)
   // Story 4.4: Pass onboardingPanelManager so vibesense.startOnboarding command is registered
   // Story 5.5: Pass sessionManager + lastCommandTracker for error recovery commands (FR56)
-  registerCommands(context, slidePanelManager, modeManager, onboardingPanelManager, sessionManager, lastCommandTracker)
+  // Story 7.3: Pass hudPanelManager so vibesense.toggleHud command can toggle the HUD overlay
+  registerCommands(context, slidePanelManager, modeManager, onboardingPanelManager, sessionManager, lastCommandTracker, hudPanelManager)
 
   // Send initial empty session list on startup — panel shows empty state hint
   slidePanelManager.updateSessions([])
@@ -191,10 +197,12 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(inputRouter)
 
   // Story 4.3: Subscribe to mode changes — hot-swap the binding map on mode transitions (AC 2, 3).
+  // Story 7.3: Also notify HudPanelManager on mode change (AC3 — filter guided/full bindings in HUD).
   context.subscriptions.push(
     modeManager.onDidChangeMode(() => {
       const filtered = modeManager.getFilteredBindings(bindings)
       inputRouter.updateBindings(filtered)
+      hudPanelManager.updateMode(modeManager.mode, filtered)
     }),
   )
 
@@ -385,6 +393,8 @@ export function activate(context: vscode.ExtensionContext): void {
       attachOnboardingListeners(driver)
       // Story 6.2: Provide HAL to LED controller on reconnect
       ledController?.updateHal(driver)
+      // Story 7.3: Update HUD bindings when controller (re)connects (AC2)
+      hudPanelManager.updateBindings(modeManager.getFilteredBindings(bindings), driver.controllerType, modeManager.mode)
     },
     () => {
       logger.info('VibeSense: controller disconnected — keyboard fallback active')
@@ -393,6 +403,8 @@ export function activate(context: vscode.ExtensionContext): void {
       statusBar.update({ kind: 'disconnected' })
       // Story 6.2: Clear HAL from LED controller on disconnect
       ledController?.updateHal(null)
+      // Story 7.3: Update HUD bindings on disconnect so stale controller icons are replaced with generic-hid fallback (AC2)
+      hudPanelManager.updateBindings(modeManager.getFilteredBindings(bindings), null, modeManager.mode)
     },
   )
 
