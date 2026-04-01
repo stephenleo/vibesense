@@ -39,6 +39,7 @@ import { GameHighScoreStore } from './panels/game-high-score-store'
 import { SessionRatioTracker, SESSION_HISTORY_KEY } from './stats/session-ratio-tracker'
 import { SessionHistorySchema } from './stats/session-record-schema'
 import { XpManager } from './stats/xp-manager'
+import { SessionHealthManager } from './stats/session-health-manager'
 import { QuickSaveManager } from './session/quicksave-manager'
 import { StatsPanelManager } from './panels/stats-panel'
 import type { ControllerEvent, ControllerType, Session } from '../shared/types'
@@ -257,6 +258,11 @@ export function activate(context: vscode.ExtensionContext): void {
     logger.info(`VibeSense: level up! ${event.previousLevel} → ${event.newLevel} (${event.totalXp} XP)`)
   })
 
+  // Story 9.4: Session health bar — live polling loop (FR57)
+  const sessionHealthManager = new SessionHealthManager(slidePanelManager, ratioTracker, xpManager)
+  sessionHealthManager.start()
+  context.subscriptions.push(sessionHealthManager)
+
   // Story 9.1: Keyboard action detection via text document change events (AC2)
   context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument((event) => {
@@ -371,6 +377,8 @@ export function activate(context: vscode.ExtensionContext): void {
     slidePanelManager.notifyControllerConnected(initialDriver.controllerType)
     // Story 6.2: Provide initial HAL to LED controller
     ledController?.updateHal(initialDriver)
+    // Story 9.4: Notify session health manager on initial connect
+    sessionHealthManager.notifyConnected(true)
   }
 
   /**
@@ -535,6 +543,8 @@ export function activate(context: vscode.ExtensionContext): void {
       ledController?.updateHal(driver)
       // Story 7.3: Update HUD bindings when controller (re)connects (AC2)
       hudPanelManager.updateBindings(modeManager.getFilteredBindings(bindings), driver.controllerType, modeManager.mode)
+      // Story 9.4: Notify session health manager on controller connect
+      sessionHealthManager.notifyConnected(true)
     },
     () => {
       logger.info('VibeSense: controller disconnected — keyboard fallback active')
@@ -545,6 +555,8 @@ export function activate(context: vscode.ExtensionContext): void {
       ledController?.updateHal(null)
       // Story 7.3: Update HUD bindings on disconnect so stale controller icons are replaced with generic-hid fallback (AC2)
       hudPanelManager.updateBindings(modeManager.getFilteredBindings(bindings), null, modeManager.mode)
+      // Story 9.4: Notify session health manager on controller disconnect
+      sessionHealthManager.notifyConnected(false)
     },
   )
 

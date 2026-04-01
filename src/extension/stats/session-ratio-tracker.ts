@@ -101,6 +101,11 @@ export class SessionRatioTracker {
     }
   }
 
+  /** Returns the epoch ms timestamp when this session tracker was created (Story 9.4). */
+  getSessionStartTime(): number {
+    return this.startedAt
+  }
+
   /** Get current in-memory stats (for live display — Story 9.4 forward compatibility). */
   getCurrentStats(): { controllerActions: number; keyboardActions: number; ratio: number } {
     const total = this.controllerActions + this.keyboardActions

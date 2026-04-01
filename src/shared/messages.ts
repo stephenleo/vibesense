@@ -192,6 +192,16 @@ export const HostMessageSchema = z.discriminatedUnion('type', [
       tetris: z.number().int().nonnegative(),
     }),
   }),
+  // Story 9.4: Session health bar live update — Host → Webview
+  z.object({
+    type: z.literal('SESSION_HEALTH_UPDATE'),
+    payload: z.object({
+      ratio: z.number().min(0).max(1),
+      durationMs: z.number().int().nonnegative(),
+      sessionXp: z.number().int().nonnegative(),
+      connected: z.boolean(),
+    }),
+  }),
   // Story 9.2: Stats dashboard data push — Host → Webview
   z.object({
     type: z.literal('STATS_LOADED'),

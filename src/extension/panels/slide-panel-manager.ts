@@ -192,6 +192,19 @@ export class SlidePanelManager implements vscode.Disposable {
     logger.info('SlidePanelManager: session switched', sessionIndex, sessionName)
   }
 
+  /**
+   * Push live session health stats to the webview (Story 9.4).
+   * Posts SESSION_HEALTH_UPDATE message to the SlidePanel.
+   */
+  notifyHealthUpdate(ratio: number, durationMs: number, sessionXp: number, connected: boolean): void {
+    this.panel?.webview.postMessage({
+      type: 'SESSION_HEALTH_UPDATE',
+      payload: { ratio, durationMs, sessionXp, connected },
+    }).then(undefined, (err: unknown) => {
+      logger.error('SlidePanelManager: notifyHealthUpdate postMessage failed', err)
+    })
+  }
+
   dispose(): void {
     this.panel?.dispose()
     this.panel = undefined
