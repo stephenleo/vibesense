@@ -93,6 +93,16 @@ export interface SessionRecord {
   controllerOnly: boolean  // true iff keyboardActions === 0
 }
 
+/** Persisted quicksave snapshot for session restore (Story 9.6) */
+export interface QuickSaveState {
+  /** Names of open VSCode terminals at save time */
+  terminalNames: string[]
+  /** Claude Code session IDs from SessionManager.getSessions() keys */
+  sessionIds: string[]
+  /** R2 Personal wheel prompt texts (one per slot, up to 8) */
+  r2Segments: string[]
+}
+
 /** Normalized HID HAL controller events */
 export type ControllerEvent =
   | { kind: 'button'; button: ButtonId; pressed: boolean }

@@ -21,6 +21,9 @@ export const SCROLL_DEAD_ZONE = 0.15
 export const WHEEL_SEGMENT_COUNT = 8
 export const WHEEL_DEAD_ZONE = 0.25
 
+/** globalState key for session quicksave snapshot (Story 9.6) */
+export const QUICKSAVE_KEY = 'vibesense.quicksaveState'
+
 /**
  * Converts right-stick (x, y) to a segment index (0–7) or -1 for dead zone.
  * Segment 0 = top (stick up), increasing clockwise.
