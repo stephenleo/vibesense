@@ -19,12 +19,22 @@ export class HudPanelManager implements vscode.Disposable {
    */
   toggle(): boolean {
     if (this.visible && this.panel) {
-      this.panel.webview.postMessage({ type: 'HUD_TOGGLE', payload: { visible: false } })
+      this.panel.webview.postMessage({ type: 'HUD_TOGGLE', payload: { visible: false } }).then(
+        undefined,
+        (err: unknown) => logger.error('HudPanelManager: postMessage failed (hide)', err),
+      )
       this.visible = false
       logger.info('HudPanelManager: hidden')
     } else {
       this.ensurePanelExists()
-      this.panel?.webview.postMessage({ type: 'HUD_TOGGLE', payload: { visible: true } })
+      if (!this.panel) {
+        logger.warn('HudPanelManager: panel creation failed, cannot show')
+        return this.visible
+      }
+      this.panel.webview.postMessage({ type: 'HUD_TOGGLE', payload: { visible: true } }).then(
+        undefined,
+        (err: unknown) => logger.error('HudPanelManager: postMessage failed (show)', err),
+      )
       this.visible = true
       logger.info('HudPanelManager: shown')
     }
@@ -43,7 +53,10 @@ export class HudPanelManager implements vscode.Disposable {
         controllerType,
         mode,
       },
-    })
+    }).then(
+      undefined,
+      (err: unknown) => logger.error('HudPanelManager: postMessage failed (bindings)', err),
+    )
     logger.info('HudPanelManager: bindings updated, mode =', mode)
   }
 
@@ -55,7 +68,10 @@ export class HudPanelManager implements vscode.Disposable {
     this.panel.webview.postMessage({
       type: 'HUD_MODE_CHANGED',
       payload: { mode, bindings: bindings as Record<string, string> },
-    })
+    }).then(
+      undefined,
+      (err: unknown) => logger.error('HudPanelManager: postMessage failed (mode)', err),
+    )
     logger.info('HudPanelManager: mode changed to', mode)
   }
 
