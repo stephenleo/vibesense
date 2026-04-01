@@ -403,6 +403,8 @@ export function activate(context: vscode.ExtensionContext): void {
       statusBar.update({ kind: 'disconnected' })
       // Story 6.2: Clear HAL from LED controller on disconnect
       ledController?.updateHal(null)
+      // Story 7.3: Update HUD bindings on disconnect so stale controller icons are replaced with generic-hid fallback (AC2)
+      hudPanelManager.updateBindings(modeManager.getFilteredBindings(bindings), null, modeManager.mode)
     },
   )
 
