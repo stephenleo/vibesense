@@ -184,4 +184,15 @@ describe('HudPanelManager — dispose resets streaming state (Story 10.1)', () =
     manager.dispose()
     expect(manager.isStreamingMode()).toBe(false)
   })
+
+  it('resets streamingMode to false on external panel dispose (onDidDispose)', () => {
+    const manager = new HudPanelManager(makeContext() as never)
+    manager.toggleStreamingMode(true)
+    expect(manager.isStreamingMode()).toBe(true)
+    // Simulate external panel close (user closes the tab)
+    const disposeListener = mockState.getDisposeListener()
+    expect(disposeListener).toBeDefined()
+    disposeListener!()
+    expect(manager.isStreamingMode()).toBe(false)
+  })
 })

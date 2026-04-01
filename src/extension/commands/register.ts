@@ -370,7 +370,8 @@ export function registerCommands(
     // Story 10.1: Enable Streaming Mode alias (always enables)
     vscode.commands.registerCommand('vibesense.enableStreamingMode', () => {
       try {
-        hudPanelManager?.toggleStreamingMode(true)
+        if (!hudPanelManager) return
+        hudPanelManager.toggleStreamingMode(true)
         logger.info('vibesense.enableStreamingMode: streaming mode enabled')
       } catch (err) {
         logger.error('vibesense.enableStreamingMode: failed', err)
@@ -381,7 +382,8 @@ export function registerCommands(
     // Story 10.1: Disable Streaming Mode alias (always disables)
     vscode.commands.registerCommand('vibesense.disableStreamingMode', () => {
       try {
-        hudPanelManager?.toggleStreamingMode(false)
+        if (!hudPanelManager) return
+        hudPanelManager.toggleStreamingMode(false)
         logger.info('vibesense.disableStreamingMode: streaming mode disabled')
       } catch (err) {
         logger.error('vibesense.disableStreamingMode: failed', err)

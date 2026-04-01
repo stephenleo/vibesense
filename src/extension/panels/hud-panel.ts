@@ -163,6 +163,7 @@ export class HudPanelManager implements vscode.Disposable {
         logger.info('HudPanelManager: panel disposed externally')
         this.panel = undefined
         this.visible = false
+        this.streamingMode = false
       })
     } catch (err) {
       logger.error('HudPanelManager: failed to create panel', err)

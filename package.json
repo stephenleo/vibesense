@@ -99,15 +99,18 @@
       },
       {
         "command": "vibesense.toggleStreamingMode",
-        "title": "VibeSense: Toggle Streaming Mode"
+        "title": "VibeSense: Toggle Streaming Mode",
+        "category": "VibeSense"
       },
       {
         "command": "vibesense.enableStreamingMode",
-        "title": "VibeSense: Enable Streaming Mode"
+        "title": "VibeSense: Enable Streaming Mode",
+        "category": "VibeSense"
       },
       {
         "command": "vibesense.disableStreamingMode",
-        "title": "VibeSense: Disable Streaming Mode"
+        "title": "VibeSense: Disable Streaming Mode",
+        "category": "VibeSense"
       }
     ],
     "configuration": {
