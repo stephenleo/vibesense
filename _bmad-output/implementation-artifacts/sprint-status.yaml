@@ -117,7 +117,7 @@ development_status:
   # ─── Epic 9: Gamified Stats, Achievements & Session Management ───
   epic-9: in-progress
   9-1-controller-action-ratio-tracking: done
-  9-2-stats-dashboard-ratio-trend-session-completion-rate: backlog
+  9-2-stats-dashboard-ratio-trend-session-completion-rate: review
   9-3-xp-system-levels-streaks: backlog
   9-4-session-health-bar: backlog
   9-5-achievement-system-achievementburst: backlog

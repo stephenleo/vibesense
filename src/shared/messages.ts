@@ -192,6 +192,22 @@ export const HostMessageSchema = z.discriminatedUnion('type', [
       tetris: z.number().int().nonnegative(),
     }),
   }),
+  // Story 9.2: Stats dashboard data push — Host → Webview
+  z.object({
+    type: z.literal('STATS_LOADED'),
+    payload: z.object({
+      sessions: z.array(z.object({
+        sessionId: z.string(),
+        startedAt: z.number().int().nonnegative(),
+        endedAt: z.number().int().nonnegative(),
+        controllerActions: z.number().int().nonnegative(),
+        keyboardActions: z.number().int().nonnegative(),
+        ratio: z.number().min(0).max(1),
+        controllerOnly: z.boolean(),
+      })),
+      streak: z.number().int().nonnegative(),
+    }),
+  }),
   // Story 7.3: HUD overlay messages — Host → Webview
   z.object({
     type: z.literal('HUD_TOGGLE'),
