@@ -4,7 +4,8 @@
 
 import type { SessionManager } from '../session/session-manager'
 import type { ControllerHAL } from '../hid/hal'
-import type { AgentState, HapticPattern } from '../../shared/types'
+import type { AgentState, HapticPattern, FeedbackPriority } from '../../shared/types'
+import { AGENT_STATE_PRIORITY } from '../../shared/types'
 import { logger } from '../logger'
 
 /** Maps agent FSM states to haptic patterns */
@@ -32,7 +33,7 @@ export class HapticController {
   constructor(
     private readonly sessionManager: SessionManager,
     private readonly getHal: () => ControllerHAL | null,
-    private readonly isDndSuppressed: () => boolean = () => false,
+    private readonly isDndSuppressed: (priority: FeedbackPriority) => boolean = () => false,
   ) {
     this.boundHandler = (_sessionId: string, _prev: AgentState, next: AgentState) => {
       try {
@@ -58,8 +59,9 @@ export class HapticController {
       return
     }
 
-    // DND suppression
-    if (this.isDndSuppressed()) {
+    // DND suppression — check priority for this state
+    const priority = AGENT_STATE_PRIORITY[next]
+    if (this.isDndSuppressed(priority)) {
       logger.info(`HapticController: haptic suppressed by DND for state "${next}"`)
       return
     }

@@ -130,7 +130,7 @@ describe('HapticController', () => {
   })
 
   it('DND suppression callback → setHaptic not called when suppressed (AC 3)', () => {
-    const isDndSuppressed = vi.fn(() => true)
+    const isDndSuppressed = vi.fn((_priority: string) => true)
     const _ctrl = new HapticController(sessionManager, () => mockHal, isDndSuppressed)
 
     const fsm = sessionManager.getOrCreateFsm('s1')
@@ -141,13 +141,43 @@ describe('HapticController', () => {
   })
 
   it('DND suppression off → setHaptic IS called (AC 3)', () => {
-    const isDndSuppressed = vi.fn(() => false)
+    const isDndSuppressed = vi.fn((_priority: string) => false)
     const _ctrl = new HapticController(sessionManager, () => mockHal, isDndSuppressed)
 
     const fsm = sessionManager.getOrCreateFsm('s1')
     fsm.dispatch('AGENT_PROCESSING')
 
     expect(mockHal.setHaptic).toHaveBeenCalled()
+  })
+
+  // Story 6.5: DND priority-aware suppression tests
+  it('DND suppresses haptic for normal priority state (processing) when isDndSuppressed returns true (Story 6.5, test 11)', () => {
+    const isDndSuppressed = vi.fn((priority: string) => priority === 'normal')
+    const _ctrl = new HapticController(sessionManager, () => mockHal, isDndSuppressed)
+
+    const fsm = sessionManager.getOrCreateFsm('s1')
+    fsm.dispatch('AGENT_PROCESSING') // → processing (normal priority)
+
+    // Suppressed — setHaptic should NOT have been called
+    expect(mockHal.setHaptic).not.toHaveBeenCalled()
+    expect(isDndSuppressed).toHaveBeenCalledWith('normal')
+  })
+
+  it('DND passes through error state (high priority) when isDndSuppressed returns false for high (Story 6.5, test 12)', () => {
+    // Only suppress non-high priorities
+    const isDndSuppressed = vi.fn((priority: string) => priority !== 'high')
+    const _ctrl = new HapticController(sessionManager, () => mockHal, isDndSuppressed)
+
+    const fsm = sessionManager.getOrCreateFsm('s1')
+    fsm.dispatch('AGENT_PROCESSING') // normal — suppressed
+    mockHal.setHaptic.mockClear()
+
+    fsm.dispatch('AGENT_ERROR') // → error (high priority)
+
+    // Error passes through — double_pulse should be called
+    const calls = mockHal.setHaptic.mock.calls.map((c: unknown[]) => c[0])
+    expect(calls).toContain('double_pulse')
+    expect(isDndSuppressed).toHaveBeenCalledWith('high')
   })
 
   it('rapid successive transitions → anti-stacking: setHaptic("none") cancels in-flight before each new haptic (AC 5)', () => {

@@ -5,7 +5,8 @@
 import type { SessionManager } from '../session/session-manager'
 import type { ControllerHAL } from '../hid/hal'
 import type { AgentFSM } from '../fsm/agent-fsm'
-import type { AgentState } from '../../shared/types'
+import type { AgentState, FeedbackPriority } from '../../shared/types'
+import { AGENT_STATE_PRIORITY } from '../../shared/types'
 import { logger } from '../logger'
 
 /**
@@ -44,6 +45,7 @@ export class LedController {
   constructor(
     private readonly sessionManager: SessionManager,
     hal: ControllerHAL | null,
+    private readonly isDndSuppressed: (priority: FeedbackPriority) => boolean = () => false,
   ) {
     this.hal = hal
     this.sessionManager.on('sessionStateChanged', this.onSessionStateChanged)
@@ -80,9 +82,15 @@ export class LedController {
   private readonly onSessionStateChanged = (
     _sessionId: string,
     _prev: AgentState,
-    _next: AgentState,
+    next: AgentState,
   ): void => {
     try {
+      // DND suppression — check priority for this state before updating LED
+      const priority = AGENT_STATE_PRIORITY[next]
+      if (this.isDndSuppressed(priority)) {
+        logger.info(`LedController: LED suppressed by DND for state "${next}"`)
+        return
+      }
       const color = this.computeColor(this.sessionManager.getSessions())
       if (color !== this.currentColor) {
         this.currentColor = color

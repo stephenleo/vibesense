@@ -91,6 +91,24 @@
           "description": "Enable Full mode — all bindings active. When false, Guided mode restricts to core bindings (approve, deny, scroll, session switch). Full mode is also auto-unlocked when the onboarding tutorial is completed.",
           "order": 2
         },
+        "vibesense.dndEnabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable Do Not Disturb mode to suppress ambient feedback (haptic, LED, audio) below the configured priority threshold.",
+          "order": 3
+        },
+        "vibesense.dndThreshold": {
+          "type": "string",
+          "enum": ["low", "normal", "high"],
+          "enumDescriptions": [
+            "Suppress only 'low' priority events (most feedback passes through)",
+            "Suppress 'low' and 'normal' priority events (only critical/high events play)",
+            "Suppress all feedback including 'normal' (only 'high' priority passes through)"
+          ],
+          "default": "normal",
+          "description": "Priority threshold for Do Not Disturb mode. Events at or above this priority are not suppressed.",
+          "order": 4
+        },
         "vibesense.binding.cross": {
           "type": "string",
           "default": "vibesense.approve",
