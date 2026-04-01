@@ -291,6 +291,8 @@ export function activate(context: vscode.ExtensionContext): void {
         } catch (err) {
           logger.error('extension: XP award on session finalize failed', err)
         }
+      }).catch((err: unknown) => {
+        logger.error('extension: session finalization failed', err)
       })
     },
   })

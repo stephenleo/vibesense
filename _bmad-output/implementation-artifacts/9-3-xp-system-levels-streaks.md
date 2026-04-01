@@ -1,6 +1,6 @@
 # Story 9.3: XP System, Levels & Streaks
 
-**Status:** review
+**Status:** done
 **Epic:** 9 — Gamified Stats, Achievements & Session Management
 **Story ID:** 9.3
 **Story Key:** 9-3-xp-system-levels-streaks
@@ -90,6 +90,10 @@ Then `vibesense.xpRecord` contains the updated `totalXp`, `level`, `streakDays`,
   - [x] 7.3 Unit tests for feature classification in `InputRouter`: known commands map to correct feature categories
 
 ---
+
+### Review Findings
+
+- [x] [Review][Patch] Unhandled promise rejection in dispose handler — `finalizeSession()` rejection silently swallowed by `void` with no `.catch()`, preventing XP award and losing the error [extension.ts:275] — FIXED: added `.catch()` handler
 
 ## Dev Notes
 
