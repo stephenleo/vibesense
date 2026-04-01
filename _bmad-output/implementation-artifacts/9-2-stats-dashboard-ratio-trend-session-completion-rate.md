@@ -1,6 +1,6 @@
 # Story 9.2: Stats Dashboard (Ratio Trend & Session Completion Rate)
 
-**Status:** review
+**Status:** done
 **Epic:** 9 — Gamified Stats, Achievements & Session Management
 **Story ID:** 9.2
 **Story Key:** 9-2-stats-dashboard-ratio-trend-session-completion-rate
@@ -351,8 +351,15 @@ No significant debug issues. All tests passed on first run.
 | `_bmad-output/implementation-artifacts/9-2-stats-dashboard-ratio-trend-session-completion-rate.md` | Create — story file |
 | `_bmad-output/implementation-artifacts/sprint-status.yaml` | Modify — status updated to `review` |
 
+### Review Findings
+
+- [x] [Review][Patch] Duplicated `SessionData` interface in StatsPanel.tsx and RatioTrendChart.tsx — exported from StatsPanel.tsx and imported in RatioTrendChart.tsx [src/webview/stats/RatioTrendChart.tsx:2]
+- [x] [Review][Patch] Y-axis labels overlap first bars in SVG chart — added LABEL_LEFT_MARGIN (30px) to offset bars and reference lines [src/webview/stats/RatioTrendChart.tsx:37-42]
+- [x] [Review][Patch] Redundant CSS rule `.stats-card--highlight .stats-card__value` identical to base — removed [src/webview/stats/stats.css:99-101]
+
 ## Change Log
 
 | Date | Change |
 |------|--------|
 | 2026-04-01 | Story 9.2 implemented — StatsPanelManager, stats webview (RatioTrendChart + StatsCard + StatsPanel), vibesense.openStats command, 16 unit tests; all 922 tests pass |
+| 2026-04-01 | Code review passed — 3 patches applied (deduplicate SessionData, fix Y-axis label overlap, remove redundant CSS), 1 dismissed; all 922 tests pass |

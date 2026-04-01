@@ -96,10 +96,6 @@ body {
   line-height: 1.1;
 }
 
-.stats-card--highlight .stats-card__value {
-  color: var(--vs-accent);
-}
-
 .stats-card__description {
   font-size: var(--vs-font-size-sm);
   color: var(--vs-text2);

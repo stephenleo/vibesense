@@ -10,7 +10,7 @@ import { parseHostMessage } from '../../shared/messages'
 import { RatioTrendChart } from './RatioTrendChart'
 import { StatsCard } from './StatsCard'
 
-interface SessionData {
+export interface SessionData {
   sessionId: string
   startedAt: number
   endedAt: number

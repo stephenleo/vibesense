@@ -4,13 +4,7 @@
 // AC1: ratio trend over last 30 sessions; AC3: keyboard-navigable with ARIA
 
 import React from 'react'
-
-interface SessionData {
-  sessionId: string
-  ratio: number
-  controllerOnly: boolean
-  startedAt: number
-}
+import type { SessionData } from './StatsPanel'
 
 interface RatioTrendChartProps {
   sessions: SessionData[]
@@ -36,9 +30,11 @@ export function RatioTrendChart({ sessions }: RatioTrendChartProps): React.React
   const CHART_HEIGHT = 120
   const BAR_GAP = 2
   const LABEL_HEIGHT = 16
+  const LABEL_LEFT_MARGIN = 30 // space for Y-axis labels so they don't overlap bars
   const PLOT_HEIGHT = CHART_HEIGHT - LABEL_HEIGHT
+  const PLOT_WIDTH = CHART_WIDTH - LABEL_LEFT_MARGIN
 
-  const barWidth = Math.max(4, Math.floor((CHART_WIDTH - BAR_GAP * sessions.length) / sessions.length))
+  const barWidth = Math.max(4, Math.floor((PLOT_WIDTH - BAR_GAP * sessions.length) / sessions.length))
 
   // Summary for aria-label
   const avgRatio = sessions.reduce((sum, s) => sum + s.ratio, 0) / sessions.length
@@ -54,7 +50,7 @@ export function RatioTrendChart({ sessions }: RatioTrendChartProps): React.React
       >
         {/* Reference line at 80% (highlight threshold) */}
         <line
-          x1={0}
+          x1={LABEL_LEFT_MARGIN}
           y1={PLOT_HEIGHT * (1 - 0.8)}
           x2={CHART_WIDTH}
           y2={PLOT_HEIGHT * (1 - 0.8)}
@@ -65,7 +61,7 @@ export function RatioTrendChart({ sessions }: RatioTrendChartProps): React.React
         />
         {/* Reference line at 50% */}
         <line
-          x1={0}
+          x1={LABEL_LEFT_MARGIN}
           y1={PLOT_HEIGHT * (1 - 0.5)}
           x2={CHART_WIDTH}
           y2={PLOT_HEIGHT * (1 - 0.5)}
@@ -78,7 +74,7 @@ export function RatioTrendChart({ sessions }: RatioTrendChartProps): React.React
         {/* Bars */}
         {sessions.map((session, i) => {
           const barHeight = Math.max(2, Math.round(session.ratio * PLOT_HEIGHT))
-          const x = i * (barWidth + BAR_GAP)
+          const x = LABEL_LEFT_MARGIN + i * (barWidth + BAR_GAP)
           const y = PLOT_HEIGHT - barHeight
           return (
             <rect
