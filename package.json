@@ -91,6 +91,11 @@
         "command": "vibesense.quicksave",
         "title": "VibeSense: Quick Save Session",
         "category": "VibeSense"
+      },
+      {
+        "command": "vibesense.openStats",
+        "title": "VibeSense: Open Stats",
+        "category": "VibeSense"
       }
     ],
     "configuration": {

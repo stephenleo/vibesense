@@ -138,7 +138,7 @@ describe('registerCommands', () => {
   })
 
   describe('registration', () => {
-    it('registers all commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt, switchSessionNext, switchSessionPrev, openQuickPanel, switchToSession, quickPanelNext, quickPanelPrev, completeTutorial, startOnboarding, openErrorMenu, errorRetryLastCommand, errorClearTerminal, errorViewLog', () => {
+    it('registers all commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt, switchSessionNext, switchSessionPrev, openQuickPanel, switchToSession, quickPanelNext, quickPanelPrev, completeTutorial, startOnboarding, openErrorMenu, errorRetryLastCommand, errorClearTerminal, errorViewLog, openStats', () => {
       captureHandlers()
       const registeredIds = mockState.registerCommand.mock.calls.map(
         (call) => call[0] as string,
@@ -159,6 +159,7 @@ describe('registerCommands', () => {
       expect(registeredIds).toContain('vibesense.errorRetryLastCommand')
       expect(registeredIds).toContain('vibesense.errorClearTerminal')
       expect(registeredIds).toContain('vibesense.errorViewLog')
+      expect(registeredIds).toContain('vibesense.openStats')  // Story 9.2
     })
 
     it('pushes all disposables to context.subscriptions (auto-dispose on deactivation)', () => {
@@ -169,15 +170,16 @@ describe('registerCommands', () => {
       } as unknown as import('vscode').ExtensionContext
 
       registerCommands(fakeContext, fakeSlidePanelManager, fakeModeManager, fakeOnboardingPanelManager, fakeSessionManager, fakeLastCommandTracker)
-      // 21 commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt,
+      // 22 commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt,
       // switchSessionNext, switchSessionPrev, openQuickPanel, switchToSession,
       // quickPanelNext, quickPanelPrev, completeTutorial, startOnboarding,
       // openErrorMenu, errorRetryLastCommand, errorClearTerminal, errorViewLog,
       // dispatchPrompt, openRadialWheel (Story 7.1),
       // toggleHud (Story 7.3),
       // toggleGame (Story 8.1),
-      // quicksave (Story 9.6)
-      expect(fakeSubscriptions).toHaveLength(21)
+      // quicksave (Story 9.6),
+      // openStats (Story 9.2)
+      expect(fakeSubscriptions).toHaveLength(22)
     })
   })
 

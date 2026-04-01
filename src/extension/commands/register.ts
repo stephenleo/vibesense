@@ -16,6 +16,7 @@ import type { LastCommandTracker } from '../session/last-command-tracker'
 import type { HudPanelManager } from '../panels/hud-panel'
 import type { MiniGamePanelManager } from '../panels/mini-game-panel'
 import type { QuickSaveManager } from '../session/quicksave-manager'
+import type { StatsPanelManager } from '../panels/stats-panel'
 
 /**
  * Register all vibesense.* commands with the extension context.
@@ -31,6 +32,7 @@ export function registerCommands(
   hudPanelManager?: HudPanelManager,
   miniGamePanelManager?: MiniGamePanelManager,
   quickSaveManager?: QuickSaveManager, // Story 9.6
+  statsPanelManager?: StatsPanelManager, // Story 9.2
 ): void {
   context.subscriptions.push(
     // FR10: Open a new VSCode integrated terminal and focus it
@@ -341,6 +343,16 @@ export function registerCommands(
     vscode.commands.registerCommand('vibesense.quicksave', () => {
       // save() is async fire-and-forget; it has its own internal try/catch (NFR-R1)
       void quickSaveManager?.save()
+    }),
+
+    // Story 9.2 / FR42, FR43: Open stats dashboard — ratio trend + session completion rate
+    vscode.commands.registerCommand('vibesense.openStats', () => {
+      try {
+        statsPanelManager?.open()
+      } catch (err) {
+        logger.error('vibesense.openStats: failed', err)
+        // NFR-R1: swallow — never propagate to VSCode process
+      }
     }),
   )
 }
