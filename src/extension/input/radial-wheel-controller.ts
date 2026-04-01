@@ -7,6 +7,7 @@ import { logger } from '../logger'
 import type { ControllerEvent, WheelSegmentDef } from '../../shared/types'
 import type { RadialWheelPanelManager } from '../panels/radial-wheel-panel'
 import type { RadialWheelDispatchTracker } from './radial-wheel-dispatch-tracker'
+import type { SessionRatioTracker } from '../stats/session-ratio-tracker'
 import { L2_SMART_WHEEL_SEGMENTS } from './radial-wheel-segments'
 import { computeWheelSegmentIndex } from '../../shared/constants'
 
@@ -36,6 +37,7 @@ export class RadialWheelController {
     private readonly panelManager: RadialWheelPanelManager,
     private readonly dispatchTracker?: RadialWheelDispatchTracker,
     private readonly getR2Segments?: () => WheelSegmentDef[],
+    private readonly ratioTracker?: SessionRatioTracker,
   ) {}
 
   private resetStickState(): void {
@@ -117,6 +119,8 @@ export class RadialWheelController {
       const seg = L2_SMART_WHEEL_SEGMENTS[this.selectedIndex]
       if (seg) {
         this.panelManager.close(false)
+        // Story 9.3: track radial wheel feature usage for multi-feature XP bonus (AC3)
+        this.ratioTracker?.recordFeatureUsed('radialWheel')
         try {
           if (seg.promptText) {
             void vscode.commands.executeCommand('vibesense.dispatchPrompt', seg.promptText)
@@ -164,6 +168,8 @@ export class RadialWheelController {
         this.panelManager.close(false)
         // Story 7.4: Increment dispatch count after successful dispatch
         void this.dispatchTracker?.increment(this.selectedIndex)
+        // Story 9.3: track radial wheel feature usage for multi-feature XP bonus (AC3)
+        this.ratioTracker?.recordFeatureUsed('radialWheel')
         try {
           if (seg.promptText) {
             void vscode.commands.executeCommand('vibesense.dispatchPrompt', seg.promptText)

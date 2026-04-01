@@ -36,7 +36,9 @@ import { loadR2PersonalSegments } from './input/radial-wheel-segments'
 import { HudPanelManager } from './panels/hud-panel'
 import { MiniGamePanelManager } from './panels/mini-game-panel'
 import { GameHighScoreStore } from './panels/game-high-score-store'
-import { SessionRatioTracker } from './stats/session-ratio-tracker'
+import { SessionRatioTracker, SESSION_HISTORY_KEY } from './stats/session-ratio-tracker'
+import { SessionHistorySchema } from './stats/session-record-schema'
+import { XpManager } from './stats/xp-manager'
 import { QuickSaveManager } from './session/quicksave-manager'
 import { StatsPanelManager } from './panels/stats-panel'
 import type { ControllerEvent, ControllerType, Session } from '../shared/types'
@@ -225,6 +227,15 @@ export function activate(context: vscode.ExtensionContext): void {
   // Story 9.2: Pass statsPanelManager so vibesense.openStats command is registered (FR42, FR43)
   registerCommands(context, slidePanelManager, modeManager, onboardingPanelManager, sessionManager, lastCommandTracker, hudPanelManager, miniGamePanelManager, quickSaveManager, statsPanelManager)
 
+  // Story 4.1: Create SettingsBridge (reads VSCode config API + writes profile atomically)
+  const settingsBridge = new SettingsBridge(workspaceRoot)
+
+  // Story 2.5: Load binding profile (file may now exist from above)
+  const bindings = loadBindings(workspaceRoot)
+
+  // Story 9.1: Controller action ratio tracker — data foundation for Epic 9 gamification
+  const ratioTracker = new SessionRatioTracker()
+
   // Story 7.4: Instantiate DispatchTracker + getR2Segments closure for live label fading
   // Must be after workspaceRoot is defined so the closure can read .vscode/vibesense.json
   const dispatchTracker = new RadialWheelDispatchTracker(context.globalState)
@@ -235,17 +246,16 @@ export function activate(context: vscode.ExtensionContext): void {
     return loadR2PersonalSegments(workspaceRoot, dispatchTracker, forceIconOnly)
   }
 
-  const radialWheelController = new RadialWheelController(radialWheelPanelManager, dispatchTracker, getR2Segments)
+  // Story 9.3: Pass ratioTracker so radial wheel dispatches are counted as feature usage (AC3)
+  const radialWheelController = new RadialWheelController(radialWheelPanelManager, dispatchTracker, getR2Segments, ratioTracker)
   context.subscriptions.push({ dispose: () => radialWheelController.dispose() })
 
-  // Story 4.1: Create SettingsBridge (reads VSCode config API + writes profile atomically)
-  const settingsBridge = new SettingsBridge(workspaceRoot)
-
-  // Story 2.5: Load binding profile (file may now exist from above)
-  const bindings = loadBindings(workspaceRoot)
-
-  // Story 9.1: Controller action ratio tracker — data foundation for Epic 9 gamification
-  const ratioTracker = new SessionRatioTracker()
+  // Story 9.3: XP, level, and streak manager — gamified session rewards (FR53)
+  const xpManager = new XpManager(context.globalState)
+  // Story 9.3: Log level-up events (Story 9.5 will wire AchievementBurst here)
+  xpManager.on('levelUp', (event: { previousLevel: number; newLevel: number; totalXp: number }) => {
+    logger.info(`VibeSense: level up! ${event.previousLevel} → ${event.newLevel} (${event.totalXp} XP)`)
+  })
 
   // Story 9.1: Keyboard action detection via text document change events (AC2)
   context.subscriptions.push(
@@ -261,9 +271,30 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
   )
 
-  // Story 9.1: Session finalization on extension deactivate via subscriptions dispose (AC3)
+  // Story 9.1 + 9.3: Session finalization on extension deactivate via subscriptions dispose (AC3)
+  // Story 9.3: After finalizing ratio, award XP based on the session record (AC1–AC4)
+  const featureCountAtDispose = () => ratioTracker.getDistinctFeatureCount()
   context.subscriptions.push({
-    dispose: () => { void ratioTracker.finalizeSession(context.globalState) },
+    dispose: () => {
+      // Capture feature count before ratioTracker state is cleared
+      const distinctFeatureCount = featureCountAtDispose()
+      void ratioTracker.finalizeSession(context.globalState).then(async () => {
+        // Read the latest session record from history to compute XP
+        try {
+          const raw = context.globalState.get<unknown>(SESSION_HISTORY_KEY)
+          const parseResult = SessionHistorySchema.safeParse(raw ?? [])
+          const history = parseResult.success ? parseResult.data : []
+          const latest = history.length > 0 ? history[history.length - 1] : undefined
+          if (latest !== undefined) {
+            await xpManager.awardSessionXp(latest, distinctFeatureCount)
+          }
+        } catch (err) {
+          logger.error('extension: XP award on session finalize failed', err)
+        }
+      }).catch((err: unknown) => {
+        logger.error('extension: session finalization failed', err)
+      })
+    },
   })
 
   // Story 4.3: Filter bindings based on current mode before passing to InputRouter (AC 1, 5).

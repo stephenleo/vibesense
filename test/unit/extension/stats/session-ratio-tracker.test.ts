@@ -482,3 +482,60 @@ describe('SessionRatioTracker — error resilience (NFR-R1)', () => {
     expect(history).toHaveLength(1)
   })
 })
+
+// ── SessionRatioTracker — feature tracking (Story 9.3 — AC3) ─────────────────
+
+describe('SessionRatioTracker — recordFeatureUsed() and getDistinctFeatureCount() (Story 9.3 — AC3)', () => {
+  it('starts with 0 distinct features', () => {
+    const tracker = new SessionRatioTracker()
+    expect(tracker.getDistinctFeatureCount()).toBe(0)
+  })
+
+  it('counts a single feature usage', () => {
+    const tracker = new SessionRatioTracker()
+    tracker.recordFeatureUsed('radialWheel')
+    expect(tracker.getDistinctFeatureCount()).toBe(1)
+  })
+
+  it('deduplicates repeated calls with the same feature name', () => {
+    const tracker = new SessionRatioTracker()
+    tracker.recordFeatureUsed('radialWheel')
+    tracker.recordFeatureUsed('radialWheel')
+    tracker.recordFeatureUsed('radialWheel')
+    expect(tracker.getDistinctFeatureCount()).toBe(1)
+  })
+
+  it('counts multiple distinct features correctly', () => {
+    const tracker = new SessionRatioTracker()
+    tracker.recordFeatureUsed('radialWheel')
+    tracker.recordFeatureUsed('sessionSwitch')
+    tracker.recordFeatureUsed('miniGame')
+    expect(tracker.getDistinctFeatureCount()).toBe(3)
+  })
+
+  it('handles all known feature categories without error', () => {
+    const tracker = new SessionRatioTracker()
+    const features = ['radialWheel', 'sessionSwitch', 'miniGame', 'voicePtt', 'quickPanel', 'hud', 'quicksave']
+    for (const feature of features) {
+      tracker.recordFeatureUsed(feature)
+    }
+    expect(tracker.getDistinctFeatureCount()).toBe(7)
+  })
+
+  it('resets feature count on reset()', () => {
+    const tracker = new SessionRatioTracker()
+    tracker.recordFeatureUsed('radialWheel')
+    tracker.recordFeatureUsed('miniGame')
+    expect(tracker.getDistinctFeatureCount()).toBe(2)
+    tracker.reset()
+    expect(tracker.getDistinctFeatureCount()).toBe(0)
+  })
+
+  it('allows feature tracking after reset (clean slate)', () => {
+    const tracker = new SessionRatioTracker()
+    tracker.recordFeatureUsed('radialWheel')
+    tracker.reset()
+    tracker.recordFeatureUsed('sessionSwitch')
+    expect(tracker.getDistinctFeatureCount()).toBe(1)
+  })
+})

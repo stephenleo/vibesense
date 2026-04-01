@@ -18,6 +18,8 @@ export class SessionRatioTracker {
   private finalized = false       // guard: finalize only once
   private keyboardDebounceTimer: ReturnType<typeof setTimeout> | undefined
   private pendingKeyboardIncrement = false
+  /** Distinct VibeSense features used this session (Story 9.3 — AC3 multi-feature XP bonus) */
+  private featuresUsed = new Set<string>()
 
   constructor() {
     this.startedAt = Date.now()
@@ -27,6 +29,20 @@ export class SessionRatioTracker {
   /** Hot path — synchronous. Called from InputRouter on every dispatched button press. */
   recordControllerAction(): void {
     this.controllerActions++
+  }
+
+  /**
+   * Record that a distinct VibeSense feature was used this session (Story 9.3 — AC3).
+   * Deduplicates by feature name — calling multiple times with the same feature is a no-op.
+   * Hot path — synchronous.
+   */
+  recordFeatureUsed(feature: string): void {
+    this.featuresUsed.add(feature)
+  }
+
+  /** Returns the number of distinct VibeSense features used this session (Story 9.3 — AC3). */
+  getDistinctFeatureCount(): number {
+    return this.featuresUsed.size
   }
 
   /** Debounced keyboard action. Called from onDidChangeTextDocument handler. */
@@ -105,5 +121,6 @@ export class SessionRatioTracker {
       this.keyboardDebounceTimer = undefined
     }
     this.pendingKeyboardIncrement = false
+    this.featuresUsed.clear()
   }
 }
