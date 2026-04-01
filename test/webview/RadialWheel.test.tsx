@@ -1,5 +1,5 @@
 // test/webview/RadialWheel.test.tsx
-// Component tests for RadialWheelApp — Story 7.1
+// Component tests for RadialWheelApp — Story 7.1 + Story 7.2 (dual-wheel)
 
 // CSS mocks must appear before imports (Vitest hoisting)
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
@@ -30,6 +30,17 @@ const mockL2Segments: WheelSegmentDef[] = [
   { index: 7, label: 'Deny', commandId: 'vibesense.deny' },
 ]
 
+const mockR2Segments: WheelSegmentDef[] = [
+  { index: 0, label: 'Refactor', commandId: 'vibesense.dispatchPrompt', promptText: 'Refactor the selected code for clarity and efficiency' },
+  { index: 1, label: 'Summarize', commandId: 'vibesense.dispatchPrompt', promptText: 'Summarize what this code does in plain English' },
+  { index: 2, label: 'Document', commandId: 'vibesense.dispatchPrompt', promptText: 'Add JSDoc comments to the selected code' },
+  { index: 3, label: 'Optimize', commandId: 'vibesense.dispatchPrompt', promptText: 'Optimize the selected code for performance' },
+  { index: 4, label: 'Review', commandId: 'vibesense.dispatchPrompt', promptText: 'Review the selected code for bugs and issues' },
+  { index: 5, label: 'Simplify', commandId: 'vibesense.dispatchPrompt', promptText: 'Simplify the selected code' },
+  { index: 6, label: 'Convert', commandId: 'vibesense.dispatchPrompt', promptText: 'Convert the selected code to TypeScript with strict types' },
+  { index: 7, label: 'Git Commit', commandId: 'vibesense.dispatchPrompt', promptText: 'Write a concise conventional commit message for my changes' },
+]
+
 /** Helper to post a host message to the component */
 function postHostMessage(data: unknown): void {
   act(() => {
@@ -48,18 +59,18 @@ describe('RadialWheelApp — initial state', () => {
 })
 
 describe('RadialWheelApp — WHEEL_OPEN message', () => {
-  // Test 2: Renders wheel on WHEEL_OPEN message
-  it('renders wheel SVG with role="menu" on WHEEL_OPEN message', () => {
+  // Test 2: Renders wheel on WHEEL_OPEN message (dual-wheel: two SVG menus present)
+  it('renders L2 Smart wheel SVG with role="menu" on WHEEL_OPEN message', () => {
     render(<RadialWheelApp />)
     postHostMessage({
       type: 'WHEEL_OPEN',
       payload: { activeWheel: 'l2', l2Segments: mockL2Segments, r2Segments: [] },
     })
-    expect(screen.getByRole('menu')).toBeInTheDocument()
+    expect(screen.getByRole('menu', { name: 'L2 Smart wheel' })).toBeInTheDocument()
   })
 
-  // Test 3: 8 segments rendered with role="menuitem"
-  it('renders 8 segments with role="menuitem" when wheel is opened', () => {
+  // Test 3: 8 segments rendered with role="menuitem" (L2 only, r2Segments empty)
+  it('renders 8 segments with role="menuitem" when L2 wheel is opened (r2 empty)', () => {
     render(<RadialWheelApp />)
     postHostMessage({
       type: 'WHEEL_OPEN',
@@ -214,14 +225,14 @@ describe('RadialWheelApp — ARIA attributes', () => {
     }
   })
 
-  it('wheel container has role="menu" with aria-label', () => {
+  it('L2 wheel SVG has role="menu" with aria-label "L2 Smart wheel"', () => {
     render(<RadialWheelApp />)
     postHostMessage({
       type: 'WHEEL_OPEN',
       payload: { activeWheel: 'l2', l2Segments: mockL2Segments, r2Segments: [] },
     })
-    const menu = screen.getByRole('menu')
-    expect(menu).toHaveAttribute('aria-label', 'Radial wheel')
+    const menu = screen.getByRole('menu', { name: 'L2 Smart wheel' })
+    expect(menu).toHaveAttribute('aria-label', 'L2 Smart wheel')
   })
 
   it('all 8 segment aria-labels use promptText when available, label otherwise', () => {
@@ -257,6 +268,158 @@ describe('RadialWheelApp — preview text for prompt segments', () => {
     const preview = container.querySelector('.radial-wheel__preview')
     expect(preview).toBeInTheDocument()
     expect(preview?.textContent).toBe('Explain the selected code')
+    vi.useRealTimers()
+  })
+})
+
+// ─── Story 7.2 — Dual Wheel Tests ─────────────────────────────────────────────
+
+describe('Story 7.2 — Dual Wheel rendering', () => {
+  // Test 7.2-1: Both wheels render when wheel is open (R2 active)
+  it('renders both L2 and R2 wheel SVGs when opened with R2 active', () => {
+    render(<RadialWheelApp />)
+    postHostMessage({
+      type: 'WHEEL_OPEN',
+      payload: { activeWheel: 'r2', l2Segments: mockL2Segments, r2Segments: mockR2Segments },
+    })
+    expect(screen.getByRole('menu', { name: 'L2 Smart wheel' })).toBeInTheDocument()
+    expect(screen.getByRole('menu', { name: 'R2 Personal wheel' })).toBeInTheDocument()
+  })
+
+  // Test 7.2-2: R2 active → R2 wrapper has active class, L2 wrapper has inactive class
+  it('R2 wheel wrapper has active class and L2 has inactive class when R2 is active', () => {
+    const { container } = render(<RadialWheelApp />)
+    postHostMessage({
+      type: 'WHEEL_OPEN',
+      payload: { activeWheel: 'r2', l2Segments: mockL2Segments, r2Segments: mockR2Segments },
+    })
+    const r2Wrapper = container.querySelector('.radial-wheel__wheel--r2')
+    const l2Wrapper = container.querySelector('.radial-wheel__wheel--l2')
+    expect(r2Wrapper).toHaveClass('radial-wheel__wheel--active')
+    expect(l2Wrapper).toHaveClass('radial-wheel__wheel--inactive')
+  })
+
+  // Test 7.2-3: L2 active → L2 wrapper has active class, R2 wrapper has inactive class
+  it('L2 wheel wrapper has active class and R2 has inactive class when L2 is active', () => {
+    const { container } = render(<RadialWheelApp />)
+    postHostMessage({
+      type: 'WHEEL_OPEN',
+      payload: { activeWheel: 'l2', l2Segments: mockL2Segments, r2Segments: mockR2Segments },
+    })
+    const l2Wrapper = container.querySelector('.radial-wheel__wheel--l2')
+    const r2Wrapper = container.querySelector('.radial-wheel__wheel--r2')
+    expect(l2Wrapper).toHaveClass('radial-wheel__wheel--active')
+    expect(r2Wrapper).toHaveClass('radial-wheel__wheel--inactive')
+  })
+
+  // Test 7.2-4: Right stick navigation controls active (R2) wheel only
+  it('right stick navigation highlights segment in R2 wheel only when R2 is active', () => {
+    const { container } = render(<RadialWheelApp />)
+    postHostMessage({
+      type: 'WHEEL_OPEN',
+      payload: { activeWheel: 'r2', l2Segments: mockL2Segments, r2Segments: mockR2Segments },
+    })
+    postHostMessage({
+      type: 'WHEEL_STICK_UPDATE',
+      payload: { x: 0, y: -1.0 }, // segment 0
+    })
+    // R2 wheel should have one active segment
+    const r2Wrapper = container.querySelector('.radial-wheel__wheel--r2')
+    const l2Wrapper = container.querySelector('.radial-wheel__wheel--l2')
+    expect(r2Wrapper?.querySelectorAll('.wheel-segment--active')).toHaveLength(1)
+    expect(l2Wrapper?.querySelectorAll('.wheel-segment--active')).toHaveLength(0)
+  })
+
+  // Test 7.2-5: Trigger swap — WHEEL_OPEN with new activeWheel while open triggers swap class
+  it('container gets radial-wheel--swapping class on trigger swap and it clears after 50ms', () => {
+    vi.useFakeTimers()
+    const { container } = render(<RadialWheelApp />)
+    // Open with L2
+    postHostMessage({
+      type: 'WHEEL_OPEN',
+      payload: { activeWheel: 'l2', l2Segments: mockL2Segments, r2Segments: mockR2Segments },
+    })
+    // Swap to R2
+    postHostMessage({
+      type: 'WHEEL_OPEN',
+      payload: { activeWheel: 'r2', l2Segments: mockL2Segments, r2Segments: mockR2Segments },
+    })
+    expect(container.querySelector('.radial-wheel--swapping')).toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(50)
+    })
+    expect(container.querySelector('.radial-wheel--swapping')).not.toBeInTheDocument()
+    vi.useRealTimers()
+  })
+
+  // Test 7.2-6: Swap resets stick selection
+  it('swap to R2 resets selection — no active segment in R2 wheel after swap', () => {
+    const { container } = render(<RadialWheelApp />)
+    // Open with L2 and select segment 2
+    postHostMessage({
+      type: 'WHEEL_OPEN',
+      payload: { activeWheel: 'l2', l2Segments: mockL2Segments, r2Segments: mockR2Segments },
+    })
+    postHostMessage({
+      type: 'WHEEL_STICK_UPDATE',
+      payload: { x: 1.0, y: 0 }, // segment 2 (right)
+    })
+    // Swap to R2
+    postHostMessage({
+      type: 'WHEEL_OPEN',
+      payload: { activeWheel: 'r2', l2Segments: mockL2Segments, r2Segments: mockR2Segments },
+    })
+    const r2Wrapper = container.querySelector('.radial-wheel__wheel--r2')
+    expect(r2Wrapper?.querySelectorAll('.wheel-segment--active')).toHaveLength(0)
+  })
+
+  // Test 7.2-7: Preview text shows for active wheel's segment only (R2 active)
+  it('preview text shows R2 segment promptText (not L2) when R2 is active', () => {
+    vi.useFakeTimers()
+    const { container } = render(<RadialWheelApp />)
+    postHostMessage({
+      type: 'WHEEL_OPEN',
+      payload: { activeWheel: 'r2', l2Segments: mockL2Segments, r2Segments: mockR2Segments },
+    })
+    postHostMessage({
+      type: 'WHEEL_STICK_UPDATE',
+      payload: { x: 0, y: -1.0 }, // segment 0
+    })
+    act(() => {
+      vi.advanceTimersByTime(200)
+    })
+    const preview = container.querySelector('.radial-wheel__preview')
+    expect(preview).toBeInTheDocument()
+    // R2 segment 0 promptText = 'Refactor the selected code for clarity and efficiency'
+    expect(preview?.textContent).toBe('Refactor the selected code for clarity and efficiency')
+    vi.useRealTimers()
+  })
+
+  // Test 7.2-8: Both wheels collapse on WHEEL_CLOSE
+  it('both wheel containers are removed from DOM after 120ms on WHEEL_CLOSE', () => {
+    vi.useFakeTimers()
+    const { container } = render(<RadialWheelApp />)
+    postHostMessage({
+      type: 'WHEEL_OPEN',
+      payload: { activeWheel: 'l2', l2Segments: mockL2Segments, r2Segments: mockR2Segments },
+    })
+    expect(container.querySelector('.radial-wheel__wheel--l2')).toBeInTheDocument()
+    expect(container.querySelector('.radial-wheel__wheel--r2')).toBeInTheDocument()
+
+    postHostMessage({
+      type: 'WHEEL_CLOSE',
+      payload: { cancelled: false },
+    })
+    // During close animation
+    expect(container.querySelector('.radial-wheel--closing')).toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(120)
+    })
+    // After 120ms, entire wheel (including both sub-wheels) removed from DOM
+    expect(container.querySelector('.radial-wheel__wheel--l2')).not.toBeInTheDocument()
+    expect(container.querySelector('.radial-wheel__wheel--r2')).not.toBeInTheDocument()
     vi.useRealTimers()
   })
 })

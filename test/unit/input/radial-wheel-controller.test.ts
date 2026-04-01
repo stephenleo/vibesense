@@ -30,7 +30,7 @@ vi.mock('../../../src/extension/logger', () => ({
 
 // ── Imports after mocks ────────────────────────────────────────────────────────
 import { RadialWheelController } from '../../../src/extension/input/radial-wheel-controller'
-import { L2_SMART_WHEEL_SEGMENTS } from '../../../src/extension/input/radial-wheel-segments'
+import { L2_SMART_WHEEL_SEGMENTS, R2_PERSONAL_WHEEL_SEGMENTS } from '../../../src/extension/input/radial-wheel-segments'
 import { computeWheelSegmentIndex } from '../../../src/shared/constants'
 import type { WheelSegmentDef } from '../../../src/shared/types'
 
@@ -41,6 +41,7 @@ function makeMockPanelManager() {
     open: vi.fn(),
     updateStick: vi.fn(),
     close: vi.fn(),
+    swap: vi.fn(),
     dispose: vi.fn(),
   }
 }
@@ -68,7 +69,7 @@ describe('RadialWheelController', () => {
     it('calls panelManager.open with l2 and L2 segments on L2 press', () => {
       controller.handleEvent({ kind: 'button', button: 'l2', pressed: true })
       expect(panelManager.open).toHaveBeenCalledOnce()
-      expect(panelManager.open).toHaveBeenCalledWith('l2', L2_SMART_WHEEL_SEGMENTS, [])
+      expect(panelManager.open).toHaveBeenCalledWith('l2', L2_SMART_WHEEL_SEGMENTS, R2_PERSONAL_WHEEL_SEGMENTS)
     })
 
     it('does not open panel on L2 release without prior press', () => {
@@ -82,7 +83,7 @@ describe('RadialWheelController', () => {
     it('calls panelManager.open with l2 and L2 segments on LT press', () => {
       controller.handleEvent({ kind: 'button', button: 'lt', pressed: true })
       expect(panelManager.open).toHaveBeenCalledOnce()
-      expect(panelManager.open).toHaveBeenCalledWith('l2', L2_SMART_WHEEL_SEGMENTS, [])
+      expect(panelManager.open).toHaveBeenCalledWith('l2', L2_SMART_WHEEL_SEGMENTS, R2_PERSONAL_WHEEL_SEGMENTS)
     })
   })
 
@@ -262,6 +263,139 @@ describe('RadialWheelController', () => {
       const nonPromptSegments = L2_SMART_WHEEL_SEGMENTS.filter((s: WheelSegmentDef) => !s.promptText)
       for (const seg of nonPromptSegments) {
         expect(seg.commandId).not.toBe('vibesense.dispatchPrompt')
+      }
+    })
+  })
+
+  // ── Story 7.2: R2 Personal Wheel & Trigger Swap ───────────────────────────────
+
+  // 7.2-1: R2 press opens panel with R2 as active wheel
+  describe('R2 press opens panel with R2 as active wheel', () => {
+    it('calls panelManager.open with r2 and both segment arrays on R2 press', () => {
+      controller.handleEvent({ kind: 'button', button: 'r2', pressed: true })
+      expect(panelManager.open).toHaveBeenCalledOnce()
+      expect(panelManager.open).toHaveBeenCalledWith('r2', L2_SMART_WHEEL_SEGMENTS, R2_PERSONAL_WHEEL_SEGMENTS)
+    })
+  })
+
+  // 7.2-2: RT press opens panel (Xbox)
+  describe('RT press opens panel — Xbox controller', () => {
+    it('calls panelManager.open with r2 on RT press', () => {
+      controller.handleEvent({ kind: 'button', button: 'rt', pressed: true })
+      expect(panelManager.open).toHaveBeenCalledOnce()
+      expect(panelManager.open).toHaveBeenCalledWith('r2', L2_SMART_WHEEL_SEGMENTS, R2_PERSONAL_WHEEL_SEGMENTS)
+    })
+  })
+
+  // 7.2-3: R2 release with segment selected dispatches from R2 segments
+  describe('R2 release with segment selected dispatches from R2 segments', () => {
+    it('dispatches vibesense.dispatchPrompt with R2 segment 3 promptText on R2 release', () => {
+      controller.handleEvent({ kind: 'button', button: 'r2', pressed: true })
+      // Segment 3 = bottom-right direction: x=0.5, y=1.0 → atan2(1.0,0.5)=63.4° → +90°=153.4° → index 3
+      controller.handleEvent({ kind: 'axis', axis: 'right_x', value: 0.5 })
+      controller.handleEvent({ kind: 'axis', axis: 'right_y', value: 1.0 })
+      controller.handleEvent({ kind: 'button', button: 'r2', pressed: false })
+      expect(panelManager.close).toHaveBeenCalledWith(false)
+      expect(mockExecuteCommand).toHaveBeenCalledWith(
+        'vibesense.dispatchPrompt',
+        R2_PERSONAL_WHEEL_SEGMENTS[3].promptText,
+      )
+    })
+  })
+
+  // 7.2-4: Trigger swap — L2 held, R2 pressed → swap to R2
+  describe('trigger swap — L2 held, R2 pressed', () => {
+    it('calls panelManager.swap with r2 when R2 pressed while L2 held', () => {
+      controller.handleEvent({ kind: 'button', button: 'l2', pressed: true })
+      controller.handleEvent({ kind: 'button', button: 'r2', pressed: true })
+      expect(panelManager.swap).toHaveBeenCalledWith('r2', L2_SMART_WHEEL_SEGMENTS, R2_PERSONAL_WHEEL_SEGMENTS)
+      expect(panelManager.open).toHaveBeenCalledOnce() // only first open, not second
+    })
+  })
+
+  // 7.2-5: Trigger swap — R2 held, L2 pressed → swap to L2
+  describe('trigger swap — R2 held, L2 pressed', () => {
+    it('calls panelManager.swap with l2 when L2 pressed while R2 held', () => {
+      controller.handleEvent({ kind: 'button', button: 'r2', pressed: true })
+      controller.handleEvent({ kind: 'button', button: 'l2', pressed: true })
+      expect(panelManager.swap).toHaveBeenCalledWith('l2', L2_SMART_WHEEL_SEGMENTS, R2_PERSONAL_WHEEL_SEGMENTS)
+      expect(panelManager.open).toHaveBeenCalledOnce() // only first open
+    })
+  })
+
+  // 7.2-6: AC3 — Releasing receded trigger (L2 active, R2 receded) — no dispatch
+  describe('AC3 — releasing receded R2 trigger when L2 is active', () => {
+    it('does not dispatch when R2 is released while R2 is the receded trigger', () => {
+      // L2 pressed (active), R2 pressed (swap to R2 active), then L2 pressed again (swap back to L2 active)
+      controller.handleEvent({ kind: 'button', button: 'l2', pressed: true })
+      controller.handleEvent({ kind: 'button', button: 'r2', pressed: true }) // swap → R2 active
+      controller.handleEvent({ kind: 'button', button: 'l2', pressed: true }) // swap → L2 active
+      // Now L2 is active, R2 is receded (r2Held = true)
+      controller.handleEvent({ kind: 'button', button: 'r2', pressed: false }) // release receded R2
+      expect(panelManager.close).not.toHaveBeenCalled()
+      expect(mockExecuteCommand).not.toHaveBeenCalled()
+    })
+  })
+
+  // 7.2-7: AC3 — Releasing receded trigger (R2 active, L2 receded) — no dispatch
+  describe('AC3 — releasing receded L2 trigger when R2 is active', () => {
+    it('does not dispatch when L2 is released while L2 is the receded trigger', () => {
+      // R2 pressed (R2 active), L2 pressed (swap → L2 active), R2 pressed (swap → R2 active)
+      controller.handleEvent({ kind: 'button', button: 'r2', pressed: true }) // R2 active
+      controller.handleEvent({ kind: 'button', button: 'l2', pressed: true }) // swap → L2 active
+      controller.handleEvent({ kind: 'button', button: 'r2', pressed: true }) // swap → R2 active
+      // Now R2 is active, L2 is receded (l2Held = true)
+      controller.handleEvent({ kind: 'button', button: 'l2', pressed: false }) // release receded L2
+      expect(panelManager.close).not.toHaveBeenCalled()
+      expect(mockExecuteCommand).not.toHaveBeenCalled()
+    })
+  })
+
+  // 7.2-8: Right stick ignored when both triggers released
+  describe('right stick ignored when both triggers released', () => {
+    it('does not call panelManager.updateStick when neither L2 nor R2 is held', () => {
+      controller.handleEvent({ kind: 'axis', axis: 'right_x', value: 0.9 })
+      expect(panelManager.updateStick).not.toHaveBeenCalled()
+    })
+  })
+
+  // 7.2-9: Right stick works when R2 held
+  describe('right stick works when R2 held', () => {
+    it('calls panelManager.updateStick when right_x axis event fires after R2 press', () => {
+      controller.handleEvent({ kind: 'button', button: 'r2', pressed: true })
+      controller.handleEvent({ kind: 'axis', axis: 'right_x', value: 0.8 })
+      expect(panelManager.updateStick).toHaveBeenCalledWith(0.8, 0)
+    })
+  })
+
+  // 7.2-10: Dispose clears state correctly after R2 held
+  describe('dispose() after R2 held', () => {
+    it('does not throw when disposed after R2 press', () => {
+      controller.handleEvent({ kind: 'button', button: 'r2', pressed: true })
+      expect(() => controller.dispose()).not.toThrow()
+    })
+  })
+
+  // ── R2 segments data ──────────────────────────────────────────────────────────
+  describe('R2 Personal Wheel segments', () => {
+    it('has exactly 8 segments', () => {
+      expect(R2_PERSONAL_WHEEL_SEGMENTS).toHaveLength(8)
+    })
+
+    it('has segment indices 0–7', () => {
+      const indices = R2_PERSONAL_WHEEL_SEGMENTS.map((s: WheelSegmentDef) => s.index)
+      expect(indices).toEqual([0, 1, 2, 3, 4, 5, 6, 7])
+    })
+
+    it('all R2 segments have promptText defined', () => {
+      for (const seg of R2_PERSONAL_WHEEL_SEGMENTS) {
+        expect(seg.promptText).toBeTruthy()
+      }
+    })
+
+    it('all R2 segments use vibesense.dispatchPrompt commandId', () => {
+      for (const seg of R2_PERSONAL_WHEEL_SEGMENTS) {
+        expect(seg.commandId).toBe('vibesense.dispatchPrompt')
       }
     })
   })

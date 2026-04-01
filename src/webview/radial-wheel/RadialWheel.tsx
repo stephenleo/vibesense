@@ -1,5 +1,5 @@
 // src/webview/radial-wheel/RadialWheel.tsx
-// Top-level radial wheel app component (Story 7.1)
+// Top-level radial wheel app component (Story 7.1 / Story 7.2 dual-layer)
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { WheelSegment } from './WheelSegment'
@@ -29,7 +29,11 @@ const CENTER = SVG_SIZE / 2
 const WHEEL_RADIUS = 170
 
 /**
- * Top-level radial wheel React app.
+ * Top-level radial wheel React app (Story 7.2 — Dual Layered Wheel).
+ *
+ * Renders both L2 Smart Wheel and R2 Personal Wheel simultaneously.
+ * The active wheel is centered (full size, full opacity); the inactive wheel is
+ * offset, scaled down, and blurred (UX-DR1 dual layered wheel spec).
  *
  * Listens to HostMessages from the extension host and renders the wheel overlay.
  * Emits WHEEL_SEGMENT_SELECTED messages for haptic tick events when selection changes.
@@ -42,9 +46,11 @@ export function RadialWheelApp(): React.ReactElement | null {
   const [r2Segments, setR2Segments] = useState<WheelSegmentDef[]>([])
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const [previewIndex, setPreviewIndex] = useState(-1)
+  const [isSwapping, setIsSwapping] = useState(false)
 
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const swapTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   // Notify host when segment selection changes (for haptic tick)
   const notifySegmentSelected = useCallback((index: number) => {
@@ -116,6 +122,22 @@ export function RadialWheelApp(): React.ReactElement | null {
           clearTimeout(previewTimerRef.current)
           previewTimerRef.current = undefined
         }
+
+        // Detect trigger swap: wheel already open and activeWheel changed
+        if (wheelState === 'open' && msg.payload.activeWheel !== activeWheel) {
+          // This is a trigger swap — apply swap transition class for ~50ms
+          if (swapTimerRef.current !== undefined) {
+            clearTimeout(swapTimerRef.current)
+          }
+          setIsSwapping(true)
+          swapTimerRef.current = setTimeout(() => {
+            setIsSwapping(false)
+            swapTimerRef.current = undefined
+          }, 50)
+        } else {
+          setIsSwapping(false)
+        }
+
         setActiveWheel(msg.payload.activeWheel)
         setL2Segments(msg.payload.l2Segments)
         setR2Segments(msg.payload.r2Segments)
@@ -133,7 +155,7 @@ export function RadialWheelApp(): React.ReactElement | null {
     return () => {
       window.removeEventListener('message', handler)
     }
-  }, [handleStickUpdate, handleClose])
+  }, [wheelState, activeWheel, handleStickUpdate, handleClose])
 
   // Cleanup timers on unmount
   useEffect(() => {
@@ -144,6 +166,9 @@ export function RadialWheelApp(): React.ReactElement | null {
       if (closeTimerRef.current !== undefined) {
         clearTimeout(closeTimerRef.current)
       }
+      if (swapTimerRef.current !== undefined) {
+        clearTimeout(swapTimerRef.current)
+      }
     }
   }, [])
 
@@ -151,40 +176,84 @@ export function RadialWheelApp(): React.ReactElement | null {
     return null
   }
 
-  // Determine which segments to display for the active wheel
-  const activeSegments = activeWheel === 'l2' ? l2Segments : r2Segments
+  const isL2Active = activeWheel === 'l2'
 
-  // Preview text: show label of preview segment
-  const previewSegment =
-    previewIndex >= 0 ? activeSegments.find((s) => s.index === previewIndex) : undefined
+  // Preview text: show for active wheel's selected segment only
+  const activeSegments = isL2Active ? l2Segments : r2Segments
+  const previewSegment = previewIndex >= 0 ? activeSegments.find((s) => s.index === previewIndex) : undefined
 
   const containerClass = [
     'radial-wheel',
     wheelState === 'closing' ? 'radial-wheel--closing' : 'radial-wheel--open',
+    isSwapping ? 'radial-wheel--swapping' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  const l2WheelClass = [
+    'radial-wheel__wheel',
+    'radial-wheel__wheel--l2',
+    isL2Active ? 'radial-wheel__wheel--active' : 'radial-wheel__wheel--inactive',
+  ].join(' ')
+
+  const r2WheelClass = [
+    'radial-wheel__wheel',
+    'radial-wheel__wheel--r2',
+    !isL2Active ? 'radial-wheel__wheel--active' : 'radial-wheel__wheel--inactive',
   ].join(' ')
 
   return (
     <div className={containerClass}>
-      <svg
-        className="radial-wheel__svg"
-        viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`}
-        role="menu"
-        aria-label="Radial wheel"
-      >
-        {activeSegments.map((seg) => (
-          <WheelSegment
-            key={seg.index}
-            index={seg.index}
-            label={seg.label}
-            promptText={seg.promptText}
-            isActive={seg.index === selectedIndex}
-            isPreview={seg.index === previewIndex}
-            centerX={CENTER}
-            centerY={CENTER}
-            radius={WHEEL_RADIUS}
-          />
-        ))}
-      </svg>
+      <div className="radial-wheel__stage">
+        {/* L2 Smart Wheel */}
+        <div className={l2WheelClass}>
+          <svg
+            className="radial-wheel__svg"
+            viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`}
+            role="menu"
+            aria-label="L2 Smart wheel"
+          >
+            {l2Segments.map((seg) => (
+              <WheelSegment
+                key={seg.index}
+                index={seg.index}
+                label={seg.label}
+                promptText={seg.promptText}
+                isActive={isL2Active && seg.index === selectedIndex}
+                isPreview={isL2Active && seg.index === previewIndex}
+                centerX={CENTER}
+                centerY={CENTER}
+                radius={WHEEL_RADIUS}
+              />
+            ))}
+          </svg>
+        </div>
+
+        {/* R2 Personal Wheel */}
+        <div className={r2WheelClass}>
+          <svg
+            className="radial-wheel__svg"
+            viewBox={`0 0 ${SVG_SIZE} ${SVG_SIZE}`}
+            role="menu"
+            aria-label="R2 Personal wheel"
+          >
+            {r2Segments.map((seg) => (
+              <WheelSegment
+                key={seg.index}
+                index={seg.index}
+                label={seg.label}
+                promptText={seg.promptText}
+                isActive={!isL2Active && seg.index === selectedIndex}
+                isPreview={!isL2Active && seg.index === previewIndex}
+                centerX={CENTER}
+                centerY={CENTER}
+                radius={WHEEL_RADIUS}
+              />
+            ))}
+          </svg>
+        </div>
+      </div>
+
       {previewSegment && (
         <div className="radial-wheel__preview" aria-live="polite">
           {previewSegment.promptText ?? previewSegment.label}
