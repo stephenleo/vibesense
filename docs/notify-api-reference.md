@@ -50,6 +50,8 @@ Audio tone via DualSense speaker:
 - `error` — error sound
 - `none` — no audio output
 
+**Note:** Audio notifications are not yet implemented. All drivers currently treat `playAudio()` as a no-op; this field is accepted and dispatched but produces no sound.
+
 ### `priority` (optional, default: `normal`)
 Reserved for Do Not Disturb mode (Story 6.5). Currently all priorities execute.
 
