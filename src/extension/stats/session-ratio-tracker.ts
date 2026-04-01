@@ -99,6 +99,7 @@ export class SessionRatioTracker {
   reset(): void {
     this.controllerActions = 0
     this.keyboardActions = 0
+    this.finalized = false
     if (this.keyboardDebounceTimer !== undefined) {
       clearTimeout(this.keyboardDebounceTimer)
       this.keyboardDebounceTimer = undefined

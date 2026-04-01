@@ -350,8 +350,7 @@ describe('SessionRatioTracker — reset() (AC6)', () => {
     tracker.reset()
 
     const globalState = makeGlobalState()
-    // Need a fresh tracker to finalize since reset() doesn't reset finalized flag
-    // reset() is for reuse within a session — verify counters via getCurrentStats()
+    // Verify counters via getCurrentStats()
     const stats = tracker.getCurrentStats()
     expect(stats.controllerActions).toBe(0)
   })
@@ -376,6 +375,23 @@ describe('SessionRatioTracker — reset() (AC6)', () => {
     // After reset, counters should be zero
     const stats = tracker.getCurrentStats()
     expect(stats.keyboardActions).toBe(0)
+  })
+
+  it('resets finalized flag so tracker can be reused for a new session', async () => {
+    const tracker = new SessionRatioTracker()
+    const globalState = makeGlobalState()
+    tracker.recordControllerAction()
+    await tracker.finalizeSession(globalState)
+
+    // After finalize, reset should allow a second finalization
+    tracker.reset()
+    tracker.recordControllerAction()
+    tracker.recordControllerAction()
+    await tracker.finalizeSession(globalState)
+
+    const history = getStoredHistory(globalState)
+    expect(history).toHaveLength(2)
+    expect(history[1].controllerActions).toBe(2)
   })
 
   it('clean slate on activate: starts at zero (AC6)', () => {
