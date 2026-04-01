@@ -169,12 +169,13 @@ describe('registerCommands', () => {
       } as unknown as import('vscode').ExtensionContext
 
       registerCommands(fakeContext, fakeSlidePanelManager, fakeModeManager, fakeOnboardingPanelManager, fakeSessionManager, fakeLastCommandTracker)
-      // 18 commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt,
+      // 19 commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt,
       // switchSessionNext, switchSessionPrev, openQuickPanel, switchToSession,
       // quickPanelNext, quickPanelPrev, completeTutorial, startOnboarding,
       // openErrorMenu, errorRetryLastCommand, errorClearTerminal, errorViewLog,
-      // dispatchPrompt, openRadialWheel (Story 7.1)
-      expect(fakeSubscriptions).toHaveLength(18)
+      // dispatchPrompt, openRadialWheel (Story 7.1),
+      // toggleHud (Story 7.3)
+      expect(fakeSubscriptions).toHaveLength(19)
     })
   })
 
