@@ -199,6 +199,49 @@ describe('HUDOverlay — empty bindings state', () => {
   })
 })
 
+describe('HUDOverlay — Streaming Mode (Story 10.1, AC1/AC2/AC3/AC5)', () => {
+  it('renders StreamingOverlay when STREAMING_MODE_TOGGLED enabled=true', () => {
+    render(<HUDOverlay />)
+    dispatchHostMessage({ type: 'STREAMING_MODE_TOGGLED', payload: { enabled: true } })
+    expect(screen.getByRole('region', { name: 'VibeSense Streaming Overlay' })).toBeInTheDocument()
+  })
+
+  it('does not render StreamingOverlay by default', () => {
+    render(<HUDOverlay />)
+    expect(screen.queryByRole('region', { name: 'VibeSense Streaming Overlay' })).not.toBeInTheDocument()
+  })
+
+  it('unmounts StreamingOverlay when STREAMING_MODE_TOGGLED enabled=false', () => {
+    render(<HUDOverlay />)
+    dispatchHostMessage({ type: 'STREAMING_MODE_TOGGLED', payload: { enabled: true } })
+    expect(screen.getByRole('region', { name: 'VibeSense Streaming Overlay' })).toBeInTheDocument()
+    dispatchHostMessage({ type: 'STREAMING_MODE_TOGGLED', payload: { enabled: false } })
+    expect(screen.queryByRole('region', { name: 'VibeSense Streaming Overlay' })).not.toBeInTheDocument()
+  })
+
+  it('passes sessions to StreamingOverlay on STREAMING_SESSION_STATE_CHANGED', () => {
+    render(<HUDOverlay />)
+    dispatchHostMessage({ type: 'STREAMING_MODE_TOGGLED', payload: { enabled: true } })
+    dispatchHostMessage({
+      type: 'STREAMING_SESSION_STATE_CHANGED',
+      payload: {
+        sessions: [
+          { sessionId: 'abc', agentState: 'processing', label: 'Agent1' },
+        ],
+      },
+    })
+    expect(screen.getByLabelText('Session Agent1: processing')).toBeInTheDocument()
+  })
+
+  it('shows standard HUD and StreamingOverlay simultaneously when both enabled', () => {
+    render(<HUDOverlay />)
+    dispatchHostMessage({ type: 'HUD_TOGGLE', payload: { visible: true } })
+    dispatchHostMessage({ type: 'STREAMING_MODE_TOGGLED', payload: { enabled: true } })
+    expect(screen.getByRole('region', { name: 'VibeSense Button Map' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'VibeSense Streaming Overlay' })).toBeInTheDocument()
+  })
+})
+
 describe('HUDOverlay — ControllerIcon per row', () => {
   it('renders a ControllerIcon (svg img) for each binding row', () => {
     const { container } = render(<HUDOverlay />)

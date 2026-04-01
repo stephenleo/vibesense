@@ -4,12 +4,13 @@
 
 import * as vscode from 'vscode'
 import { logger } from '../logger'
-import type { ControllerType } from '../../shared/types'
+import type { ControllerType, Session } from '../../shared/types'
 import type { BindingMap, BindingMode } from '../input/default-bindings'
 
 export class HudPanelManager implements vscode.Disposable {
   private panel: vscode.WebviewPanel | undefined
   private visible = false
+  private streamingMode = false  // Story 10.1: Streaming Mode state
 
   constructor(private readonly context: vscode.ExtensionContext) {}
 
@@ -75,7 +76,70 @@ export class HudPanelManager implements vscode.Disposable {
     logger.info('HudPanelManager: mode changed to', mode)
   }
 
+  /**
+   * Story 10.1: Returns current streaming mode state.
+   */
+  isStreamingMode(): boolean {
+    return this.streamingMode
+  }
+
+  /**
+   * Story 10.1: Toggle Streaming Mode (CINEMA overlay).
+   * Sends STREAMING_MODE_TOGGLED to webview; optionally pushes bindings when enabling.
+   * Returns new streaming mode state.
+   */
+  toggleStreamingMode(
+    enabled: boolean,
+    bindings?: BindingMap,
+    controllerType?: ControllerType | null,
+    mode?: BindingMode,
+  ): boolean {
+    if (enabled) {
+      this.ensurePanelExists()
+    }
+    this.streamingMode = enabled
+    if (!this.panel) return this.streamingMode
+    this.panel.webview.postMessage({
+      type: 'STREAMING_MODE_TOGGLED',
+      payload: { enabled },
+    }).then(
+      undefined,
+      (err: unknown) => logger.error('HudPanelManager: postMessage failed (streamingMode)', err),
+    )
+    if (enabled && bindings !== undefined) {
+      this.panel.webview.postMessage({
+        type: 'STREAMING_BINDINGS_UPDATED',
+        payload: {
+          bindings: bindings as Record<string, string>,
+          controllerType: controllerType ?? null,
+          mode: mode ?? 'guided',
+        },
+      }).then(
+        undefined,
+        (err: unknown) => logger.error('HudPanelManager: postMessage failed (streamingBindings)', err),
+      )
+    }
+    logger.info(`HudPanelManager: streaming mode ${enabled ? 'enabled' : 'disabled'}`)
+    return this.streamingMode
+  }
+
+  /**
+   * Story 10.1: Forward session state to streaming overlay when streaming is active.
+   * No-op when streaming is disabled.
+   */
+  updateSessionState(sessions: Session[]): void {
+    if (!this.streamingMode || !this.panel) return
+    this.panel.webview.postMessage({
+      type: 'STREAMING_SESSION_STATE_CHANGED',
+      payload: { sessions },
+    }).then(
+      undefined,
+      (err: unknown) => logger.error('HudPanelManager: postMessage failed (streamingSessions)', err),
+    )
+  }
+
   dispose(): void {
+    this.streamingMode = false  // Story 10.1: reset streaming state on dispose
     this.panel?.dispose()
     this.panel = undefined
     logger.info('HudPanelManager: disposed')
@@ -99,6 +163,7 @@ export class HudPanelManager implements vscode.Disposable {
         logger.info('HudPanelManager: panel disposed externally')
         this.panel = undefined
         this.visible = false
+        this.streamingMode = false
       })
     } catch (err) {
       logger.error('HudPanelManager: failed to create panel', err)

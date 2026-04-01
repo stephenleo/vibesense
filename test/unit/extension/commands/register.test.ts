@@ -170,7 +170,7 @@ describe('registerCommands', () => {
       } as unknown as import('vscode').ExtensionContext
 
       registerCommands(fakeContext, fakeSlidePanelManager, fakeModeManager, fakeOnboardingPanelManager, fakeSessionManager, fakeLastCommandTracker)
-      // 22 commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt,
+      // 25 commands: openTerminal, launchClaudeCode, launchCopilotChat, voicePtt,
       // switchSessionNext, switchSessionPrev, openQuickPanel, switchToSession,
       // quickPanelNext, quickPanelPrev, completeTutorial, startOnboarding,
       // openErrorMenu, errorRetryLastCommand, errorClearTerminal, errorViewLog,
@@ -178,8 +178,9 @@ describe('registerCommands', () => {
       // toggleHud (Story 7.3),
       // toggleGame (Story 8.1),
       // quicksave (Story 9.6),
-      // openStats (Story 9.2)
-      expect(fakeSubscriptions).toHaveLength(22)
+      // openStats (Story 9.2),
+      // toggleStreamingMode, enableStreamingMode, disableStreamingMode (Story 10.1)
+      expect(fakeSubscriptions).toHaveLength(25)
     })
   })
 

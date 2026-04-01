@@ -354,5 +354,41 @@ export function registerCommands(
         // NFR-R1: swallow — never propagate to VSCode process
       }
     }),
+
+    // Story 10.1: Toggle Streaming Mode (CINEMA overlay) — toggles current state
+    vscode.commands.registerCommand('vibesense.toggleStreamingMode', () => {
+      try {
+        if (!hudPanelManager) return
+        const newState = hudPanelManager.toggleStreamingMode(!hudPanelManager.isStreamingMode())
+        logger.info(`vibesense.toggleStreamingMode: streaming mode is now ${newState ? 'enabled' : 'disabled'}`)
+      } catch (err) {
+        logger.error('vibesense.toggleStreamingMode: failed', err)
+        // NFR-R1: swallow — never propagate to VSCode process
+      }
+    }),
+
+    // Story 10.1: Enable Streaming Mode alias (always enables)
+    vscode.commands.registerCommand('vibesense.enableStreamingMode', () => {
+      try {
+        if (!hudPanelManager) return
+        hudPanelManager.toggleStreamingMode(true)
+        logger.info('vibesense.enableStreamingMode: streaming mode enabled')
+      } catch (err) {
+        logger.error('vibesense.enableStreamingMode: failed', err)
+        // NFR-R1: swallow — never propagate to VSCode process
+      }
+    }),
+
+    // Story 10.1: Disable Streaming Mode alias (always disables)
+    vscode.commands.registerCommand('vibesense.disableStreamingMode', () => {
+      try {
+        if (!hudPanelManager) return
+        hudPanelManager.toggleStreamingMode(false)
+        logger.info('vibesense.disableStreamingMode: streaming mode disabled')
+      } catch (err) {
+        logger.error('vibesense.disableStreamingMode: failed', err)
+        // NFR-R1: swallow — never propagate to VSCode process
+      }
+    }),
   )
 }

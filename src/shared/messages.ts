@@ -250,6 +250,27 @@ export const HostMessageSchema = z.discriminatedUnion('type', [
       bindings: z.record(z.string(), z.string()),
     }),
   }),
+  // Story 10.1: Streaming Mode messages — Host → Webview
+  z.object({
+    type: z.literal('STREAMING_MODE_TOGGLED'),
+    payload: z.object({
+      enabled: z.boolean(),
+    }),
+  }),
+  z.object({
+    type: z.literal('STREAMING_BINDINGS_UPDATED'),
+    payload: z.object({
+      bindings: z.record(z.string(), z.string()),
+      controllerType: ControllerTypeSchema.nullable(),
+      mode: z.enum(['guided', 'full']),
+    }),
+  }),
+  z.object({
+    type: z.literal('STREAMING_SESSION_STATE_CHANGED'),
+    payload: z.object({
+      sessions: z.array(SessionSchema),
+    }),
+  }),
 ])
 
 export type HostMessage = z.infer<typeof HostMessageSchema>
