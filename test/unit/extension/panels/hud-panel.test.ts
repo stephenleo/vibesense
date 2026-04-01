@@ -223,6 +223,130 @@ describe('HudPanelManager — notifyButtonPressed (Story 10.2, AC3)', () => {
   })
 })
 
+describe('HudPanelManager — notifyStreamingWheelOpen (Story 10.3)', () => {
+  beforeEach(() => {
+    mockState.postedMessages.length = 0
+    mockState.postMessage.mockClear()
+  })
+
+  it('no-ops when streaming is disabled', async () => {
+    const manager = new HudPanelManager(makeContext() as never)
+    manager.toggle() // creates panel but streaming disabled
+    mockState.postedMessages.length = 0
+    manager.notifyStreamingWheelOpen('l2', [], [])
+    await Promise.resolve()
+    const msg = mockState.postedMessages.find(
+      (m) => (m as { type: string }).type === 'STREAMING_WHEEL_OPEN',
+    )
+    expect(msg).toBeUndefined()
+  })
+
+  it('sends STREAMING_WHEEL_OPEN when streaming is enabled', async () => {
+    const manager = new HudPanelManager(makeContext() as never)
+    manager.toggleStreamingMode(true)
+    mockState.postedMessages.length = 0
+    const l2Segs = [{ index: 0, label: 'Test', commandId: 'vibesense.test' }]
+    manager.notifyStreamingWheelOpen('l2', l2Segs, [])
+    await Promise.resolve()
+    const msg = mockState.postedMessages.find(
+      (m) => (m as { type: string }).type === 'STREAMING_WHEEL_OPEN',
+    ) as { type: string; payload: { activeWheel: string; l2Segments: unknown[]; selectedIndex: number } } | undefined
+    expect(msg).toBeDefined()
+    expect(msg?.payload.activeWheel).toBe('l2')
+    expect(msg?.payload.l2Segments).toEqual(l2Segs)
+    expect(msg?.payload.selectedIndex).toBe(-1)
+  })
+
+  it('sends STREAMING_WHEEL_OPEN with r2 activeWheel', async () => {
+    const manager = new HudPanelManager(makeContext() as never)
+    manager.toggleStreamingMode(true)
+    mockState.postedMessages.length = 0
+    manager.notifyStreamingWheelOpen('r2', [], [])
+    await Promise.resolve()
+    const msg = mockState.postedMessages.find(
+      (m) => (m as { type: string }).type === 'STREAMING_WHEEL_OPEN',
+    ) as { type: string; payload: { activeWheel: string } } | undefined
+    expect(msg?.payload.activeWheel).toBe('r2')
+  })
+})
+
+describe('HudPanelManager — notifyStreamingWheelStickUpdate (Story 10.3)', () => {
+  beforeEach(() => {
+    mockState.postedMessages.length = 0
+    mockState.postMessage.mockClear()
+  })
+
+  it('no-ops when streaming is disabled', async () => {
+    const manager = new HudPanelManager(makeContext() as never)
+    manager.toggle()
+    mockState.postedMessages.length = 0
+    manager.notifyStreamingWheelStickUpdate(3)
+    await Promise.resolve()
+    const msg = mockState.postedMessages.find(
+      (m) => (m as { type: string }).type === 'STREAMING_WHEEL_STICK_UPDATE',
+    )
+    expect(msg).toBeUndefined()
+  })
+
+  it('sends STREAMING_WHEEL_STICK_UPDATE with correct selectedIndex', async () => {
+    const manager = new HudPanelManager(makeContext() as never)
+    manager.toggleStreamingMode(true)
+    mockState.postedMessages.length = 0
+    manager.notifyStreamingWheelStickUpdate(5)
+    await Promise.resolve()
+    const msg = mockState.postedMessages.find(
+      (m) => (m as { type: string }).type === 'STREAMING_WHEEL_STICK_UPDATE',
+    ) as { type: string; payload: { selectedIndex: number } } | undefined
+    expect(msg).toBeDefined()
+    expect(msg?.payload.selectedIndex).toBe(5)
+  })
+})
+
+describe('HudPanelManager — notifyStreamingWheelClose (Story 10.3)', () => {
+  beforeEach(() => {
+    mockState.postedMessages.length = 0
+    mockState.postMessage.mockClear()
+  })
+
+  it('no-ops when streaming is disabled', async () => {
+    const manager = new HudPanelManager(makeContext() as never)
+    manager.toggle()
+    mockState.postedMessages.length = 0
+    manager.notifyStreamingWheelClose(true)
+    await Promise.resolve()
+    const msg = mockState.postedMessages.find(
+      (m) => (m as { type: string }).type === 'STREAMING_WHEEL_CLOSE',
+    )
+    expect(msg).toBeUndefined()
+  })
+
+  it('sends STREAMING_WHEEL_CLOSE with dispatched=true on dispatch', async () => {
+    const manager = new HudPanelManager(makeContext() as never)
+    manager.toggleStreamingMode(true)
+    mockState.postedMessages.length = 0
+    manager.notifyStreamingWheelClose(true)
+    await Promise.resolve()
+    const msg = mockState.postedMessages.find(
+      (m) => (m as { type: string }).type === 'STREAMING_WHEEL_CLOSE',
+    ) as { type: string; payload: { dispatched: boolean } } | undefined
+    expect(msg).toBeDefined()
+    expect(msg?.payload.dispatched).toBe(true)
+  })
+
+  it('sends STREAMING_WHEEL_CLOSE with dispatched=false on cancel', async () => {
+    const manager = new HudPanelManager(makeContext() as never)
+    manager.toggleStreamingMode(true)
+    mockState.postedMessages.length = 0
+    manager.notifyStreamingWheelClose(false)
+    await Promise.resolve()
+    const msg = mockState.postedMessages.find(
+      (m) => (m as { type: string }).type === 'STREAMING_WHEEL_CLOSE',
+    ) as { type: string; payload: { dispatched: boolean } } | undefined
+    expect(msg).toBeDefined()
+    expect(msg?.payload.dispatched).toBe(false)
+  })
+})
+
 describe('HudPanelManager — dispose resets streaming state (Story 10.1)', () => {
   it('resets streamingMode to false on dispose', () => {
     const manager = new HudPanelManager(makeContext() as never)

@@ -4,7 +4,7 @@
 
 import * as vscode from 'vscode'
 import { logger } from '../logger'
-import type { ButtonId, ControllerType, Session } from '../../shared/types'
+import type { ButtonId, ControllerType, Session, WheelSegmentDef } from '../../shared/types'
 import type { BindingMap, BindingMode } from '../input/default-bindings'
 
 export class HudPanelManager implements vscode.Disposable {
@@ -150,6 +150,55 @@ export class HudPanelManager implements vscode.Disposable {
     }).then(
       undefined,
       (err: unknown) => logger.error('HudPanelManager: postMessage failed (streamingSessions)', err),
+    )
+  }
+
+  /**
+   * Story 10.3: Forward streaming wheel open event to HUD webview.
+   * No-op when streaming is disabled or panel not created.
+   */
+  notifyStreamingWheelOpen(
+    activeWheel: 'l2' | 'r2',
+    l2Segments: WheelSegmentDef[],
+    r2Segments: WheelSegmentDef[],
+  ): void {
+    if (!this.streamingMode || !this.panel) return
+    this.panel.webview.postMessage({
+      type: 'STREAMING_WHEEL_OPEN',
+      payload: { activeWheel, l2Segments, r2Segments, selectedIndex: -1 },
+    }).then(
+      undefined,
+      (err: unknown) => logger.error('HudPanelManager: postMessage failed (streamingWheelOpen)', err),
+    )
+  }
+
+  /**
+   * Story 10.3: Forward streaming wheel stick update to HUD webview.
+   * No-op when streaming is disabled or panel not created.
+   */
+  notifyStreamingWheelStickUpdate(selectedIndex: number): void {
+    if (!this.streamingMode || !this.panel) return
+    this.panel.webview.postMessage({
+      type: 'STREAMING_WHEEL_STICK_UPDATE',
+      payload: { selectedIndex },
+    }).then(
+      undefined,
+      (err: unknown) => logger.error('HudPanelManager: postMessage failed (streamingWheelStick)', err),
+    )
+  }
+
+  /**
+   * Story 10.3: Forward streaming wheel close event to HUD webview.
+   * No-op when streaming is disabled or panel not created.
+   */
+  notifyStreamingWheelClose(dispatched: boolean): void {
+    if (!this.streamingMode || !this.panel) return
+    this.panel.webview.postMessage({
+      type: 'STREAMING_WHEEL_CLOSE',
+      payload: { dispatched },
+    }).then(
+      undefined,
+      (err: unknown) => logger.error('HudPanelManager: postMessage failed (streamingWheelClose)', err),
     )
   }
 
