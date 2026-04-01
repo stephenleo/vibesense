@@ -3,7 +3,16 @@
 // DO NOT import vscode, Node.js built-ins, DOM APIs, or any runtime-specific module
 
 import { z } from 'zod'
-import type { AgentState, ControllerType, Session } from './types'
+import type { AgentState, ControllerType, Session, WheelSegmentDef } from './types'
+
+// ─── WheelSegmentDef Zod schema (mirrors types.ts) ───────────────────────────
+
+export const WheelSegmentDefSchema = z.object({
+  index: z.number().int().min(0).max(7),
+  label: z.string(),
+  commandId: z.string(),
+  promptText: z.string().optional(),
+})
 
 // ─── Compile-time drift guards ───────────────────────────────────────────────
 // These assertions ensure Zod schemas stay in sync with the canonical
@@ -28,7 +37,8 @@ export const SessionSchema = z.object({
 const agentStateOk: AssertEqual<z.infer<typeof AgentStateSchema>, AgentState> = true
 const controllerTypeOk: AssertEqual<z.infer<typeof ControllerTypeSchema>, ControllerType> = true
 const sessionOk: AssertEqual<z.infer<typeof SessionSchema>, Session> = true
-void agentStateOk; void controllerTypeOk; void sessionOk
+const wheelSegmentDefOk: AssertEqual<z.infer<typeof WheelSegmentDefSchema>, WheelSegmentDef> = true
+void agentStateOk; void controllerTypeOk; void sessionOk; void wheelSegmentDefOk
 
 // ─── Host → Webview messages ─────────────────────────────────────────────────
 
@@ -113,6 +123,28 @@ export const HostMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('ERROR_MENU_CLOSE'),
     payload: z.object({}),
+  }),
+  // Story 7.1: Radial wheel messages
+  z.object({
+    type: z.literal('WHEEL_OPEN'),
+    payload: z.object({
+      activeWheel: z.enum(['l2', 'r2']),
+      l2Segments: z.array(WheelSegmentDefSchema),
+      r2Segments: z.array(WheelSegmentDefSchema),
+    }),
+  }),
+  z.object({
+    type: z.literal('WHEEL_STICK_UPDATE'),
+    payload: z.object({
+      x: z.number(),
+      y: z.number(),
+    }),
+  }),
+  z.object({
+    type: z.literal('WHEEL_CLOSE'),
+    payload: z.object({
+      cancelled: z.boolean(),
+    }),
   }),
 ])
 

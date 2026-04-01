@@ -68,6 +68,14 @@
       {
         "command": "vibesense.errorViewLog",
         "title": "VibeSense: View Error Log"
+      },
+      {
+        "command": "vibesense.dispatchPrompt",
+        "title": "VibeSense: Dispatch Prompt to Terminal"
+      },
+      {
+        "command": "vibesense.openRadialWheel",
+        "title": "VibeSense: Open Radial Wheel"
       }
     ],
     "configuration": {

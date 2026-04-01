@@ -286,5 +286,29 @@ export function registerCommands(
         // NFR-R1: swallow — never propagate to VSCode process
       }
     }),
+
+    // Story 7.1: Dispatch a prompt text to the active terminal (FR38)
+    // Inserts the prompt text as stdin to the active terminal with a newline.
+    vscode.commands.registerCommand('vibesense.dispatchPrompt', (promptText: string) => {
+      try {
+        if (!promptText) return
+        // Insert the prompt text into the active terminal (send as stdin text)
+        void vscode.commands.executeCommand('workbench.action.terminal.sendSequence', {
+          text: promptText + '\n',
+        })
+        logger.info(`vibesense.dispatchPrompt: dispatched "${promptText.slice(0, 40)}..."`)
+      } catch (err) {
+        logger.error('vibesense.dispatchPrompt: failed', err)
+        // NFR-R1: swallow — never propagate to VSCode process
+      }
+    }),
+
+    // Story 7.1: No-op placeholder for vibesense.openRadialWheel
+    // The real L2 hold/release logic is handled by RadialWheelController directly.
+    // This command exists for compatibility with binding profiles that reference it.
+    vscode.commands.registerCommand('vibesense.openRadialWheel', () => {
+      // No-op: RadialWheelController handles L2 hold/release directly
+      logger.debug('vibesense.openRadialWheel: handled by RadialWheelController')
+    }),
   )
 }

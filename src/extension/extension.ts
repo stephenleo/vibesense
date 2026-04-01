@@ -29,6 +29,8 @@ import { LastCommandTracker } from './session/last-command-tracker'
 import { HapticController } from './output/haptic-controller'
 import { NotifyDispatcher } from './ipc/notify-dispatcher'
 import { DndController } from './output/dnd-controller'
+import { RadialWheelPanelManager } from './panels/radial-wheel-panel'
+import { RadialWheelController } from './input/radial-wheel-controller'
 import type { ControllerEvent, ControllerType } from '../shared/types'
 import type { ControllerHAL } from './hid/hal'
 import type { AggregateGameState } from './fsm/states'
@@ -143,6 +145,13 @@ export function activate(context: vscode.ExtensionContext): void {
   // Story 4.4: Instantiate OnboardingPanelManager before registerCommands
   const onboardingPanelManager = new OnboardingPanelManager(context)
   context.subscriptions.push(onboardingPanelManager)
+
+  // Story 7.1: Instantiate RadialWheelPanelManager (lazy panel creation) + RadialWheelController (L2 hold/release)
+  const radialWheelPanelManager = new RadialWheelPanelManager(context)
+  context.subscriptions.push(radialWheelPanelManager)
+
+  const radialWheelController = new RadialWheelController(radialWheelPanelManager)
+  context.subscriptions.push({ dispose: () => radialWheelController.dispose() })
 
   // Story 5.5: Subscribe to per-session state changes — auto-open error menu on error transition (AC 1)
   sessionManager.on('sessionStateChanged', (sid: string, _prev: AgentState, next: AgentState) => {
@@ -295,6 +304,8 @@ export function activate(context: vscode.ExtensionContext): void {
       try {
         const event = raw as ControllerEvent
         inputRouter.handleEvent(event)
+        // Story 7.1: RadialWheelController intercepts L2/LT + right-stick events
+        radialWheelController.handleEvent(event)
       } catch (err) {
         logger.error('InputRouter: data handler error', err)
       }
