@@ -32,8 +32,10 @@ vi.mock('vscode', () => ({
   workspace: {
     getConfiguration: mockGetConfig,
     onDidChangeConfiguration: mockOnDidChangeConfiguration,
+    onDidChangeTextDocument: vi.fn(() => ({ dispose: vi.fn() })),
     workspaceFolders: [{ uri: { fsPath: '/workspace' } }],
   },
+  TextDocumentChangeReason: { Undo: 1, Redo: 2 },
   window: {
     createStatusBarItem: vi.fn(() => ({
       text: '',
@@ -49,6 +51,7 @@ vi.mock('vscode', () => ({
     })),
     showInformationMessage: vi.fn().mockResolvedValue(undefined),
     onDidWriteTerminalData: vi.fn(() => ({ dispose: vi.fn() })),
+    onDidCloseTerminal: vi.fn(() => ({ dispose: vi.fn() })),
     showWebviewPanel: vi.fn(),
     createWebviewPanel: vi.fn(() => ({
       webview: {

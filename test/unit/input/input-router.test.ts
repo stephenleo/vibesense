@@ -18,6 +18,17 @@ const { mockExecuteCommand, mockLogger, mockScrollUpdate, mockScrollDispose } = 
   }
 })
 
+// ── Mock SessionRatioTracker ──────────────────────────────────────────────────
+const mockRecordControllerAction = vi.fn()
+vi.mock('../../../src/extension/stats/session-ratio-tracker', () => ({
+  SessionRatioTracker: vi.fn(function () {
+    return {
+      recordControllerAction: mockRecordControllerAction,
+    }
+  }),
+  SESSION_HISTORY_KEY: 'vibesense.sessionHistory',
+}))
+
 // ── Mock vscode ────────────────────────────────────────────────────────────────
 vi.mock('vscode', () => ({
   commands: {
@@ -45,6 +56,7 @@ import { InputRouter } from '../../../src/extension/input/input-router'
 import { INPUT_BUFFER_WINDOW_MS } from '../../../src/shared/constants'
 import type { BindingMap } from '../../../src/extension/input/default-bindings'
 import type { ControllerEvent } from '../../../src/shared/types'
+import type { SessionRatioTracker } from '../../../src/extension/stats/session-ratio-tracker'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const testBindings: BindingMap = {
@@ -384,6 +396,70 @@ describe('InputRouter', () => {
       router.updateBindings({ cross: 'vibesense.deny' })
       router.handleEvent(buttonPress('cross'))
       expect(mockExecuteCommand).toHaveBeenCalledWith('vibesense.deny')
+    })
+  })
+
+  // ── Story 9.1: SessionRatioTracker integration (AC1) ─────────────────────
+  describe('SessionRatioTracker integration — controller action counting (Story 9.1, AC1)', () => {
+    let routerWithTracker: InputRouter
+    let mockTracker: SessionRatioTracker
+
+    beforeEach(() => {
+      mockRecordControllerAction.mockReset()
+      // Create a mock tracker with just the method we need
+      mockTracker = {
+        recordControllerAction: mockRecordControllerAction,
+      } as unknown as SessionRatioTracker
+      routerWithTracker = new InputRouter(testBindings, mockTracker)
+    })
+
+    afterEach(() => {
+      routerWithTracker.dispose()
+    })
+
+    it('calls recordControllerAction once per dispatched button press (AC1)', () => {
+      routerWithTracker.handleEvent(buttonPress('cross'))
+      expect(mockRecordControllerAction).toHaveBeenCalledOnce()
+    })
+
+    it('calls recordControllerAction for each distinct button press with a binding (AC1)', () => {
+      routerWithTracker.handleEvent(buttonPress('cross'))
+      routerWithTracker.handleEvent(buttonPress('circle'))
+      expect(mockRecordControllerAction).toHaveBeenCalledTimes(2)
+    })
+
+    it('does NOT call recordControllerAction for button press with no binding (AC1)', () => {
+      routerWithTracker.handleEvent(buttonPress('square')) // no binding in testBindings
+      expect(mockRecordControllerAction).not.toHaveBeenCalled()
+    })
+
+    it('does NOT call recordControllerAction for button release (pressed: false) (AC1)', () => {
+      routerWithTracker.handleEvent(buttonRelease('cross'))
+      expect(mockRecordControllerAction).not.toHaveBeenCalled()
+    })
+
+    it('does NOT call recordControllerAction for axis events (scroll — AC1 constraint)', () => {
+      routerWithTracker.handleEvent(axisEvent(0.8))
+      expect(mockRecordControllerAction).not.toHaveBeenCalled()
+    })
+
+    it('does NOT call recordControllerAction for connected events (AC1 constraint)', () => {
+      routerWithTracker.handleEvent({ kind: 'connected', controllerType: 'dualsense' })
+      expect(mockRecordControllerAction).not.toHaveBeenCalled()
+    })
+
+    it('works correctly when no ratioTracker provided (optional parameter — backward compat)', () => {
+      const routerNoTracker = new InputRouter(testBindings)
+      expect(() => routerNoTracker.handleEvent(buttonPress('cross'))).not.toThrow()
+      expect(mockExecuteCommand).toHaveBeenCalledWith('vibesense.approve')
+      routerNoTracker.dispose()
+    })
+
+    it('does NOT call recordControllerAction when executeCommand throws (error in try/catch)', () => {
+      mockExecuteCommand.mockImplementationOnce(() => { throw new Error('cmd error') })
+      // recordControllerAction is called AFTER executeCommand in try block — so NOT called when cmd throws
+      routerWithTracker.handleEvent(buttonPress('cross'))
+      expect(mockRecordControllerAction).not.toHaveBeenCalled()
     })
   })
 })
