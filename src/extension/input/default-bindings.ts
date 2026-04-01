@@ -33,7 +33,7 @@ export const CLAUDE_CODE_DEFAULT_BINDINGS: BindingMap = {
   cross: 'vibesense.approve',
   circle: 'vibesense.deny',
   square: 'vibesense.openTerminal', // Story 3.1: DualSense □ = new terminal (MVP; L1+R1 chord deferred)
-  l2: 'vibesense.openRadialWheel',
+  // l2 intentionally omitted — Story 7.1: RadialWheelController owns L2 hold/release directly
   r2: 'vibesense.openQuickPanel',
   l1: 'vibesense.switchSessionPrev',
   r1: 'vibesense.switchSessionNext',
@@ -49,7 +49,7 @@ export const CLAUDE_CODE_DEFAULT_BINDINGS: BindingMap = {
   b: 'vibesense.deny',
   x: 'vibesense.openTerminal', // Story 3.1: Xbox X = new terminal (parity with DualSense □)
   y: 'workbench.action.terminal.focus',
-  lt: 'vibesense.openRadialWheel',
+  // lt intentionally omitted — Story 7.1: RadialWheelController owns LT hold/release directly
   rt: 'vibesense.openQuickPanel',
   lb: 'vibesense.switchSessionPrev',
   rb: 'vibesense.switchSessionNext',

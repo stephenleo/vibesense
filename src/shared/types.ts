@@ -70,6 +70,14 @@ export interface Session {
   label?: string
 }
 
+/** Definition for a single radial wheel segment (Story 7.1) */
+export interface WheelSegmentDef {
+  index: number          // 0–7
+  label: string          // display label
+  commandId: string      // vibesense.* command or 'vibesense.dispatchPrompt'
+  promptText?: string    // only for prompt-dispatch segments
+}
+
 /** Normalized HID HAL controller events */
 export type ControllerEvent =
   | { kind: 'button'; button: ButtonId; pressed: boolean }

@@ -5,6 +5,15 @@
 import { z } from 'zod'
 import type { AgentState, ControllerType, Session } from './types'
 
+// ─── WheelSegmentDef Zod schema (mirrors types.ts) ───────────────────────────
+
+export const WheelSegmentDefSchema = z.object({
+  index: z.number().int().min(0).max(7),
+  label: z.string(),
+  commandId: z.string(),
+  promptText: z.string().optional(),
+})
+
 // ─── Compile-time drift guards ───────────────────────────────────────────────
 // These assertions ensure Zod schemas stay in sync with the canonical
 // TypeScript types in types.ts. A mismatch causes a compile error here,
@@ -113,6 +122,28 @@ export const HostMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('ERROR_MENU_CLOSE'),
     payload: z.object({}),
+  }),
+  // Story 7.1: Radial wheel messages
+  z.object({
+    type: z.literal('WHEEL_OPEN'),
+    payload: z.object({
+      activeWheel: z.enum(['l2', 'r2']),
+      l2Segments: z.array(WheelSegmentDefSchema),
+      r2Segments: z.array(WheelSegmentDefSchema),
+    }),
+  }),
+  z.object({
+    type: z.literal('WHEEL_STICK_UPDATE'),
+    payload: z.object({
+      x: z.number(),
+      y: z.number(),
+    }),
+  }),
+  z.object({
+    type: z.literal('WHEEL_CLOSE'),
+    payload: z.object({
+      cancelled: z.boolean(),
+    }),
   }),
 ])
 

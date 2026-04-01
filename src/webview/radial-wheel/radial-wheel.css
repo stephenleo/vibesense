@@ -1,0 +1,92 @@
+/* src/webview/radial-wheel/radial-wheel.css */
+/* VibeSense Radial Wheel overlay styles (Story 7.1) */
+
+/* ── Overlay container ──────────────────────────────────────────────────────── */
+
+.radial-wheel {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(9, 9, 15, 0.75);
+  z-index: 1000;
+}
+
+/* Open: snap in with NO transition (AC1 — must be <25ms) */
+.radial-wheel--open {
+  opacity: 1;
+  transform: scale(1);
+  /* transition: none is intentional — snap-in requirement */
+}
+
+/* Closing: spring ease 120ms (AC3) */
+.radial-wheel--closing {
+  opacity: 0;
+  transform: scale(0);
+  transition: transform 120ms var(--vs-easing-spring), opacity 120ms ease;
+}
+
+/* ── SVG wheel ──────────────────────────────────────────────────────────────── */
+
+.radial-wheel__svg {
+  width: 320px;
+  height: 320px;
+  overflow: visible;
+}
+
+/* ── Wheel segments ─────────────────────────────────────────────────────────── */
+
+.wheel-segment {
+  cursor: default;
+}
+
+.wheel-segment__path {
+  fill: var(--vs-surface2);
+  stroke: var(--vs-border);
+  stroke-width: 1;
+}
+
+/* Active segment: scale(1.05) + glow — no transition on highlight (AC2) */
+.wheel-segment--active {
+  transform: scale(1.05);
+}
+
+.wheel-segment--active .wheel-segment__path {
+  fill: var(--vs-surface);
+  filter: drop-shadow(0 0 12px var(--vs-glow));
+  stroke: var(--vs-accent);
+  stroke-width: 1.5;
+}
+
+/* ── Segment labels ─────────────────────────────────────────────────────────── */
+
+.wheel-segment__label {
+  fill: var(--vs-text2);
+  font-family: var(--vs-font-family);
+  font-size: 11px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.wheel-segment--active .wheel-segment__label {
+  fill: var(--vs-text);
+  font-weight: 600;
+}
+
+/* ── Preview text ───────────────────────────────────────────────────────────── */
+
+.radial-wheel__preview {
+  margin-top: 16px;
+  max-width: 280px;
+  padding: var(--vs-space-2) var(--vs-space-4);
+  background: var(--vs-surface2);
+  border: 1px solid var(--vs-border);
+  border-radius: var(--vs-radius-md);
+  color: var(--vs-text);
+  font-family: var(--vs-font-family);
+  font-size: var(--vs-font-size-sm);
+  text-align: center;
+  line-height: 1.4;
+}

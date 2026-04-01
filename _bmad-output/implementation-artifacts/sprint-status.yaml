@@ -99,8 +99,8 @@ development_status:
   epic-6-retrospective: optional
 
   # ─── Epic 7: Prompt Radial Wheel & HUD Overlay ───
-  epic-7: backlog
-  7-1-radial-wheel-core-l2-smart-wheel: backlog
+  epic-7: in-progress
+  7-1-radial-wheel-core-l2-smart-wheel: review
   7-2-dual-layered-wheel-system-r2-personal-wheel: backlog
   7-3-hud-overlay-floating-button-map: backlog
   7-4-radial-wheel-customization-label-fading: backlog
