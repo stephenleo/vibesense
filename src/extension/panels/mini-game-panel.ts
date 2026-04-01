@@ -6,6 +6,8 @@
 
 import * as vscode from 'vscode'
 import { logger } from '../logger'
+import { parseWebviewMessage } from '../../shared/messages'
+import type { GameHighScoreStore } from './game-high-score-store'
 
 export class MiniGamePanelManager implements vscode.Disposable {
   private panel: vscode.WebviewPanel | undefined
@@ -17,7 +19,10 @@ export class MiniGamePanelManager implements vscode.Disposable {
   private lastLeftY = 0
   private leftAxisDebounceTimer: ReturnType<typeof setTimeout> | undefined
 
-  constructor(private readonly context: vscode.ExtensionContext) {}
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    private readonly highScoreStore: GameHighScoreStore,
+  ) {}
 
   /**
    * Called when AggregateGameState transitions to PLAY (i.e., processing began).
@@ -100,6 +105,14 @@ export class MiniGamePanelManager implements vscode.Disposable {
         type: 'GAME_SET_MODE',
         payload: { mode: this.getActiveGameMode() },
       }).then(undefined, (err: unknown) => logger.error('MiniGamePanelManager: postMessage GAME_SET_MODE failed', err))
+      // Story 8.4: Send persisted high scores so webview can display them immediately (AC5)
+      this.panel?.webview.postMessage({
+        type: 'GAME_HIGH_SCORE',
+        payload: {
+          snake: this.highScoreStore.getHighScore('snake'),
+          tetris: this.highScoreStore.getHighScore('tetris'),
+        },
+      }).then(undefined, (err: unknown) => logger.error('MiniGamePanelManager: postMessage GAME_HIGH_SCORE failed', err))
       logger.info('MiniGamePanelManager: opened')
     } catch (err) {
       logger.error('MiniGamePanelManager: open failed', err)
@@ -242,6 +255,18 @@ export class MiniGamePanelManager implements vscode.Disposable {
       logger.info('MiniGamePanelManager: panel disposed externally')
       this.panel = undefined
     })
+    // Story 8.4: Handle GAME_SCORE_UPDATE from webview — persist new high scores (AC6)
+    this.panel.webview.onDidReceiveMessage(
+      (raw: unknown) => {
+        const msg = parseWebviewMessage(raw)
+        if (!msg) return
+        if (msg.type === 'GAME_SCORE_UPDATE') {
+          void this.highScoreStore.updateHighScore(msg.payload.game, msg.payload.score)
+        }
+      },
+      undefined,
+      this.context.subscriptions,
+    )
   }
 
   private getHtml(webview: vscode.Webview): string {

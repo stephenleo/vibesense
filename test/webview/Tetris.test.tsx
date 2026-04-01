@@ -63,6 +63,8 @@ describe('Tetris — component output', () => {
         gameInput={null}
         running={false}
         onInputConsumed={vi.fn()}
+        highScore={0}
+        onNewHighScore={vi.fn()}
       />,
     )
     expect(container.firstChild).toBeNull()
@@ -78,6 +80,8 @@ describe('Tetris — component output', () => {
           gameInput={null}
           running={true}
           onInputConsumed={vi.fn()}
+          highScore={0}
+          onNewHighScore={vi.fn()}
         />,
       )
     }).not.toThrow()
@@ -92,6 +96,8 @@ describe('Tetris — component output', () => {
           gameInput={null}
           running={false}
           onInputConsumed={vi.fn()}
+          highScore={0}
+          onNewHighScore={vi.fn()}
         />,
       )
     }).not.toThrow()
@@ -119,6 +125,8 @@ describe('Tetris — input consumption', () => {
         gameInput={null}
         running={true}
         onInputConsumed={onInputConsumed}
+        highScore={0}
+        onNewHighScore={vi.fn()}
       />,
     )
 
@@ -130,6 +138,8 @@ describe('Tetris — input consumption', () => {
           gameInput="left"
           running={true}
           onInputConsumed={onInputConsumed}
+          highScore={0}
+          onNewHighScore={vi.fn()}
         />,
       )
     })
@@ -158,12 +168,12 @@ describe('Tetris — input consumption', () => {
     }) as unknown as typeof requestAnimationFrame
 
     const { rerender } = render(
-      <Tetris canvasRef={canvasRef} gameInput={null} running={true} onInputConsumed={onInputConsumed} />,
+      <Tetris canvasRef={canvasRef} gameInput={null} running={true} onInputConsumed={onInputConsumed} highScore={0} onNewHighScore={vi.fn()} />,
     )
 
     act(() => {
       rerender(
-        <Tetris canvasRef={canvasRef} gameInput="right" running={true} onInputConsumed={onInputConsumed} />,
+        <Tetris canvasRef={canvasRef} gameInput="right" running={true} onInputConsumed={onInputConsumed} highScore={0} onNewHighScore={vi.fn()} />,
       )
     })
 
@@ -188,12 +198,12 @@ describe('Tetris — input consumption', () => {
     }) as unknown as typeof requestAnimationFrame
 
     const { rerender } = render(
-      <Tetris canvasRef={canvasRef} gameInput={null} running={true} onInputConsumed={onInputConsumed} />,
+      <Tetris canvasRef={canvasRef} gameInput={null} running={true} onInputConsumed={onInputConsumed} highScore={0} onNewHighScore={vi.fn()} />,
     )
 
     act(() => {
       rerender(
-        <Tetris canvasRef={canvasRef} gameInput="down" running={true} onInputConsumed={onInputConsumed} />,
+        <Tetris canvasRef={canvasRef} gameInput="down" running={true} onInputConsumed={onInputConsumed} highScore={0} onNewHighScore={vi.fn()} />,
       )
     })
 
@@ -218,12 +228,12 @@ describe('Tetris — input consumption', () => {
     }) as unknown as typeof requestAnimationFrame
 
     const { rerender } = render(
-      <Tetris canvasRef={canvasRef} gameInput={null} running={true} onInputConsumed={onInputConsumed} />,
+      <Tetris canvasRef={canvasRef} gameInput={null} running={true} onInputConsumed={onInputConsumed} highScore={0} onNewHighScore={vi.fn()} />,
     )
 
     act(() => {
       rerender(
-        <Tetris canvasRef={canvasRef} gameInput="rotate" running={true} onInputConsumed={onInputConsumed} />,
+        <Tetris canvasRef={canvasRef} gameInput="rotate" running={true} onInputConsumed={onInputConsumed} highScore={0} onNewHighScore={vi.fn()} />,
       )
     })
 
@@ -248,7 +258,7 @@ describe('Tetris — input consumption', () => {
     }) as unknown as typeof requestAnimationFrame
 
     render(
-      <Tetris canvasRef={canvasRef} gameInput={null} running={true} onInputConsumed={onInputConsumed} />,
+      <Tetris canvasRef={canvasRef} gameInput={null} running={true} onInputConsumed={onInputConsumed} highScore={0} onNewHighScore={vi.fn()} />,
     )
 
     if (capturedCallback) {

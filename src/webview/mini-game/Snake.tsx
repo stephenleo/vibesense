@@ -2,6 +2,7 @@
 // Snake game logic component for VibeSense Mini-Game (Story 8.1)
 // Uses requestAnimationFrame for game loop with delta-time accumulation
 // Renders directly onto the canvas ref passed from GameCanvas
+// Extended in Story 8.4: accepts highScore prop, displays Best score, fires onNewHighScore on game-over
 
 import React, { useEffect, useRef } from 'react'
 import type { Direction } from './GameCanvas'
@@ -19,15 +20,22 @@ interface SnakeProps {
   canvasRef: React.RefObject<HTMLCanvasElement>
   direction: Direction
   running: boolean
+  highScore: number           // Story 8.4: persisted high score to display
+  onNewHighScore: (score: number) => void  // Story 8.4: called when score > highScore at game-over
 }
 
-export function Snake({ canvasRef, direction, running }: SnakeProps): null {
+export function Snake({ canvasRef, direction, running, highScore, onNewHighScore }: SnakeProps): null {
   const directionRef = useRef<Direction>(direction)
   const runningRef = useRef<boolean>(running)
+  // Story 8.4: sync high score and callback to refs so game loop sees latest values
+  const highScoreRef = useRef<number>(highScore)
+  const onNewHighScoreRef = useRef(onNewHighScore)
 
   // Sync refs so game loop always sees latest value without re-creating RAF
   useEffect(() => { directionRef.current = direction }, [direction])
   useEffect(() => { runningRef.current = running }, [running])
+  useEffect(() => { highScoreRef.current = highScore }, [highScore])
+  useEffect(() => { onNewHighScoreRef.current = onNewHighScore }, [onNewHighScore])
 
   useEffect(() => {
     if (!running) return
@@ -83,10 +91,10 @@ export function Snake({ canvasRef, direction, running }: SnakeProps): null {
       ctx!.arc(food.x * cs + cs / 2, food.y * cs + cs / 2, cs / 2 - 2, 0, Math.PI * 2)
       ctx!.fill()
 
-      // Score
+      // Score — Story 8.4: display current score and all-time best (AC4)
       ctx!.fillStyle = SCORE_COLOR
       ctx!.font = `bold 14px Inter, system-ui, sans-serif`
-      ctx!.fillText(`Score: ${score}`, 8, 20)
+      ctx!.fillText(`Score: ${score}  Best: ${highScoreRef.current}`, 8, 20)
     }
 
     function applyDirection(pending: Direction, current: Direction): Direction {
@@ -105,8 +113,11 @@ export function Snake({ canvasRef, direction, running }: SnakeProps): null {
         y: (head.y + (d === 'down' ? 1 : d === 'up' ? -1 : 0) + GRID_SIZE) % GRID_SIZE,
       }
 
-      // Self collision
+      // Self collision — Story 8.4: report new high score before reset (AC6)
       if (snake.some(s => s.x === next.x && s.y === next.y)) {
+        if (score > highScoreRef.current) {
+          onNewHighScoreRef.current(score)
+        }
         // Game over — reset
         snake = [{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }]
         food = randomFood(snake)
