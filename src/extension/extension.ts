@@ -27,6 +27,7 @@ import { PipeServer } from './ipc/pipe-server'
 import { TerminalOutputParser } from './session/terminal-parser'
 import { LastCommandTracker } from './session/last-command-tracker'
 import { HapticController } from './output/haptic-controller'
+import { NotifyDispatcher } from './ipc/notify-dispatcher'
 import type { ControllerEvent, ControllerType } from '../shared/types'
 import type { ControllerHAL } from './hid/hal'
 import type { AggregateGameState } from './fsm/states'
@@ -62,11 +63,6 @@ export function activate(context: vscode.ExtensionContext): void {
     },
   })
 
-  // Story 5.3: IPC server — Claude Code hooks and vibeSense.notify() API
-  const pipeServer = new PipeServer(sessionManager)
-  pipeServer.start()
-  context.subscriptions.push({ dispose: () => pipeServer.stop() })
-
   // Story 5.5: Instantiate LastCommandTracker — tracks last VibeSense-sent command per session
   lastCommandTracker = new LastCommandTracker()
   context.subscriptions.push({
@@ -79,6 +75,16 @@ export function activate(context: vscode.ExtensionContext): void {
   // Story 6.1: Track the currently active HAL driver for haptic routing
   // Set/cleared in ControllerLifecycleManager connect/disconnect callbacks below
   let currentDriver: ControllerHAL | null = null
+
+  // Story 6.4: NotifyDispatcher — routes vibeSense.notify() payloads to hardware controllers
+  // Uses getter closure so it always sees the latest currentDriver value
+  const notifyDispatcher = new NotifyDispatcher(() => currentDriver)
+
+  // Story 5.3: IPC server — Claude Code hooks and vibeSense.notify() API
+  // Story 6.4: Pass notifyDispatcher so notify payloads are routed to hardware controllers
+  const pipeServer = new PipeServer(sessionManager, notifyDispatcher)
+  pipeServer.start()
+  context.subscriptions.push({ dispose: () => pipeServer.stop() })
 
   // Story 6.1: Instantiate HapticController BEFORE visual panel managers (UX-DR14 haptic-first)
   // EventEmitter fires listeners in registration order — haptic must subscribe first.

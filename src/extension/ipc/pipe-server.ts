@@ -6,6 +6,7 @@ import * as net from 'net'
 import * as fs from 'fs'
 import { VIBESENSE_SOCKET_PATH } from '../../shared/constants'
 import type { SessionManager } from '../session/session-manager'
+import type { NotifyDispatcher } from './notify-dispatcher'
 import { logger } from '../logger'
 import { handleRawPayload } from './message-handler'
 
@@ -16,7 +17,10 @@ export class PipeServer {
   private server: net.Server | null = null
   private readonly activeSockets = new Set<net.Socket>()
 
-  constructor(private readonly sessionManager: SessionManager) {}
+  constructor(
+    private readonly sessionManager: SessionManager,
+    private readonly notifyDispatcher: NotifyDispatcher,
+  ) {}
 
   /**
    * Start the IPC server — creates a Unix socket at VIBESENSE_SOCKET_PATH and begins listening.
@@ -62,7 +66,7 @@ export class PipeServer {
               logger.warn('IPC: malformed JSON on socket', line)
               continue
             }
-            handleRawPayload(parsed, this.sessionManager)
+            handleRawPayload(parsed, this.sessionManager, this.notifyDispatcher)
           }
         } catch (err) {
           logger.warn('IPC: data handler error', err)

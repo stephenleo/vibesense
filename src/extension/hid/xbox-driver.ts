@@ -6,7 +6,7 @@ import { EventEmitter } from 'events'
 import { HID } from 'node-hid'
 import { logger } from '../logger'
 import type { ControllerHAL } from './hal'
-import type { ControllerEvent, ControllerType, ButtonId, AxisId, HapticPattern } from '../../shared/types'
+import type { ControllerEvent, ControllerType, ButtonId, AxisId, HapticPattern, AudioTone } from '../../shared/types'
 
 // Xbox Series controller VID/PIDs
 export const XBOX_VID = 0x045e
@@ -175,6 +175,11 @@ export class XboxDriver extends EventEmitter implements ControllerHAL {
 
   /** No-op: Xbox LED control not implemented in this story */
   setLED(_color: string): void {
+    // Intentional no-op for Xbox in this story
+  }
+
+  /** No-op: Xbox audio output not implemented in this story */
+  playAudio(_tone: AudioTone): void {
     // Intentional no-op for Xbox in this story
   }
 }

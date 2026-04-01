@@ -11,6 +11,9 @@ export type ControllerType = 'dualsense' | 'xbox' | 'generic-hid'
 /** Haptic feedback patterns */
 export type HapticPattern = 'single_pulse' | 'double_pulse' | 'triple_pulse' | 'slow_rumble' | 'none'
 
+/** Audio tone identifiers for DualSense speaker feedback */
+export type AudioTone = 'success' | 'warning' | 'error' | 'none'
+
 /** DualSense and Xbox button identifiers */
 export type ButtonId =
   // DualSense buttons

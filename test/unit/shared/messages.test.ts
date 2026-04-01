@@ -5,6 +5,8 @@ import { describe, it, expect } from 'vitest'
 import {
   parseWebviewMessage,
   parseHostMessage,
+  parseNotifyMessage,
+  NotifySchema,
   HostMessageSchema,
   WebviewMessageSchema,
 } from '../../../src/shared/messages'
@@ -113,5 +115,77 @@ describe('WebviewMessage parsing', () => {
   it('should throw ZodError for missing required fields when using .parse()', () => {
     const raw = { type: 'WHEEL_SEGMENT_SELECTED', payload: {} } // missing segmentIndex
     expect(() => WebviewMessageSchema.parse(raw)).toThrow()
+  })
+})
+
+// ── NotifySchema / parseNotifyMessage ─────────────────────────────────────────
+
+describe('NotifySchema validation', () => {
+  // Test 15: Valid full payload parses successfully; priority defaults to 'normal' when omitted
+  it('valid full payload parses successfully', () => {
+    const raw = {
+      event: 'deploy_success',
+      haptic: 'triple_pulse',
+      led: { color: '#00ff00' },
+      audio: 'success',
+      priority: 'high',
+    }
+    const result = NotifySchema.safeParse(raw)
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.event).toBe('deploy_success')
+      expect(result.data.haptic).toBe('triple_pulse')
+      expect(result.data.led?.color).toBe('#00ff00')
+      expect(result.data.audio).toBe('success')
+      expect(result.data.priority).toBe('high')
+    }
+  })
+
+  it('priority defaults to "normal" when omitted', () => {
+    const raw = { event: 'ping', haptic: 'single_pulse' }
+    const result = NotifySchema.safeParse(raw)
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.priority).toBe('normal')
+    }
+  })
+
+  // Test 16: Invalid haptic pattern → safeParse fails
+  it('invalid haptic pattern → safeParse fails', () => {
+    const raw = { event: 'x', haptic: 'unknown_pattern' }
+    const result = NotifySchema.safeParse(raw)
+    expect(result.success).toBe(false)
+  })
+
+  // Test 17: Invalid LED hex color → fails
+  it('invalid LED hex color → safeParse fails', () => {
+    const raw = { event: 'x', led: { color: 'notacolor' } }
+    const result = NotifySchema.safeParse(raw)
+    expect(result.success).toBe(false)
+  })
+
+  // Test 18: Unknown fields are stripped
+  it('unknown fields are stripped on parse', () => {
+    const raw = { event: 'x', haptic: 'single_pulse', unknownKey: 'value' }
+    const result = NotifySchema.safeParse(raw)
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect((result.data as Record<string, unknown>).unknownKey).toBeUndefined()
+    }
+  })
+
+  // Test 19: parseNotifyMessage returns null for invalid payload
+  it('parseNotifyMessage returns null for invalid payload', () => {
+    const raw = { event: 'x', haptic: 'bad_haptic' }
+    const result = parseNotifyMessage(raw)
+    expect(result).toBeNull()
+  })
+
+  it('parseNotifyMessage returns parsed message for valid payload', () => {
+    const raw = { event: 'ping' }
+    const result = parseNotifyMessage(raw)
+    expect(result).not.toBeNull()
+    expect(result?.event).toBe('ping')
+    expect(result?.priority).toBe('normal')
   })
 })
