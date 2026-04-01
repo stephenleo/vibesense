@@ -38,6 +38,19 @@ export class RadialWheelPanelManager implements vscode.Disposable {
   }
 
   /**
+   * Swaps the active wheel without closing/reopening the panel.
+   * Re-sends WHEEL_OPEN with the new activeWheel — the Webview detects the swap
+   * and applies the ~50ms ease-out transition.
+   */
+  swap(newActiveWheel: 'l2' | 'r2', l2Segments: WheelSegmentDef[], r2Segments: WheelSegmentDef[]): void {
+    this.panel?.webview.postMessage({
+      type: 'WHEEL_OPEN',
+      payload: { activeWheel: newActiveWheel, l2Segments, r2Segments },
+    })
+    logger.debug(`RadialWheelPanelManager: swapped active wheel to ${newActiveWheel}`)
+  }
+
+  /**
    * Sends a right-stick position update to the Webview.
    * Only called when the wheel is open (enforced by RadialWheelController).
    */
