@@ -116,15 +116,19 @@ export function Tetris({ canvasRef, gameInput, running, onInputConsumed }: Tetri
         row: Math.round(pivotRow + (col - pivotCol)),
         col: Math.round(pivotCol - (row - pivotRow)),
       }))
-      // Wall kick: shift into bounds if needed
+      // Wall kick: try column offsets then row offsets to shift into bounds
       const minC = Math.min(...rotated.map(c => c.col))
       const maxC = Math.max(...rotated.map(c => c.col))
       let colOffset = 0
       if (minC < 0) colOffset = -minC
       if (maxC >= COLS) colOffset = COLS - 1 - maxC
-      const kicked = rotated.map(p => ({ ...p, col: p.col + colOffset }))
-      if (!isValid(kicked)) return piece  // rotation failed — keep original
-      return { ...piece, cells: kicked }
+      const minR = Math.min(...rotated.map(c => c.row))
+      const rowOffsets = minR < 0 ? [0, 1] : [0]
+      for (const rowOffset of rowOffsets) {
+        const kicked = rotated.map(p => ({ row: p.row + rowOffset, col: p.col + colOffset }))
+        if (isValid(kicked)) return { ...piece, cells: kicked }
+      }
+      return piece  // rotation failed — keep original
     }
 
     function lockPiece(piece: Piece): void {
