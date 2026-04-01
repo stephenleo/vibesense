@@ -7,8 +7,7 @@ import { logger } from '../logger'
 import type { ControllerEvent } from '../../shared/types'
 import type { RadialWheelPanelManager } from '../panels/radial-wheel-panel'
 import { L2_SMART_WHEEL_SEGMENTS } from './radial-wheel-segments'
-
-const DEAD_ZONE = 0.25
+import { computeWheelSegmentIndex } from '../../shared/constants'
 
 /**
  * Intercepts L2/LT button events and right-stick axis events to drive the radial wheel.
@@ -26,7 +25,6 @@ export class RadialWheelController {
   private selectedIndex = -1
   private stickX = 0
   private stickY = 0
-  private previewTimer: ReturnType<typeof setTimeout> | undefined
 
   constructor(private readonly panelManager: RadialWheelPanelManager) {}
 
@@ -67,11 +65,6 @@ export class RadialWheelController {
     if (!this.l2Held) return
     this.l2Held = false
 
-    if (this.previewTimer) {
-      clearTimeout(this.previewTimer)
-      this.previewTimer = undefined
-    }
-
     if (this.selectedIndex >= 0) {
       const seg = L2_SMART_WHEEL_SEGMENTS[this.selectedIndex]
       if (seg) {
@@ -98,31 +91,14 @@ export class RadialWheelController {
 
   private onStickUpdate(): void {
     if (!this.l2Held) return
-    const newIndex = this.computeSegmentIndex(this.stickX, this.stickY)
+    const newIndex = computeWheelSegmentIndex(this.stickX, this.stickY)
     if (newIndex !== this.selectedIndex) {
       this.selectedIndex = newIndex
     }
     this.panelManager.updateStick(this.stickX, this.stickY)
   }
 
-  /**
-   * Converts right-stick (x, y) to a segment index (0–7) or -1 for dead zone.
-   * Segment 0 = top (stick up), increasing clockwise.
-   */
-  computeSegmentIndex(x: number, y: number): number {
-    const magnitude = Math.sqrt(x * x + y * y)
-    if (magnitude < DEAD_ZONE) return -1
-    // atan2(y, x): 0 = right, positive = clockwise in screen coords
-    // Add π/2 to rotate so 0 = top (up), normalize to [0, 2π]
-    const angle = (Math.atan2(y, x) + Math.PI / 2 + 2 * Math.PI) % (2 * Math.PI)
-    return Math.floor(angle / (Math.PI / 4)) % 8
-  }
-
   dispose(): void {
-    if (this.previewTimer) {
-      clearTimeout(this.previewTimer)
-      this.previewTimer = undefined
-    }
     logger.debug('RadialWheelController: disposed')
   }
 }

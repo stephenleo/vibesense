@@ -4,6 +4,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { WheelSegment } from './WheelSegment'
 import { parseHostMessage } from '../../shared/messages'
+import { computeWheelSegmentIndex } from '../../shared/constants'
 import type { WheelSegmentDef } from '../../shared/types'
 
 // VSCode acquireVsCodeApi is injected by the Webview host
@@ -26,19 +27,6 @@ type WheelState = 'closed' | 'open' | 'closing'
 const SVG_SIZE = 400
 const CENTER = SVG_SIZE / 2
 const WHEEL_RADIUS = 170
-
-/**
- * Converts right-stick (x, y) to a segment index (0–7) or -1 for dead zone.
- * Segment 0 = top (stick up), increasing clockwise.
- */
-function getSegmentIndex(x: number, y: number, deadZone = 0.25): number {
-  const magnitude = Math.sqrt(x * x + y * y)
-  if (magnitude < deadZone) return -1
-  // atan2(y, x): 0 = right, positive = clockwise in screen/SVG coordinates
-  // Add π/2 to rotate so 0 = top (up on stick = top segment)
-  const angle = (Math.atan2(y, x) + Math.PI / 2 + 2 * Math.PI) % (2 * Math.PI)
-  return Math.floor(angle / (Math.PI / 4)) % 8
-}
 
 /**
  * Top-level radial wheel React app.
@@ -71,7 +59,7 @@ export function RadialWheelApp(): React.ReactElement | null {
   // Handle WHEEL_STICK_UPDATE — compute selected segment and schedule preview
   const handleStickUpdate = useCallback(
     (x: number, y: number) => {
-      const newIndex = getSegmentIndex(x, y)
+      const newIndex = computeWheelSegmentIndex(x, y)
       setSelectedIndex((prev) => {
         if (newIndex !== prev) {
           notifySegmentSelected(newIndex)
@@ -188,6 +176,7 @@ export function RadialWheelApp(): React.ReactElement | null {
             key={seg.index}
             index={seg.index}
             label={seg.label}
+            promptText={seg.promptText}
             isActive={seg.index === selectedIndex}
             isPreview={seg.index === previewIndex}
             centerX={CENTER}

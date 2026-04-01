@@ -6,6 +6,7 @@ import React from 'react'
 interface WheelSegmentProps {
   index: number
   label: string
+  promptText?: string  // full prompt text for ARIA label (prompt-dispatch segments)
   isActive: boolean    // true = highlighted/selected
   isPreview: boolean   // true = showing full prompt text preview
   centerX: number
@@ -27,6 +28,7 @@ interface WheelSegmentProps {
 export function WheelSegment({
   index,
   label,
+  promptText,
   isActive,
   isPreview,
   centerX,
@@ -81,7 +83,7 @@ export function WheelSegment({
     <g
       className={segmentClass}
       role="menuitem"
-      aria-label={label}
+      aria-label={promptText ?? label}
       aria-selected={isActive}
       style={isActive ? { transformOrigin } : undefined}
     >

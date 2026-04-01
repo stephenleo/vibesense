@@ -224,13 +224,13 @@ describe('RadialWheelApp — ARIA attributes', () => {
     expect(menu).toHaveAttribute('aria-label', 'Radial wheel')
   })
 
-  it('all 8 segment labels are present in aria-label attributes', () => {
+  it('all 8 segment aria-labels use promptText when available, label otherwise', () => {
     render(<RadialWheelApp />)
     postHostMessage({
       type: 'WHEEL_OPEN',
       payload: { activeWheel: 'l2', l2Segments: mockL2Segments, r2Segments: [] },
     })
-    const expectedLabels = mockL2Segments.map((s) => s.label)
+    const expectedLabels = mockL2Segments.map((s) => s.promptText ?? s.label)
     for (const label of expectedLabels) {
       expect(screen.getByRole('menuitem', { name: label })).toBeInTheDocument()
     }

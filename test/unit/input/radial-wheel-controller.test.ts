@@ -31,6 +31,7 @@ vi.mock('../../../src/extension/logger', () => ({
 // ── Imports after mocks ────────────────────────────────────────────────────────
 import { RadialWheelController } from '../../../src/extension/input/radial-wheel-controller'
 import { L2_SMART_WHEEL_SEGMENTS } from '../../../src/extension/input/radial-wheel-segments'
+import { computeWheelSegmentIndex } from '../../../src/shared/constants'
 import type { WheelSegmentDef } from '../../../src/shared/types'
 
 // ── Mock panel manager ─────────────────────────────────────────────────────────
@@ -158,39 +159,39 @@ describe('RadialWheelController', () => {
   // ── 7. Segment index computation — top (segment 0) ──────────────────────────
   describe('segment index computation', () => {
     it('returns 0 for x=0, y=-1 (stick up = top segment)', () => {
-      expect(controller.computeSegmentIndex(0, -1.0)).toBe(0)
+      expect(computeWheelSegmentIndex(0, -1.0)).toBe(0)
     })
 
     // ── 8. Segment index computation — right (segment 2) ────────────────────
     it('returns 2 for x=1.0, y=0 (stick right = right segment)', () => {
-      expect(controller.computeSegmentIndex(1.0, 0)).toBe(2)
+      expect(computeWheelSegmentIndex(1.0, 0)).toBe(2)
     })
 
     it('returns 4 for x=0, y=1.0 (stick down = bottom segment)', () => {
-      expect(controller.computeSegmentIndex(0, 1.0)).toBe(4)
+      expect(computeWheelSegmentIndex(0, 1.0)).toBe(4)
     })
 
     it('returns 6 for x=-1.0, y=0 (stick left = left segment)', () => {
-      expect(controller.computeSegmentIndex(-1.0, 0)).toBe(6)
+      expect(computeWheelSegmentIndex(-1.0, 0)).toBe(6)
     })
 
     // ── 9. Dead zone returns -1 ──────────────────────────────────────────────
     it('returns -1 for x=0.1, y=0.1 (below dead zone)', () => {
-      expect(controller.computeSegmentIndex(0.1, 0.1)).toBe(-1)
+      expect(computeWheelSegmentIndex(0.1, 0.1)).toBe(-1)
     })
 
     it('returns -1 for x=0, y=0 (center)', () => {
-      expect(controller.computeSegmentIndex(0, 0)).toBe(-1)
+      expect(computeWheelSegmentIndex(0, 0)).toBe(-1)
     })
 
     it('returns a valid index for x=0.3, y=0 (just above dead zone)', () => {
-      const result = controller.computeSegmentIndex(0.3, 0)
+      const result = computeWheelSegmentIndex(0.3, 0)
       expect(result).toBeGreaterThanOrEqual(0)
       expect(result).toBeLessThanOrEqual(7)
     })
   })
 
-  // ── 10. dispose clears preview timer ────────────────────────────────────────
+  // ── 10. dispose ────────────────────────────────────────────────────────────
   describe('dispose()', () => {
     it('does not throw when disposed without any events', () => {
       expect(() => controller.dispose()).not.toThrow()
@@ -203,14 +204,11 @@ describe('RadialWheelController', () => {
       }).not.toThrow()
     })
 
-    it('clears any pending preview timer on dispose', () => {
+    it('does not throw when disposed after L2 press and stick events', () => {
       controller.handleEvent({ kind: 'button', button: 'l2', pressed: true })
       controller.handleEvent({ kind: 'axis', axis: 'right_x', value: 0 })
       controller.handleEvent({ kind: 'axis', axis: 'right_y', value: -1.0 })
-      // dispose before timer fires
       expect(() => controller.dispose()).not.toThrow()
-      // Advance timers — should not throw
-      expect(() => vi.advanceTimersByTime(1000)).not.toThrow()
     })
   })
 

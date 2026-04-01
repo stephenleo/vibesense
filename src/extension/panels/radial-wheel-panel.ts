@@ -84,6 +84,18 @@ export class RadialWheelPanelManager implements vscode.Disposable {
     logger.info('RadialWheelPanelManager: panel created')
     this.panel.webview.html = this.getHtml(this.panel.webview)
 
+    // Listen for webview messages (e.g. WHEEL_SEGMENT_SELECTED for haptic tick integration)
+    const messageDisposable = this.panel.webview.onDidReceiveMessage((msg: unknown) => {
+      if (typeof msg === 'object' && msg !== null && 'type' in msg) {
+        const typed = msg as { type: string; payload?: unknown }
+        if (typed.type === 'WHEEL_SEGMENT_SELECTED') {
+          logger.debug('RadialWheelPanelManager: received WHEEL_SEGMENT_SELECTED', typed.payload)
+          // TODO(Story 7.2+): Forward to HapticController for micro-tick haptic event
+        }
+      }
+    })
+    this.subscriptions.push(messageDisposable)
+
     const disposeDisposable = this.panel.onDidDispose(() => {
       logger.info('RadialWheelPanelManager: panel disposed externally')
       this.panel = undefined

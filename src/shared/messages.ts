@@ -3,7 +3,7 @@
 // DO NOT import vscode, Node.js built-ins, DOM APIs, or any runtime-specific module
 
 import { z } from 'zod'
-import type { AgentState, ControllerType, Session } from './types'
+import type { AgentState, ControllerType, Session, WheelSegmentDef } from './types'
 
 // ─── WheelSegmentDef Zod schema (mirrors types.ts) ───────────────────────────
 
@@ -37,7 +37,8 @@ export const SessionSchema = z.object({
 const agentStateOk: AssertEqual<z.infer<typeof AgentStateSchema>, AgentState> = true
 const controllerTypeOk: AssertEqual<z.infer<typeof ControllerTypeSchema>, ControllerType> = true
 const sessionOk: AssertEqual<z.infer<typeof SessionSchema>, Session> = true
-void agentStateOk; void controllerTypeOk; void sessionOk
+const wheelSegmentDefOk: AssertEqual<z.infer<typeof WheelSegmentDefSchema>, WheelSegmentDef> = true
+void agentStateOk; void controllerTypeOk; void sessionOk; void wheelSegmentDefOk
 
 // ─── Host → Webview messages ─────────────────────────────────────────────────
 
