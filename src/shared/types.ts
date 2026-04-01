@@ -70,12 +70,16 @@ export interface Session {
   label?: string
 }
 
+/** Label fading mode for R2 Personal Wheel segments (Story 7.4) */
+export type LabelMode = 'full' | 'abbreviated' | 'icon-only'
+
 /** Definition for a single radial wheel segment (Story 7.1) */
 export interface WheelSegmentDef {
   index: number          // 0–7
-  label: string          // display label
+  label: string          // display label (full text or abbreviation, based on labelMode)
   commandId: string      // vibesense.* command or 'vibesense.dispatchPrompt'
-  promptText?: string    // only for prompt-dispatch segments
+  promptText?: string    // full prompt text for ARIA and preview (always present for prompt segments)
+  labelMode?: LabelMode  // controls rendering; undefined = 'full' (Story 7.4)
 }
 
 /** Normalized HID HAL controller events */

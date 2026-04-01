@@ -46,17 +46,29 @@ function makeMockPanelManager() {
   }
 }
 
+// ── Mock dispatch tracker ──────────────────────────────────────────────────────
+
+function makeMockDispatchTracker() {
+  return {
+    getCount: vi.fn().mockReturnValue(0),
+    increment: vi.fn().mockResolvedValue(undefined),
+    computeLabelMode: vi.fn().mockReturnValue('full'),
+  }
+}
+
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
 describe('RadialWheelController', () => {
   let controller: RadialWheelController
   let panelManager: ReturnType<typeof makeMockPanelManager>
+  let mockGetR2Segments: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
     vi.useFakeTimers()
     vi.resetAllMocks()
     panelManager = makeMockPanelManager()
-    controller = new RadialWheelController(panelManager)
+    mockGetR2Segments = vi.fn().mockReturnValue(R2_PERSONAL_WHEEL_SEGMENTS)
+    controller = new RadialWheelController(panelManager, makeMockDispatchTracker() as never, mockGetR2Segments)
   })
 
   afterEach(() => {
@@ -397,6 +409,71 @@ describe('RadialWheelController', () => {
       for (const seg of R2_PERSONAL_WHEEL_SEGMENTS) {
         expect(seg.commandId).toBe('vibesense.dispatchPrompt')
       }
+    })
+  })
+
+  // ── Story 7.4: DispatchTracker + getR2Segments integration ───────────────────
+
+  describe('Story 7.4 — dispatchTracker.increment() called on R2 dispatch', () => {
+    it('calls dispatchTracker.increment(selectedIndex) after successful R2 dispatch', async () => {
+      let capturedDispatchTracker: ReturnType<typeof makeMockDispatchTracker> | undefined
+      let capturedGetR2Segments: ReturnType<typeof vi.fn> | undefined
+
+      const mockTracker = makeMockDispatchTracker()
+      const mockR2 = vi.fn().mockReturnValue(R2_PERSONAL_WHEEL_SEGMENTS)
+      capturedDispatchTracker = mockTracker
+      capturedGetR2Segments = mockR2
+
+      const localController = new RadialWheelController(panelManager, mockTracker as never, mockR2)
+
+      // R2 pressed, stick to segment 0 (up), R2 released
+      localController.handleEvent({ kind: 'button', button: 'r2', pressed: true })
+      localController.handleEvent({ kind: 'axis', axis: 'right_x', value: 0 })
+      localController.handleEvent({ kind: 'axis', axis: 'right_y', value: -1.0 }) // segment 0
+      localController.handleEvent({ kind: 'button', button: 'r2', pressed: false })
+
+      // Should have called increment with index 0
+      expect(capturedDispatchTracker.increment).toHaveBeenCalledWith(0)
+      localController.dispose()
+    })
+
+    it('does not call dispatchTracker.increment when R2 is released in dead zone', () => {
+      const mockTracker = makeMockDispatchTracker()
+      const mockR2 = vi.fn().mockReturnValue(R2_PERSONAL_WHEEL_SEGMENTS)
+      const localController = new RadialWheelController(panelManager, mockTracker as never, mockR2)
+
+      localController.handleEvent({ kind: 'button', button: 'r2', pressed: true })
+      // No stick update — dead zone
+      localController.handleEvent({ kind: 'button', button: 'r2', pressed: false })
+
+      expect(mockTracker.increment).not.toHaveBeenCalled()
+      localController.dispose()
+    })
+  })
+
+  describe('Story 7.4 — getR2Segments() callback is called on L2 press, R2 press, L2 swap, R2 swap', () => {
+    it('calls getR2Segments() when L2 is pressed (wheel open)', () => {
+      controller.handleEvent({ kind: 'button', button: 'l2', pressed: true })
+      expect(mockGetR2Segments).toHaveBeenCalled()
+    })
+
+    it('calls getR2Segments() when R2 is pressed (wheel open)', () => {
+      controller.handleEvent({ kind: 'button', button: 'r2', pressed: true })
+      expect(mockGetR2Segments).toHaveBeenCalled()
+    })
+
+    it('calls getR2Segments() on trigger swap L2→R2 (L2 held, R2 pressed)', () => {
+      controller.handleEvent({ kind: 'button', button: 'l2', pressed: true })
+      mockGetR2Segments.mockClear()
+      controller.handleEvent({ kind: 'button', button: 'r2', pressed: true })
+      expect(mockGetR2Segments).toHaveBeenCalled()
+    })
+
+    it('calls getR2Segments() on trigger swap R2→L2 (R2 held, L2 pressed)', () => {
+      controller.handleEvent({ kind: 'button', button: 'r2', pressed: true })
+      mockGetR2Segments.mockClear()
+      controller.handleEvent({ kind: 'button', button: 'l2', pressed: true })
+      expect(mockGetR2Segments).toHaveBeenCalled()
     })
   })
 })

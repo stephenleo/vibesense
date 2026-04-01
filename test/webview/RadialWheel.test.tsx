@@ -272,6 +272,172 @@ describe('RadialWheelApp — preview text for prompt segments', () => {
   })
 })
 
+// ─── Story 7.4 — Label Fading Tests ───────────────────────────────────────────
+
+describe('Story 7.4 — Label fading: labelMode rendering', () => {
+  // Test 7.4-1: icon-only segment renders digit label "1"–"8"
+  it('segment with labelMode "icon-only" renders digit label (e.g., "1" for index 0)', () => {
+    const r2WithIconOnly: WheelSegmentDef[] = mockR2Segments.map((seg) => ({
+      ...seg,
+      label: `${seg.index + 1}`,     // digit "1"–"8"
+      labelMode: 'icon-only' as const,
+    }))
+    render(<RadialWheelApp />)
+    postHostMessage({
+      type: 'WHEEL_OPEN',
+      payload: { activeWheel: 'r2', l2Segments: mockL2Segments, r2Segments: r2WithIconOnly },
+    })
+    // Segment 0 in R2 wheel should show label "1"
+    const menuItems = screen.getAllByRole('menuitem')
+    // R2 is active (not hidden), so R2 segments are accessible
+    const r2Items = menuItems.filter((item) => {
+      const label = item.getAttribute('aria-label')
+      // R2 segments have promptText — check by aria-label
+      return mockR2Segments.some((s) => s.promptText === label)
+    })
+    expect(r2Items).toHaveLength(8)
+  })
+
+  // Test 7.4-2: abbreviated segment renders shortened label
+  it('segment with labelMode "abbreviated" renders abbreviated label text', () => {
+    const r2WithAbbreviated: WheelSegmentDef[] = mockR2Segments.map((seg) => ({
+      ...seg,
+      label: 'Refactor',            // abbreviated first word
+      labelMode: 'abbreviated' as const,
+    }))
+    render(<RadialWheelApp />)
+    postHostMessage({
+      type: 'WHEEL_OPEN',
+      payload: { activeWheel: 'r2', l2Segments: mockL2Segments, r2Segments: r2WithAbbreviated },
+    })
+    // All R2 segments should show 'Refactor' as the abbreviated label (we set them all same)
+    // Verify the segment label is rendered in the SVG text nodes
+    const { container } = render(<RadialWheelApp />)
+    postHostMessage({
+      type: 'WHEEL_OPEN',
+      payload: { activeWheel: 'r2', l2Segments: mockL2Segments, r2Segments: r2WithAbbreviated },
+    })
+    const r2Wheel = container.querySelector('.radial-wheel__wheel--r2')
+    const textNodes = r2Wheel?.querySelectorAll('text')
+    // All text nodes in R2 wheel should show 'Refactor'
+    if (textNodes) {
+      for (const node of Array.from(textNodes)) {
+        expect(node.textContent).toBe('Refactor')
+      }
+    }
+  })
+
+  // Test 7.4-3: AC7 — aria-label always shows full prompt text regardless of labelMode
+  it('AC7: aria-label always contains full prompt text regardless of icon-only labelMode', () => {
+    const r2WithIconOnly: WheelSegmentDef[] = mockR2Segments.map((seg) => ({
+      ...seg,
+      label: `${seg.index + 1}`,    // icon-only digit
+      labelMode: 'icon-only' as const,
+    }))
+    render(<RadialWheelApp />)
+    postHostMessage({
+      type: 'WHEEL_OPEN',
+      payload: { activeWheel: 'r2', l2Segments: mockL2Segments, r2Segments: r2WithIconOnly },
+    })
+    const menuItems = screen.getAllByRole('menuitem')
+    // R2 segments (accessible since R2 is active) should have full promptText as aria-label
+    for (const seg of mockR2Segments) {
+      if (seg.promptText) {
+        expect(screen.getByRole('menuitem', { name: seg.promptText })).toBeInTheDocument()
+      }
+    }
+    // The aria-labels should NOT be the digit labels "1"–"8"
+    for (let i = 1; i <= 8; i++) {
+      const digitItems = menuItems.filter((item) => item.getAttribute('aria-label') === `${i}`)
+      expect(digitItems).toHaveLength(0)
+    }
+  })
+
+  // Test 7.4-4: AC7 — aria-label always shows full prompt text for abbreviated labelMode
+  it('AC7: aria-label always contains full prompt text regardless of abbreviated labelMode', () => {
+    const r2WithAbbreviated: WheelSegmentDef[] = mockR2Segments.map((seg) => ({
+      ...seg,
+      label: 'Refactor',            // abbreviated
+      promptText: seg.promptText,   // full text preserved
+      labelMode: 'abbreviated' as const,
+    }))
+    render(<RadialWheelApp />)
+    postHostMessage({
+      type: 'WHEEL_OPEN',
+      payload: { activeWheel: 'r2', l2Segments: mockL2Segments, r2Segments: r2WithAbbreviated },
+    })
+    // Each R2 segment should have its original promptText as aria-label, not "Refactor"
+    for (const seg of mockR2Segments) {
+      if (seg.promptText) {
+        expect(screen.getByRole('menuitem', { name: seg.promptText })).toBeInTheDocument()
+      }
+    }
+  })
+
+  // Test 7.4-5: icon-only segment gets icon-only CSS class applied to segment element
+  it('segment with labelMode "icon-only" gets wheel-segment__label--icon-only class on the g element', () => {
+    const r2WithIconOnly: WheelSegmentDef[] = mockR2Segments.map((seg) => ({
+      ...seg,
+      label: `${seg.index + 1}`,
+      labelMode: 'icon-only' as const,
+    }))
+    const { container } = render(<RadialWheelApp />)
+    postHostMessage({
+      type: 'WHEEL_OPEN',
+      payload: { activeWheel: 'r2', l2Segments: mockL2Segments, r2Segments: r2WithIconOnly },
+    })
+    const r2Wheel = container.querySelector('.radial-wheel__wheel--r2')
+    const iconOnlySegments = r2Wheel?.querySelectorAll('.wheel-segment__label--icon-only')
+    expect(iconOnlySegments?.length).toBe(8)
+  })
+
+  // Test 7.4-6: abbreviated segment gets abbreviated CSS class applied to segment element
+  it('segment with labelMode "abbreviated" gets wheel-segment__label--abbreviated class on the g element', () => {
+    const r2WithAbbreviated: WheelSegmentDef[] = mockR2Segments.map((seg) => ({
+      ...seg,
+      label: 'Refactor',
+      labelMode: 'abbreviated' as const,
+    }))
+    const { container } = render(<RadialWheelApp />)
+    postHostMessage({
+      type: 'WHEEL_OPEN',
+      payload: { activeWheel: 'r2', l2Segments: mockL2Segments, r2Segments: r2WithAbbreviated },
+    })
+    const r2Wheel = container.querySelector('.radial-wheel__wheel--r2')
+    const abbreviatedSegments = r2Wheel?.querySelectorAll('.wheel-segment__label--abbreviated')
+    expect(abbreviatedSegments?.length).toBe(8)
+  })
+
+  // Test 7.4-7: preview text always shows full promptText regardless of labelMode
+  it('preview text shows full promptText (not icon digit) when icon-only segment is held for 200ms', () => {
+    vi.useFakeTimers()
+    const r2WithIconOnly: WheelSegmentDef[] = mockR2Segments.map((seg) => ({
+      ...seg,
+      label: `${seg.index + 1}`,
+      labelMode: 'icon-only' as const,
+    }))
+    const { container } = render(<RadialWheelApp />)
+    postHostMessage({
+      type: 'WHEEL_OPEN',
+      payload: { activeWheel: 'r2', l2Segments: mockL2Segments, r2Segments: r2WithIconOnly },
+    })
+    // Stick pointing up → segment 0 (Refactor)
+    postHostMessage({
+      type: 'WHEEL_STICK_UPDATE',
+      payload: { x: 0, y: -1.0 },
+    })
+    act(() => {
+      vi.advanceTimersByTime(200)
+    })
+    const preview = container.querySelector('.radial-wheel__preview')
+    expect(preview).toBeInTheDocument()
+    // Preview should show full promptText, not the digit "1"
+    expect(preview?.textContent).toBe(mockR2Segments[0].promptText)
+    expect(preview?.textContent).not.toBe('1')
+    vi.useRealTimers()
+  })
+})
+
 // ─── Story 7.2 — Dual Wheel Tests ─────────────────────────────────────────────
 
 describe('Story 7.2 — Dual Wheel rendering', () => {

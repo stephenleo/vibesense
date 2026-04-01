@@ -126,6 +126,12 @@
           "description": "Priority threshold for Do Not Disturb mode. Events at or above this priority are not suppressed.",
           "order": 4
         },
+        "vibesense.radialWheel.forceIconOnly": {
+          "type": "boolean",
+          "default": false,
+          "description": "Force icon-only display for all R2 Personal Wheel segment labels, bypassing the label-fading progression.",
+          "order": 5
+        },
         "vibesense.binding.cross": {
           "type": "string",
           "default": "vibesense.approve",

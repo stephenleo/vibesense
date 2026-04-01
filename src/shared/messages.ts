@@ -12,6 +12,7 @@ export const WheelSegmentDefSchema = z.object({
   label: z.string(),
   commandId: z.string(),
   promptText: z.string().optional(),
+  labelMode: z.enum(['full', 'abbreviated', 'icon-only']).optional(),
 })
 
 // ─── Compile-time drift guards ───────────────────────────────────────────────

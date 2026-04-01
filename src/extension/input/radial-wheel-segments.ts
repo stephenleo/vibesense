@@ -1,8 +1,14 @@
 // src/extension/input/radial-wheel-segments.ts
 // L2 Smart Wheel and R2 Personal Wheel default segment definitions (Story 7.1, 7.2)
 // 8 evenly-spaced segments, segment 0 at top, clockwise
+// Story 7.4: loadR2PersonalSegments — loads custom prompts from .vscode/vibesense.json
 
-import type { WheelSegmentDef } from '../../shared/types'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import { logger } from '../logger'
+import { VibeProfileSchema } from './profile-schema'
+import type { WheelSegmentDef, LabelMode } from '../../shared/types'
+import type { RadialWheelDispatchTracker } from './radial-wheel-dispatch-tracker'
 
 /**
  * Default L2 Smart Wheel segments.
@@ -110,3 +116,55 @@ export const R2_PERSONAL_WHEEL_SEGMENTS: WheelSegmentDef[] = [
     promptText: 'Write a concise conventional commit message for my changes',
   },
 ]
+
+// ─── Story 7.4: Dynamic segment loader with label fading ─────────────────────
+
+/**
+ * Loads R2 Personal Wheel segments from .vscode/vibesense.json.
+ * Falls back to R2_PERSONAL_WHEEL_SEGMENTS defaults on any error (NFR-R1).
+ * Applies label fading via dispatchTracker + forceIconOnly setting.
+ */
+export function loadR2PersonalSegments(
+  workspaceRoot: string,
+  dispatchTracker: RadialWheelDispatchTracker,
+  forceIconOnly: boolean,
+): WheelSegmentDef[] {
+  const profilePath = path.join(workspaceRoot, '.vscode', 'vibesense.json')
+  let customPrompts: string[] = []
+
+  try {
+    const raw = fs.readFileSync(profilePath, 'utf-8')
+    const json: unknown = JSON.parse(raw)
+    const result = VibeProfileSchema.safeParse(json)
+    if (result.success && result.data.radialWheel?.segments) {
+      customPrompts = result.data.radialWheel.segments
+    }
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      logger.warn('loadR2PersonalSegments: error reading vibesense.json — using defaults', err)
+    }
+  }
+
+  return R2_PERSONAL_WHEEL_SEGMENTS.map((defaultSeg, i) => {
+    const promptText = customPrompts[i] ?? defaultSeg.promptText ?? defaultSeg.label
+    const labelMode = dispatchTracker.computeLabelMode(i, forceIconOnly)
+    const label = computeDisplayLabel(promptText, labelMode, i)
+    return {
+      ...defaultSeg,
+      label,
+      promptText,   // always full for ARIA + preview
+      labelMode,
+    }
+  })
+}
+
+/** Derives display label from full prompt text + fading mode. */
+function computeDisplayLabel(promptText: string, mode: LabelMode, index: number): string {
+  if (mode === 'icon-only') return `${index + 1}`  // "1"–"8" digit as icon
+  if (mode === 'abbreviated') {
+    // First word of prompt text, max 8 chars
+    const firstWord = promptText.split(' ')[0] ?? promptText
+    return firstWord.slice(0, 8)
+  }
+  return promptText  // full text (up to WheelSegment component to truncate via CSS)
+}

@@ -1,17 +1,19 @@
 // src/webview/radial-wheel/WheelSegment.tsx
-// SVG arc segment for the radial wheel (Story 7.1)
+// SVG arc segment for the radial wheel (Story 7.1, 7.4)
 
 import React from 'react'
+import type { LabelMode } from '../../shared/types'
 
 interface WheelSegmentProps {
   index: number
   label: string
-  promptText?: string  // full prompt text for ARIA label (prompt-dispatch segments)
-  isActive: boolean    // true = highlighted/selected
-  isPreview: boolean   // true = showing full prompt text preview
+  promptText?: string   // full prompt text for ARIA label (prompt-dispatch segments)
+  isActive: boolean     // true = highlighted/selected
+  isPreview: boolean    // true = showing full prompt text preview
   centerX: number
   centerY: number
   radius: number
+  labelMode?: LabelMode // controls label rendering (Story 7.4); undefined = 'full'
 }
 
 /**
@@ -34,6 +36,7 @@ export function WheelSegment({
   centerX,
   centerY,
   radius,
+  labelMode,
 }: WheelSegmentProps): React.ReactElement {
   const innerRadius = radius * 0.35
   const segmentAngle = Math.PI / 4 // 45° in radians
@@ -72,6 +75,8 @@ export function WheelSegment({
     'wheel-segment',
     isActive ? 'wheel-segment--active' : '',
     isPreview ? 'wheel-segment--preview' : '',
+    labelMode === 'icon-only' ? 'wheel-segment__label--icon-only' : '',
+    labelMode === 'abbreviated' ? 'wheel-segment__label--abbreviated' : '',
   ]
     .filter(Boolean)
     .join(' ')
@@ -83,7 +88,7 @@ export function WheelSegment({
     <g
       className={segmentClass}
       role="menuitem"
-      aria-label={promptText ?? label}
+      aria-label={promptText ?? label}  // AC7: always full prompt text regardless of labelMode
       aria-selected={isActive}
       style={isActive ? { transformOrigin } : undefined}
     >
