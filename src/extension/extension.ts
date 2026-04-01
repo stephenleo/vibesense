@@ -28,6 +28,7 @@ import { TerminalOutputParser } from './session/terminal-parser'
 import { LastCommandTracker } from './session/last-command-tracker'
 import { HapticController } from './output/haptic-controller'
 import { NotifyDispatcher } from './ipc/notify-dispatcher'
+import { DndController } from './output/dnd-controller'
 import type { ControllerEvent, ControllerType } from '../shared/types'
 import type { ControllerHAL } from './hid/hal'
 import type { AggregateGameState } from './fsm/states'
@@ -86,14 +87,29 @@ export function activate(context: vscode.ExtensionContext): void {
   pipeServer.start()
   context.subscriptions.push({ dispose: () => pipeServer.stop() })
 
+  // Story 6.5: DND controller — reads vibesense.dndEnabled / vibesense.dndThreshold live on each call
+  // Stateless — no listeners, no dispose needed.
+  const dndController = new DndController()
+
   // Story 6.1: Instantiate HapticController BEFORE visual panel managers (UX-DR14 haptic-first)
   // EventEmitter fires listeners in registration order — haptic must subscribe first.
-  const hapticController = new HapticController(sessionManager, () => currentDriver)
+  // Story 6.5: Wire real DND suppression callback (replaces () => false stub)
+  const hapticController = new HapticController(
+    sessionManager,
+    () => currentDriver,
+    (priority) => dndController.isDndSuppressed(priority),
+  )
   context.subscriptions.push({ dispose: () => hapticController.dispose() })
 
   // Story 6.2: LED color state controller — drives DualSense lightbar from FSM state (FR25, UX-DR4)
   // Constructed with null HAL initially; updateHal() is called when controller connects/disconnects
-  ledController = new LedController(sessionManager, null)
+  // Story 6.5: Wire real DND suppression callback
+  ledController = new LedController(
+    sessionManager,
+    null,
+    (priority) => dndController.isDndSuppressed(priority),
+  )
+  // TODO(6.5): Wire dndController.forPriority() into AudioController when Story 6.3 merges
   context.subscriptions.push({ dispose: () => { ledController?.dispose(); ledController = undefined } })
 
   // Story 5.1: Log aggregateGameStateChanged events (haptic/LED/game integrations come in later epics)

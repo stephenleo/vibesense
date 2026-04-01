@@ -281,6 +281,74 @@ describe('LedController', () => {
     controller.dispose()
   })
 
+  // ── Story 6.5: DND suppression tests ────────────────────────────────────────
+
+  it('DND suppresses LED update when isDndSuppressed returns true for normal priority state (Story 6.5, test 9)', () => {
+    const sessions = new Map([['s1', buildMockFsm('processing')]])
+    mockSessionManager.getSessions.mockReturnValue(sessions)
+
+    // Suppress normal priority
+    const isDndSuppressed = vi.fn((priority: string) => priority === 'normal')
+    const controller = new LedController(mockSessionManager, mockHal, isDndSuppressed)
+
+    emitStateChanged(mockSessionManager, 's1', 'idle', 'processing')
+
+    // processing has normal priority → should be suppressed → setLED not called
+    expect(mockHal.setLED).not.toHaveBeenCalled()
+    expect(isDndSuppressed).toHaveBeenCalledWith('normal')
+    controller.dispose()
+  })
+
+  it('DND passes through error state (high priority) when isDndSuppressed returns false for high (Story 6.5, test 10)', () => {
+    const sessions = new Map([['s1', buildMockFsm('error')]])
+    mockSessionManager.getSessions.mockReturnValue(sessions)
+
+    // Only suppress non-high priorities (error has high priority — passes through)
+    const isDndSuppressed = vi.fn((priority: string) => priority !== 'high')
+    const controller = new LedController(mockSessionManager, mockHal, isDndSuppressed)
+
+    emitStateChanged(mockSessionManager, 's1', 'processing', 'error')
+
+    // error has high priority → not suppressed → setLED('#E05555') called
+    expect(mockHal.setLED).toHaveBeenCalledWith('#E05555')
+    expect(isDndSuppressed).toHaveBeenCalledWith('high')
+    controller.dispose()
+  })
+
+  it('DND does NOT suppress idle transition — error→idle always clears the LED even when DND threshold=high (Story 6.5 bug fix)', () => {
+    // Start in error state
+    const errorSessions = new Map([['s1', buildMockFsm('error')]])
+    mockSessionManager.getSessions.mockReturnValue(errorSessions)
+
+    // DND suppresses everything except high-priority (i.e. suppresses normal/low)
+    const isDndSuppressed = vi.fn((priority: string) => priority !== 'high')
+    const controller = new LedController(mockSessionManager, mockHal, isDndSuppressed)
+
+    emitStateChanged(mockSessionManager, 's1', 'idle', 'error')
+    expect(mockHal.setLED).toHaveBeenCalledWith('#E05555')
+    vi.mocked(mockHal.setLED).mockClear()
+
+    // Now error resolves → idle. idle has 'normal' priority, but must NOT be suppressed.
+    mockSessionManager.getSessions.mockReturnValue(new Map([['s1', buildMockFsm('idle')]]))
+    emitStateChanged(mockSessionManager, 's1', 'error', 'idle')
+
+    // LED must clear (#000000) — should NOT stay stuck on red
+    expect(mockHal.setLED).toHaveBeenCalledWith('#000000')
+    controller.dispose()
+  })
+
+  it('LedController works normally with default isDndSuppressed (no DND — always returns false)', () => {
+    const sessions = new Map([['s1', buildMockFsm('processing')]])
+    mockSessionManager.getSessions.mockReturnValue(sessions)
+
+    // Default: no DND callback provided → never suppresses
+    const controller = new LedController(mockSessionManager, mockHal)
+    emitStateChanged(mockSessionManager, 's1', 'idle', 'processing')
+
+    expect(mockHal.setLED).toHaveBeenCalledWith('#00C8FF')
+    controller.dispose()
+  })
+
   // ── computeColor — direct unit tests ────────────────────────────────────────
   it('computeColor returns null when no sessions exist', () => {
     const controller = new LedController(mockSessionManager, mockHal)

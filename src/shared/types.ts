@@ -14,6 +14,19 @@ export type HapticPattern = 'single_pulse' | 'double_pulse' | 'triple_pulse' | '
 /** Audio tone identifiers for DualSense speaker feedback */
 export type AudioTone = 'success' | 'warning' | 'error' | 'none'
 
+/** Priority level for ambient feedback — controls Do Not Disturb suppression */
+export type FeedbackPriority = 'low' | 'normal' | 'high'
+
+/** Default priority for each agent FSM state */
+/* eslint-disable @typescript-eslint/naming-convention */
+export const AGENT_STATE_PRIORITY: Record<AgentState, FeedbackPriority> = {
+  processing: 'normal',
+  'needs-input': 'normal',
+  idle: 'normal',
+  error: 'high', // error ALWAYS passes through DND (AC2)
+}
+/* eslint-enable @typescript-eslint/naming-convention */
+
 /** DualSense and Xbox button identifiers */
 export type ButtonId =
   // DualSense buttons
