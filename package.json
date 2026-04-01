@@ -81,6 +81,11 @@
         "command": "vibesense.toggleHud",
         "title": "Toggle HUD Overlay",
         "category": "VibeSense"
+      },
+      {
+        "command": "vibesense.toggleGame",
+        "title": "Toggle Mini-Game",
+        "category": "VibeSense"
       }
     ],
     "configuration": {
@@ -131,6 +136,14 @@
           "default": false,
           "description": "Force icon-only display for all R2 Personal Wheel segment labels, bypassing the label-fading progression.",
           "order": 5
+        },
+        "vibesense.gameAutoLaunchDelay": {
+          "type": "number",
+          "default": 5,
+          "minimum": 0,
+          "maximum": 60,
+          "description": "Seconds to wait after an agent enters processing state before auto-launching the mini-game. Set to 0 to disable auto-launch.",
+          "order": 6
         },
         "vibesense.binding.cross": {
           "type": "string",

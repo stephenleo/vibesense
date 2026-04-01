@@ -147,6 +147,27 @@ export const HostMessageSchema = z.discriminatedUnion('type', [
       cancelled: z.boolean(),
     }),
   }),
+  // Story 8.1: Mini-game messages — Host → Webview
+  z.object({
+    type: z.literal('GAME_START'),
+    payload: z.object({}),
+  }),
+  z.object({
+    type: z.literal('GAME_STICK_UPDATE'),
+    payload: z.object({
+      x: z.number(),  // right_x axis value: -1.0 to 1.0
+      y: z.number(),  // right_y axis value: -1.0 to 1.0
+    }),
+  }),
+  // Story 8.2 will wire these — stubs defined now for message contract stability
+  z.object({
+    type: z.literal('GAME_PAUSE'),
+    payload: z.object({}),
+  }),
+  z.object({
+    type: z.literal('GAME_RESUME'),
+    payload: z.object({}),
+  }),
   // Story 7.3: HUD overlay messages — Host → Webview
   z.object({
     type: z.literal('HUD_TOGGLE'),

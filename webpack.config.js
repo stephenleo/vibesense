@@ -47,6 +47,7 @@ const webviewConfig = {
     settings: './src/webview/settings/index.tsx',
     onboarding: './src/webview/onboarding/index.tsx',
     hud: './src/webview/hud/index.tsx',
+    'mini-game': './src/webview/mini-game/index.tsx',
   },
   output: {
     path: path.resolve(__dirname, 'dist/webview'),
