@@ -82,8 +82,11 @@ const initialState: HUDState = {
 export function HUDOverlay(): React.ReactElement {
   const [state, dispatch] = useReducer(hudReducer, initialState)
   // Story 10.2: Active-press state — separate useState (not in useReducer) to allow timer side effects
-  const [pressedButtons, setPressedButtons] = useState<Set<string>>(new Set())
+  // Uses Map<string, number> where number is a monotonically increasing press counter.
+  // The counter forces React key changes in ButtonMap, ensuring CSS animation restarts on rapid re-press.
+  const [pressedButtons, setPressedButtons] = useState<Map<string, number>>(new Map())
   const pressTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+  const pressCounter = useRef(0)
 
   useEffect(() => {
     const handler = (event: MessageEvent) => {
@@ -118,12 +121,14 @@ export function HUDOverlay(): React.ReactElement {
         // Clear existing timer for re-press (allows re-triggering if button held and re-pressed)
         const existing = pressTimers.current.get(btn)
         if (existing !== undefined) clearTimeout(existing)
-        // Add to pressed set — creates new Set to trigger React re-render
-        setPressedButtons(prev => new Set([...prev, btn]))
+        // Add to pressed map with incrementing counter — forces React key change for animation restart
+        pressCounter.current += 1
+        const count = pressCounter.current
+        setPressedButtons(prev => new Map([...prev, [btn, count]]))
         // Schedule removal after 300ms
         const timer = setTimeout(() => {
           setPressedButtons(prev => {
-            const next = new Set(prev)
+            const next = new Map(prev)
             next.delete(btn)
             return next
           })

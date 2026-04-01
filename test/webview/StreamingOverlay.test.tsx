@@ -221,7 +221,7 @@ describe('StreamingOverlay — pressedButtons animation class (Story 10.2, AC1/A
         bindings={bindings}
         controllerType="dualsense"
         mode="full"
-        pressedButtons={new Set(['cross'])}
+        pressedButtons={new Map([['cross', 1]])}
       />,
     )
     const rows = container.querySelectorAll('.hud-binding-row')
@@ -236,7 +236,7 @@ describe('StreamingOverlay — pressedButtons animation class (Story 10.2, AC1/A
         bindings={bindings}
         controllerType="dualsense"
         mode="full"
-        pressedButtons={new Set(['cross'])}
+        pressedButtons={new Map([['cross', 1]])}
       />,
     )
     // circle row should NOT have the pressed class
@@ -245,14 +245,14 @@ describe('StreamingOverlay — pressedButtons animation class (Story 10.2, AC1/A
     expect(circleRow).toBeDefined()
   })
 
-  it('shows no animation classes when pressedButtons is an empty set', () => {
+  it('shows no animation classes when pressedButtons is an empty map', () => {
     const { container } = render(
       <StreamingOverlay
         sessions={emptySessions}
         bindings={bindings}
         controllerType="dualsense"
         mode="full"
-        pressedButtons={new Set()}
+        pressedButtons={new Map()}
       />,
     )
     const pressedRows = container.querySelectorAll('.streaming-button-pressed')

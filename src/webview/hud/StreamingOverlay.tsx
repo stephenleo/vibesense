@@ -11,7 +11,7 @@ interface StreamingOverlayProps {
   bindings: Record<string, string>
   controllerType: ControllerType | null
   mode: 'guided' | 'full'
-  pressedButtons?: Set<string>  // Story 10.2: active button-press state
+  pressedButtons?: Map<string, number>  // Story 10.2: active button-press state (Map<buttonId, pressCounter>)
 }
 
 function agentStateToClass(state: Session['agentState']): string {

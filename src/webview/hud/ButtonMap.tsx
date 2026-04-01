@@ -38,7 +38,7 @@ interface ButtonMapProps {
   bindings: Record<string, string>
   controllerType: ControllerType | null
   mode: 'guided' | 'full'
-  pressedButtons?: Set<string>  // Story 10.2: optional — applies streaming-button-pressed CSS class
+  pressedButtons?: Map<string, number>  // Story 10.2: optional — Map<buttonId, pressCounter> for animation re-trigger
 }
 
 export function ButtonMap({ bindings, controllerType, mode, pressedButtons }: ButtonMapProps): React.ReactElement {
@@ -55,7 +55,7 @@ export function ButtonMap({ bindings, controllerType, mode, pressedButtons }: Bu
   return (
     <ul className="hud-binding-list" role="list">
       {filtered.map(([button, command]) => (
-        <li key={button} className={`hud-binding-row${pressedButtons?.has(button) ? ' streaming-button-pressed' : ''}`}>
+        <li key={pressedButtons?.has(button) ? `${button}-${pressedButtons.get(button)}` : button} className={`hud-binding-row${pressedButtons?.has(button) ? ' streaming-button-pressed' : ''}`}>
           <span className="hud-icon"><ControllerIcon button={button} controllerType={resolvedControllerType} size={20} /></span>
           <span className="hud-binding-label">{commandToLabel(command)}</span>
         </li>
