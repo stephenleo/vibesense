@@ -130,6 +130,12 @@ function buildMockDualsense() {
       },
     },
     rumble: vi.fn(),
+    // Story 6.2: expose hid.provider.write for LED lightbar tests
+    hid: {
+      provider: {
+        write: vi.fn().mockResolvedValue(undefined),
+      },
+    },
   }
 }
 
@@ -298,6 +304,60 @@ describe('DualSenseDriver', () => {
     expect(() => driver.setHaptic('triple_pulse')).not.toThrow()
     expect(() => driver.setHaptic('slow_rumble')).not.toThrow()
     expect(() => driver.setHaptic('none')).not.toThrow()
+  })
+
+  // ── Story 6.2: setLED() tests ──────────────────────────────────────────────
+
+  it('setLED("#00C8FF") does not throw when controller is connected', () => {
+    expect(() => driver.setLED('#00C8FF')).not.toThrow()
+  })
+
+  it('setLED("#000000") does not throw (off/dim)', () => {
+    expect(() => driver.setLED('#000000')).not.toThrow()
+  })
+
+  it('setLED("#FFB800") does not throw (amber)', () => {
+    expect(() => driver.setLED('#FFB800')).not.toThrow()
+  })
+
+  it('setLED writes to hid.provider.write when controller is connected', () => {
+    driver.setLED('#00C8FF')
+    // hid.provider.write is called once with a Uint8Array
+    expect(mockDualsenseInstance.hid.provider.write).toHaveBeenCalledTimes(1)
+    const [report] = vi.mocked(mockDualsenseInstance.hid.provider.write).mock.calls[0] as [Uint8Array]
+    expect(report).toBeInstanceOf(Uint8Array)
+    // Verify report header bytes
+    expect(report[0]).toBe(0x02)  // report ID
+    expect(report[1]).toBe(0xff)  // ScopeA: all
+    expect(report[2]).toBe(0x04)  // ScopeB: TouchpadLeds
+    expect(report[39]).toBe(0x02) // LedOptions
+    expect(report[43]).toBe(0x00) // Brightness.High
+    // Verify RGB bytes for cyan #00C8FF
+    expect(report[45]).toBe(0x00) // R
+    expect(report[46]).toBe(0xC8) // G
+    expect(report[47]).toBe(0xFF) // B
+  })
+
+  it('setLED writes correct RGB for red #E05555', () => {
+    driver.setLED('#E05555')
+    const [report] = vi.mocked(mockDualsenseInstance.hid.provider.write).mock.calls[0] as [Uint8Array]
+    expect(report[45]).toBe(0xE0) // R
+    expect(report[46]).toBe(0x55) // G
+    expect(report[47]).toBe(0x55) // B
+  })
+
+  it('setLED writes R=0,G=0,B=0 for off (#000000)', () => {
+    driver.setLED('#000000')
+    const [report] = vi.mocked(mockDualsenseInstance.hid.provider.write).mock.calls[0] as [Uint8Array]
+    expect(report[45]).toBe(0x00)
+    expect(report[46]).toBe(0x00)
+    expect(report[47]).toBe(0x00)
+  })
+
+  it('setLED() does not throw when controller is null (not started) — NFR-R1', () => {
+    // Create a fresh driver that is NOT started — controller will be null
+    const freshDriver = new DualSenseDriver()
+    expect(() => freshDriver.setLED('#00C8FF')).not.toThrow()
   })
 
   it('emits connected and battery events immediately when controller is already connected at start()', () => {

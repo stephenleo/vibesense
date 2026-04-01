@@ -10,6 +10,16 @@ import type { ControllerHAL } from './hal'
 import type { ControllerEvent, ControllerType, ButtonId, AxisId, HapticPattern } from '../../shared/types'
 
 /**
+ * Parse a hex color string (#RRGGBB) into [R, G, B] byte values (0–255).
+ */
+function hexToRgb(hex: string): [number, number, number] {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return [r, g, b]
+}
+
+/**
  * DualSense controller driver.
  *
  * Uses dualsense-ts to handle both USB and Bluetooth DualSense report formats.
@@ -115,11 +125,27 @@ export class DualSenseDriver extends EventEmitter implements ControllerHAL {
     }
   }
 
-  setLED(_color: string): void {
-    // dualsense-ts does not currently expose lightbar RGB directly in the public API.
-    // This is a no-op stub — lightbar color control will be implemented in Story 6.2
-    // using the raw HID command layer when the LED controller story is implemented.
-    logger.info('DualSense setLED called (stub)')
+  setLED(color: string): void {
+    if (!this.controller) {
+      return
+    }
+    try {
+      const [r, g, b] = hexToRgb(color)
+      const report = new Uint8Array(48).fill(0)
+      report[0] = 0x02  // Report ID (USB output report)
+      report[1] = 0xff  // CommandScopeA: all flags (preserve rumble state)
+      report[2] = 0x04  // CommandScopeB.TouchpadLeds = 0x04 (enables lightbar)
+      report[39] = 0x02 // LedOptions (avoid player LED brightness conflict)
+      report[43] = 0x00 // Brightness.High = 0x00
+      report[45] = r
+      report[46] = g
+      report[47] = b
+      this.controller.hid.provider.write(report).catch((writeErr: unknown) => {
+        logger.error('DualSense setLED write failed', writeErr)
+      })
+    } catch (err) {
+      logger.error('DualSense setLED error', err)
+    }
   }
 
   private scheduleHaptic(fn: () => void, delayMs: number): void {
