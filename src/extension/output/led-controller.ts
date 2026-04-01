@@ -85,11 +85,13 @@ export class LedController {
     next: AgentState,
   ): void => {
     try {
-      // DND suppression — check priority for this state before updating LED
-      const priority = AGENT_STATE_PRIORITY[next]
-      if (this.isDndSuppressed(priority)) {
-        logger.info(`LedController: LED suppressed by DND for state "${next}"`)
-        return
+      // DND suppression — skip for idle ("turn off feedback" always passes through)
+      if (next !== 'idle') {
+        const priority = AGENT_STATE_PRIORITY[next]
+        if (this.isDndSuppressed(priority)) {
+          logger.info(`LedController: LED suppressed by DND for state "${next}"`)
+          return
+        }
       }
       const color = this.computeColor(this.sessionManager.getSessions())
       if (color !== this.currentColor) {

@@ -180,6 +180,23 @@ describe('HapticController', () => {
     expect(isDndSuppressed).toHaveBeenCalledWith('high')
   })
 
+  it('DND does NOT suppress idle transition — error→idle always fires single_pulse even when DND threshold=high (Story 6.5 bug fix)', () => {
+    // DND suppresses everything except high-priority (i.e. suppresses normal/low)
+    const isDndSuppressed = vi.fn((priority: string) => priority !== 'high')
+    const _ctrl = new HapticController(sessionManager, () => mockHal, isDndSuppressed)
+
+    const fsm = sessionManager.getOrCreateFsm('s1')
+    fsm.dispatch('AGENT_PROCESSING') // idle → processing (normal, suppressed)
+    fsm.dispatch('AGENT_ERROR')      // processing → error (high, passes through)
+    mockHal.setHaptic.mockClear()
+
+    fsm.dispatch('RESET')            // error → idle (must NOT be suppressed)
+
+    // idle transition must fire single_pulse to clear feedback
+    const calls = mockHal.setHaptic.mock.calls.map((c: unknown[]) => c[0])
+    expect(calls).toContain('single_pulse')
+  })
+
   it('rapid successive transitions → anti-stacking: setHaptic("none") cancels in-flight before each new haptic (AC 5)', () => {
     const _ctrl = new HapticController(sessionManager, () => mockHal)
 

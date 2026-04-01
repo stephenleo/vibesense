@@ -315,6 +315,28 @@ describe('LedController', () => {
     controller.dispose()
   })
 
+  it('DND does NOT suppress idle transition — error→idle always clears the LED even when DND threshold=high (Story 6.5 bug fix)', () => {
+    // Start in error state
+    const errorSessions = new Map([['s1', buildMockFsm('error')]])
+    mockSessionManager.getSessions.mockReturnValue(errorSessions)
+
+    // DND suppresses everything except high-priority (i.e. suppresses normal/low)
+    const isDndSuppressed = vi.fn((priority: string) => priority !== 'high')
+    const controller = new LedController(mockSessionManager, mockHal, isDndSuppressed)
+
+    emitStateChanged(mockSessionManager, 's1', 'idle', 'error')
+    expect(mockHal.setLED).toHaveBeenCalledWith('#E05555')
+    vi.mocked(mockHal.setLED).mockClear()
+
+    // Now error resolves → idle. idle has 'normal' priority, but must NOT be suppressed.
+    mockSessionManager.getSessions.mockReturnValue(new Map([['s1', buildMockFsm('idle')]]))
+    emitStateChanged(mockSessionManager, 's1', 'error', 'idle')
+
+    // LED must clear (#000000) — should NOT stay stuck on red
+    expect(mockHal.setLED).toHaveBeenCalledWith('#000000')
+    controller.dispose()
+  })
+
   it('LedController works normally with default isDndSuppressed (no DND — always returns false)', () => {
     const sessions = new Map([['s1', buildMockFsm('processing')]])
     mockSessionManager.getSessions.mockReturnValue(sessions)

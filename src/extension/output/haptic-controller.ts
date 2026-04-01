@@ -59,11 +59,13 @@ export class HapticController {
       return
     }
 
-    // DND suppression — check priority for this state
-    const priority = AGENT_STATE_PRIORITY[next]
-    if (this.isDndSuppressed(priority)) {
-      logger.info(`HapticController: haptic suppressed by DND for state "${next}"`)
-      return
+    // DND suppression — skip for idle ("turn off feedback" always passes through)
+    if (next !== 'idle') {
+      const priority = AGENT_STATE_PRIORITY[next]
+      if (this.isDndSuppressed(priority)) {
+        logger.info(`HapticController: haptic suppressed by DND for state "${next}"`)
+        return
+      }
     }
 
     const pattern = STATE_TO_HAPTIC[next]
