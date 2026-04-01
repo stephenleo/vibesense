@@ -35,7 +35,7 @@ import { RadialWheelDispatchTracker } from './input/radial-wheel-dispatch-tracke
 import { loadR2PersonalSegments } from './input/radial-wheel-segments'
 import { HudPanelManager } from './panels/hud-panel'
 import { MiniGamePanelManager } from './panels/mini-game-panel'
-import type { ControllerEvent, ControllerType } from '../shared/types'
+import type { ControllerEvent, ControllerType, Session } from '../shared/types'
 import type { ControllerHAL } from './hid/hal'
 import type { AggregateGameState } from './fsm/states'
 import type { AgentState } from '../shared/types'
@@ -120,15 +120,15 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Story 5.1: Log aggregateGameStateChanged events
   // Story 8.1: Wire MiniGamePanelManager countdown on PLAY/PAUSE transitions (AC1, FR30)
+  // Story 8.2: Wire pauseGame()/resumeGame() for auto-pause/resume (FR31, FR32)
   sessionManager.on('aggregateGameStateChanged', (state: AggregateGameState) => {
     logger.info(`SessionManager: aggregateGameState → ${state}`)
     if (state === 'PLAY') {
-      // Session moved to processing — start auto-launch countdown (AC1, FR30)
+      miniGamePanelManager.resumeGame()   // Story 8.2: resume before countdown (AC2)
       miniGamePanelManager.startCountdown()
     } else {
-      // Session needs attention — cancel pending countdown
-      // Story 8.2 will also call pause here
       miniGamePanelManager.cancelCountdown()
+      miniGamePanelManager.pauseGame()    // Story 8.2: pause running game (AC1, AC4)
     }
   })
 
@@ -172,11 +172,18 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(miniGamePanelManager)
 
   // Story 5.5: Subscribe to per-session state changes — auto-open error menu on error transition (AC 1)
+  // Story 8.2: Also update SlidePanel session list so SessionCard shows current agent states (UX-DR4)
   sessionManager.on('sessionStateChanged', (sid: string, _prev: AgentState, next: AgentState) => {
     if (next === 'error') {
       const lastCommand = lastCommandTracker?.getLastCommand(sid)
       slidePanelManager.notifyErrorMenuOpen(sid, lastCommand !== undefined)
     }
+    // Update SlidePanel session list so SessionCard shows current agent states (UX-DR4)
+    const sessions: Session[] = [...sessionManager!.getSessions().entries()].map(([sessionId, fsm]) => ({
+      sessionId,
+      agentState: fsm.state,
+    }))
+    slidePanelManager.updateSessions(sessions)
   })
 
   // Story 3.1: Register controller-triggered terminal and agent launch commands (FR10, FR11, FR12)
