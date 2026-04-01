@@ -539,3 +539,23 @@ describe('SessionRatioTracker — recordFeatureUsed() and getDistinctFeatureCoun
     expect(tracker.getDistinctFeatureCount()).toBe(1)
   })
 })
+
+// ── SessionRatioTracker — getSessionStartTime() (Story 9.4) ───────────────────
+
+describe('SessionRatioTracker — getSessionStartTime() (Story 9.4)', () => {
+  it('returns a number less than or equal to Date.now()', () => {
+    const before = Date.now()
+    const tracker = new SessionRatioTracker()
+    const startTime = tracker.getSessionStartTime()
+    expect(typeof startTime).toBe('number')
+    expect(startTime).toBeGreaterThanOrEqual(before)
+    expect(startTime).toBeLessThanOrEqual(Date.now())
+  })
+
+  it('returns the same value on repeated calls (immutable start time)', () => {
+    const tracker = new SessionRatioTracker()
+    const first = tracker.getSessionStartTime()
+    const second = tracker.getSessionStartTime()
+    expect(first).toBe(second)
+  })
+})

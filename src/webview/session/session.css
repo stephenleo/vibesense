@@ -377,3 +377,49 @@
   font-size: var(--vs-font-size-sm);
   cursor: pointer;
 }
+
+/* ─── SessionHealthBar ─────────────────────────────────────────────────────── */
+
+.health-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--vs-space-2);
+  padding: var(--vs-space-2) var(--vs-space-3);
+  margin-bottom: var(--vs-space-2);
+  background: var(--vs-surface2);
+  border: 1px solid var(--vs-border);
+  border-radius: var(--vs-radius-md);
+  font-size: var(--vs-font-size-sm);
+  font-family: var(--vs-font-family);
+}
+
+/* Ratio indicator — color communicates quality, text label also present for NFR-A2 */
+.health-bar__ratio {
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.health-bar__ratio--warning {
+  color: #FFB800;  /* amber — ratio < 50% (same as --vs-controller-y) */
+}
+
+.health-bar__ratio--good {
+  color: var(--vs-accent);  /* cyan #00C8FF — ratio ≥ 80% */
+}
+
+.health-bar__ratio--neutral {
+  color: var(--vs-text2);  /* muted — ratio 50–79% */
+}
+
+/* Session duration — mm:ss format */
+.health-bar__duration {
+  color: var(--vs-text2);
+  flex-shrink: 0;
+}
+
+/* XP preview */
+.health-bar__xp {
+  color: var(--vs-text2);
+  margin-left: auto;
+  flex-shrink: 0;
+}

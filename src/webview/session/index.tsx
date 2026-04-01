@@ -32,6 +32,10 @@ interface AppState {
   errorMenuVisible: boolean
   errorMenuSessionId: string
   errorMenuHasLastCommand: boolean
+  healthBarRatio: number
+  healthBarDurationMs: number
+  healthBarSessionXp: number
+  healthBarConnected: boolean
 }
 
 type AppAction =
@@ -48,6 +52,7 @@ type AppAction =
   | { type: 'NAVIGATE_QUICK_PANEL'; selectedIndex: number }
   | { type: 'OPEN_ERROR_MENU'; sessionId: string; hasLastCommand: boolean }
   | { type: 'CLOSE_ERROR_MENU' }
+  | { type: 'UPDATE_HEALTH_BAR'; ratio: number; durationMs: number; sessionXp: number; connected: boolean }
 
 function reducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
@@ -87,6 +92,14 @@ function reducer(state: AppState, action: AppAction): AppState {
       }
     case 'CLOSE_ERROR_MENU':
       return { ...state, errorMenuVisible: false }
+    case 'UPDATE_HEALTH_BAR':
+      return {
+        ...state,
+        healthBarRatio: action.ratio,
+        healthBarDurationMs: action.durationMs,
+        healthBarSessionXp: action.sessionXp,
+        healthBarConnected: action.connected,
+      }
     default:
       return state
   }
@@ -105,6 +118,10 @@ const initialState: AppState = {
   errorMenuVisible: false,
   errorMenuSessionId: '',
   errorMenuHasLastCommand: false,
+  healthBarRatio: 1.0,        // default: 100% (no actions yet)
+  healthBarDurationMs: 0,
+  healthBarSessionXp: 0,
+  healthBarConnected: false,  // hidden until controller connects
 }
 
 // ─── App Component ────────────────────────────────────────────────────────────
@@ -150,6 +167,14 @@ function App(): React.ReactElement {
         })
       } else if (msg.type === 'ERROR_MENU_CLOSE') {
         dispatch({ type: 'CLOSE_ERROR_MENU' })
+      } else if (msg.type === 'SESSION_HEALTH_UPDATE') {
+        dispatch({
+          type: 'UPDATE_HEALTH_BAR',
+          ratio: msg.payload.ratio,
+          durationMs: msg.payload.durationMs,
+          sessionXp: msg.payload.sessionXp,
+          connected: msg.payload.connected,
+        })
       }
     }
 
@@ -194,6 +219,12 @@ function App(): React.ReactElement {
         sessions={state.sessions}
         isExpanded={state.isExpanded}
         onToggle={handleToggle}
+        healthBar={{
+          ratio: state.healthBarRatio,
+          durationMs: state.healthBarDurationMs,
+          sessionXp: state.healthBarSessionXp,
+          connected: state.healthBarConnected,
+        }}
       />
       <SessionSwitcher
         sessionIndex={state.switcherSessionIndex}

@@ -4,6 +4,7 @@
 import React, { useEffect, useRef } from 'react'
 import type { Session } from '../../shared/types'
 import { SessionCard } from './SessionCard'
+import { SessionHealthBar } from './SessionHealthBar'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -12,6 +13,7 @@ export interface SlidePanelProps {
   isExpanded: boolean
   onToggle: () => void
   editorWidth?: number
+  healthBar?: { ratio: number; durationMs: number; sessionXp: number; connected: boolean }
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -21,6 +23,7 @@ export function SlidePanel({
   isExpanded,
   onToggle,
   editorWidth,
+  healthBar,
 }: SlidePanelProps): React.ReactElement {
   // Auto-retract when editor width < 800px (UX-DR17)
   const autoRetracted = typeof editorWidth === 'number' && editorWidth < 800
@@ -56,6 +59,8 @@ export function SlidePanel({
       {/* Panel content — only rendered when expanded */}
       {expanded && (
         <div className="slide-panel__content">
+          {/* Session health bar — shown at the top when connected (Story 9.4) */}
+          {healthBar && <SessionHealthBar {...healthBar} />}
           {sessions.length === 0 ? (
             <p className="slide-panel__empty-hint">Hold L1+R1 to open a terminal</p>
           ) : (
