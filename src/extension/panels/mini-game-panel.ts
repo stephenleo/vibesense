@@ -40,7 +40,6 @@ export class MiniGamePanelManager implements vscode.Disposable {
 
   /**
    * Cancel any pending countdown (called when AggregateGameState transitions to PAUSE).
-   * Story 8.2 will also call this to close the game — stub the method here.
    */
   cancelCountdown(): void {
     if (this.countdownTimer !== undefined) {
@@ -48,6 +47,32 @@ export class MiniGamePanelManager implements vscode.Disposable {
       this.countdownTimer = undefined
       logger.info('MiniGamePanelManager: countdown cancelled')
     }
+  }
+
+  /**
+   * Pause the running game — sends GAME_PAUSE to webview (FR31, AC1).
+   * No-op if panel is not open. Called by aggregateGameStateChanged → PAUSE.
+   */
+  pauseGame(): void {
+    if (!this.panel) return
+    this.panel.webview.postMessage({ type: 'GAME_PAUSE', payload: {} }).then(
+      undefined,
+      (err: unknown) => logger.error('MiniGamePanelManager: postMessage GAME_PAUSE failed', err),
+    )
+    logger.info('MiniGamePanelManager: game paused')
+  }
+
+  /**
+   * Resume the paused game — sends GAME_RESUME to webview (FR32, AC2).
+   * No-op if panel is not open. Called by aggregateGameStateChanged → PLAY (only if game was open).
+   */
+  resumeGame(): void {
+    if (!this.panel) return
+    this.panel.webview.postMessage({ type: 'GAME_RESUME', payload: {} }).then(
+      undefined,
+      (err: unknown) => logger.error('MiniGamePanelManager: postMessage GAME_RESUME failed', err),
+    )
+    logger.info('MiniGamePanelManager: game resumed')
   }
 
   /**
