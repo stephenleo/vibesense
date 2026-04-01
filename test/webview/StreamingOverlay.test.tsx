@@ -207,3 +207,68 @@ describe('StreamingOverlay — button-map section (AC4)', () => {
     expect(screen.getByText('No bindings configured')).toBeInTheDocument()
   })
 })
+
+describe('StreamingOverlay — pressedButtons animation class (Story 10.2, AC1/AC2/AC5)', () => {
+  const bindings: Record<string, string> = {
+    cross: 'vibesense.approve',
+    circle: 'vibesense.deny',
+  }
+
+  it('applies streaming-button-pressed class to the row for a pressed button', () => {
+    const { container } = render(
+      <StreamingOverlay
+        sessions={emptySessions}
+        bindings={bindings}
+        controllerType="dualsense"
+        mode="full"
+        pressedButtons={new Set(['cross'])}
+      />,
+    )
+    const rows = container.querySelectorAll('.hud-binding-row')
+    const pressedRow = Array.from(rows).find(r => r.classList.contains('streaming-button-pressed'))
+    expect(pressedRow).toBeDefined()
+  })
+
+  it('does NOT apply streaming-button-pressed class to a non-pressed button row', () => {
+    const { container } = render(
+      <StreamingOverlay
+        sessions={emptySessions}
+        bindings={bindings}
+        controllerType="dualsense"
+        mode="full"
+        pressedButtons={new Set(['cross'])}
+      />,
+    )
+    // circle row should NOT have the pressed class
+    const rows = container.querySelectorAll('.hud-binding-row')
+    const circleRow = Array.from(rows).find(r => !r.classList.contains('streaming-button-pressed'))
+    expect(circleRow).toBeDefined()
+  })
+
+  it('shows no animation classes when pressedButtons is an empty set', () => {
+    const { container } = render(
+      <StreamingOverlay
+        sessions={emptySessions}
+        bindings={bindings}
+        controllerType="dualsense"
+        mode="full"
+        pressedButtons={new Set()}
+      />,
+    )
+    const pressedRows = container.querySelectorAll('.streaming-button-pressed')
+    expect(pressedRows).toHaveLength(0)
+  })
+
+  it('shows no animation classes when pressedButtons prop is omitted', () => {
+    const { container } = render(
+      <StreamingOverlay
+        sessions={emptySessions}
+        bindings={bindings}
+        controllerType="dualsense"
+        mode="full"
+      />,
+    )
+    const pressedRows = container.querySelectorAll('.streaming-button-pressed')
+    expect(pressedRows).toHaveLength(0)
+  })
+})

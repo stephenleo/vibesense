@@ -2,7 +2,7 @@
 // Component tests for HUDOverlay using Vitest + @testing-library/react (jsdom)
 
 // CSS mocks must appear before imports (Vitest hoisting)
-import { vi, describe, it, expect, beforeEach } from 'vitest'
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 
 vi.mock('../../src/webview/shared-ui/tokens.css', () => ({}))
 vi.mock('../../src/webview/hud/hud.css', () => ({}))
@@ -239,6 +239,70 @@ describe('HUDOverlay — Streaming Mode (Story 10.1, AC1/AC2/AC3/AC5)', () => {
     dispatchHostMessage({ type: 'STREAMING_MODE_TOGGLED', payload: { enabled: true } })
     expect(screen.getByRole('region', { name: 'VibeSense Button Map' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'VibeSense Streaming Overlay' })).toBeInTheDocument()
+  })
+})
+
+describe('HUDOverlay — STREAMING_BUTTON_PRESSED animation (Story 10.2, AC1/AC2/AC3)', () => {
+  afterEach(() => vi.useRealTimers())
+
+  it('adds streaming-button-pressed class to the pressed button row on STREAMING_BUTTON_PRESSED', () => {
+    vi.useFakeTimers()
+    const { container } = render(<HUDOverlay />)
+    // Enable streaming mode and set bindings
+    dispatchHostMessage({ type: 'STREAMING_MODE_TOGGLED', payload: { enabled: true } })
+    dispatchHostMessage({
+      type: 'STREAMING_BINDINGS_UPDATED',
+      payload: {
+        bindings: { cross: 'vibesense.approve', circle: 'vibesense.deny' },
+        controllerType: 'dualsense',
+        mode: 'full',
+      },
+    })
+    // Fire button press
+    dispatchHostMessage({ type: 'STREAMING_BUTTON_PRESSED', payload: { button: 'cross' } })
+    const pressedRows = container.querySelectorAll('.streaming-button-pressed')
+    expect(pressedRows.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('removes streaming-button-pressed class after 300ms', () => {
+    vi.useFakeTimers()
+    const { container } = render(<HUDOverlay />)
+    dispatchHostMessage({ type: 'STREAMING_MODE_TOGGLED', payload: { enabled: true } })
+    dispatchHostMessage({
+      type: 'STREAMING_BINDINGS_UPDATED',
+      payload: {
+        bindings: { cross: 'vibesense.approve' },
+        controllerType: 'dualsense',
+        mode: 'full',
+      },
+    })
+    dispatchHostMessage({ type: 'STREAMING_BUTTON_PRESSED', payload: { button: 'cross' } })
+    // Class should be present
+    expect(container.querySelectorAll('.streaming-button-pressed').length).toBeGreaterThanOrEqual(1)
+    // Advance time past 300ms
+    act(() => { vi.advanceTimersByTime(300) })
+    // Class should be removed
+    expect(container.querySelectorAll('.streaming-button-pressed')).toHaveLength(0)
+  })
+
+  it('handles multiple simultaneous button presses independently', () => {
+    vi.useFakeTimers()
+    const { container } = render(<HUDOverlay />)
+    dispatchHostMessage({ type: 'STREAMING_MODE_TOGGLED', payload: { enabled: true } })
+    dispatchHostMessage({
+      type: 'STREAMING_BINDINGS_UPDATED',
+      payload: {
+        bindings: { cross: 'vibesense.approve', circle: 'vibesense.deny' },
+        controllerType: 'dualsense',
+        mode: 'full',
+      },
+    })
+    // Fire two different button presses
+    dispatchHostMessage({ type: 'STREAMING_BUTTON_PRESSED', payload: { button: 'cross' } })
+    dispatchHostMessage({ type: 'STREAMING_BUTTON_PRESSED', payload: { button: 'circle' } })
+    // Both rows should have the animation class
+    const pressedRows = container.querySelectorAll('.streaming-button-pressed')
+    expect(pressedRows.length).toBe(2)
   })
 })
 

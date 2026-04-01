@@ -38,9 +38,10 @@ interface ButtonMapProps {
   bindings: Record<string, string>
   controllerType: ControllerType | null
   mode: 'guided' | 'full'
+  pressedButtons?: Set<string>  // Story 10.2: optional — applies streaming-button-pressed CSS class
 }
 
-export function ButtonMap({ bindings, controllerType, mode }: ButtonMapProps): React.ReactElement {
+export function ButtonMap({ bindings, controllerType, mode, pressedButtons }: ButtonMapProps): React.ReactElement {
   // Null controllerType falls back to generic-hid for ControllerIcon rendering
   const resolvedControllerType: ControllerType = controllerType ?? 'generic-hid'
   const entries = Object.entries(bindings) as [ButtonId, string][]
@@ -54,7 +55,7 @@ export function ButtonMap({ bindings, controllerType, mode }: ButtonMapProps): R
   return (
     <ul className="hud-binding-list" role="list">
       {filtered.map(([button, command]) => (
-        <li key={button} className="hud-binding-row">
+        <li key={button} className={`hud-binding-row${pressedButtons?.has(button) ? ' streaming-button-pressed' : ''}`}>
           <span className="hud-icon"><ControllerIcon button={button} controllerType={resolvedControllerType} size={20} /></span>
           <span className="hud-binding-label">{commandToLabel(command)}</span>
         </li>

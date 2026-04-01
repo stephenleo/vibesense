@@ -162,6 +162,18 @@
   50%       { opacity: 0.25; }
 }
 
+/* Story 10.2: Button-press scale + glow animation (AC1) */
+/* prefers-reduced-motion is globally handled by tokens.css — no media query needed here */
+@keyframes streaming-button-press {
+  0%   { transform: scale(1);   filter: drop-shadow(0 0 0px transparent); }
+  30%  { transform: scale(1.4); filter: drop-shadow(0 0 6px var(--vs-glow)); }
+  100% { transform: scale(1);   filter: drop-shadow(0 0 0px transparent); }
+}
+
+.streaming-button-pressed {
+  animation: streaming-button-press 300ms var(--vs-easing-spring, cubic-bezier(0.34, 1.56, 0.64, 1)) forwards;
+}
+
 /* Respect prefers-reduced-motion — suppress pulse animations */
 @media (prefers-reduced-motion: reduce) {
   .streaming-session-dot--processing,
