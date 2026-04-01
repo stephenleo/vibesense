@@ -101,16 +101,12 @@ export class QuickSaveManager {
   /** Write R2 segments array to .vscode/vibesense.json radialWheel.segments field. */
   private async updateVibeProfileSegments(segments: string[]): Promise<void> {
     const profilePath = path.join(this.workspaceRoot, '.vscode', 'vibesense.json')
-    try {
-      let json: Record<string, unknown> = {}
-      if (fs.existsSync(profilePath)) {
-        json = JSON.parse(fs.readFileSync(profilePath, 'utf-8')) as Record<string, unknown>
-      }
-      const radialWheel = (json['radialWheel'] as Record<string, unknown> | undefined) ?? {}
-      json['radialWheel'] = { ...radialWheel, segments }
-      fs.writeFileSync(profilePath, JSON.stringify(json, null, 2), 'utf-8')
-    } catch (err) {
-      throw err // re-throw so restore() catch block logs it
+    let json: Record<string, unknown> = {}
+    if (fs.existsSync(profilePath)) {
+      json = JSON.parse(fs.readFileSync(profilePath, 'utf-8')) as Record<string, unknown>
     }
+    const radialWheel = (json['radialWheel'] as Record<string, unknown> | undefined) ?? {}
+    json['radialWheel'] = { ...radialWheel, segments }
+    fs.writeFileSync(profilePath, JSON.stringify(json, null, 2), 'utf-8')
   }
 }
