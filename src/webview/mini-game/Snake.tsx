@@ -46,6 +46,10 @@ export function Snake({ canvasRef, direction, running }: SnakeProps): null {
     let rafId: number
 
     function randomFood(body: Point[]): Point {
+      // Guard: if snake fills the entire grid, return a fallback position
+      if (body.length >= GRID_SIZE * GRID_SIZE) {
+        return { x: 0, y: 0 }
+      }
       let p: Point
       do {
         p = { x: Math.floor(Math.random() * GRID_SIZE), y: Math.floor(Math.random() * GRID_SIZE) }

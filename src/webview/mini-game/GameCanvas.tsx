@@ -40,7 +40,7 @@ const STICK_DEADZONE = 0.5
 function stickToDirection(x: number, y: number): Direction | null {
   const ax = Math.abs(x)
   const ay = Math.abs(y)
-  if (ax < STICK_DEADZONE && ay < STICK_DEADZONE) return null
+  if (ax <= STICK_DEADZONE && ay <= STICK_DEADZONE) return null
   if (ax >= ay) {
     return x > 0 ? 'right' : 'left'
   }

@@ -176,10 +176,10 @@ describe('Snake — component output', () => {
 })
 
 describe('GameCanvas — stickToDirection edge cases', () => {
-  it('handles both axes at exact deadzone boundary (0.5) — below is ignored', () => {
+  it('handles both axes at exact deadzone boundary (0.5) — treated as inside deadzone', () => {
     render(<GameCanvas />)
     dispatchHostMessage({ type: 'GAME_START', payload: {} })
-    // Exactly at deadzone (0.5 is not strictly less than 0.5, so it should act)
+    // Exactly at deadzone threshold (0.5) is inside the deadzone per AC2 (> 0.5 required)
     expect(() => {
       dispatchHostMessage({ type: 'GAME_STICK_UPDATE', payload: { x: 0.5, y: 0 } })
     }).not.toThrow()

@@ -22,6 +22,10 @@ export class MiniGamePanelManager implements vscode.Disposable {
   startCountdown(): void {
     this.cancelCountdown()
     const delayMs = this.getAutoLaunchDelayMs()
+    if (delayMs === 0) {
+      logger.info('MiniGamePanelManager: auto-launch disabled (delay=0)')
+      return
+    }
     this.countdownTimer = setTimeout(() => {
       this.countdownTimer = undefined
       try {
