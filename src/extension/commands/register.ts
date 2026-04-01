@@ -339,13 +339,8 @@ export function registerCommands(
 
     // Story 9.6 / FR58: Session quicksave — snapshot terminals + wheel config
     vscode.commands.registerCommand('vibesense.quicksave', () => {
-      try {
-        void quickSaveManager?.save()
-        logger.info('vibesense.quicksave: triggered')
-      } catch (err) {
-        logger.error('vibesense.quicksave: failed', err)
-        // NFR-R1: never propagate
-      }
+      // save() is async fire-and-forget; it has its own internal try/catch (NFR-R1)
+      void quickSaveManager?.save()
     }),
   )
 }

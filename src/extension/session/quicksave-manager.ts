@@ -110,7 +110,6 @@ export class QuickSaveManager {
       json['radialWheel'] = { ...radialWheel, segments }
       fs.writeFileSync(profilePath, JSON.stringify(json, null, 2), 'utf-8')
     } catch (err) {
-      logger.error('QuickSaveManager: updateVibeProfileSegments failed', err)
       throw err // re-throw so restore() catch block logs it
     }
   }
