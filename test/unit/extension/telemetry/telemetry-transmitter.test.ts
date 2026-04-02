@@ -20,27 +20,9 @@ vi.mock('vscode', () => ({}))
 // ── Imports after mocks ───────────────────────────────────────────────────────
 import { TelemetryTransmitter } from '../../../../src/extension/telemetry/telemetry-transmitter'
 import { logger } from '../../../../src/extension/logger'
-import type * as vscode from 'vscode'
 import type { TelemetryPayload } from '../../../../src/extension/telemetry/telemetry-schema'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-/**
- * Minimal globalState mock — matches pattern from telemetry.test.ts.
- */
-function makeGlobalState(): vscode.Memento & { _store: Map<string, unknown> } {
-  const store = new Map<string, unknown>()
-  return {
-    _store: store,
-    get: <T>(key: string, defaultValue?: T): T =>
-      (store.has(key) ? (store.get(key) as T) : (defaultValue as T)),
-    update: vi.fn(async (key: string, value: unknown) => {
-      store.set(key, value)
-    }),
-    keys: (): readonly string[] => [],
-    setKeysForSync: vi.fn(),
-  } as unknown as vscode.Memento & { _store: Map<string, unknown> }
-}
 
 /**
  * Minimal TelemetryCollector mock to isolate TelemetryTransmitter.
