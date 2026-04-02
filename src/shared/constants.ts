@@ -27,6 +27,9 @@ export const QUICKSAVE_KEY = 'vibesense.quicksaveState'
 /** globalState key for queued telemetry payloads (Story 11.1) */
 export const TELEMETRY_QUEUE_KEY = 'vibesense.telemetryQueue'
 
+/** globalState key for telemetry consent prompt shown flag (Story 11.2) */
+export const TELEMETRY_CONSENT_SHOWN_KEY = 'vibesense.telemetryConsentShown'
+
 /** globalState key for achievements store (Story 9.5) */
 export const ACHIEVEMENT_KEY = 'vibesense.achievements'
 

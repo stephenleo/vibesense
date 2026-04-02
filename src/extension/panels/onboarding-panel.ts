@@ -12,6 +12,7 @@ export class OnboardingPanelManager implements vscode.Disposable {
 
   constructor(
     private readonly context: vscode.ExtensionContext,
+    private readonly onConsentPrompt?: () => Promise<void>,
   ) {}
 
   /**
@@ -65,6 +66,10 @@ export class OnboardingPanelManager implements vscode.Disposable {
               void this.context.globalState.update('vibesense.onboardingComplete', true).then(() => {
                 logger.info('OnboardingPanelManager: globalState.onboardingComplete set to true')
               })
+              // Story 11.2: Telemetry consent prompt after onboarding
+              if (this.onConsentPrompt) {
+                void this.onConsentPrompt()
+              }
               this.panel?.dispose()
             })
           } catch (err) {
