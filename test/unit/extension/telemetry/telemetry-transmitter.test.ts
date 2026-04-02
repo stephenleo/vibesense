@@ -27,9 +27,13 @@ import type { TelemetryPayload } from '../../../../src/extension/telemetry/telem
 /**
  * Minimal TelemetryCollector mock to isolate TelemetryTransmitter.
  * Avoids importing the real TelemetryCollector so tests are unit-isolated.
+ *
+ * @param queuedPayloads - Payloads to return from getQueue()
+ * @param optedIn - Simulates isOptedIn() return value (default: true)
  */
-function makeCollector(queuedPayloads: TelemetryPayload[] = []) {
+function makeCollector(queuedPayloads: TelemetryPayload[] = [], optedIn = true) {
   return {
+    isOptedIn: vi.fn(() => optedIn),
     getQueue: vi.fn(() => queuedPayloads),
     clearQueue: vi.fn(async () => { /* no-op */ }),
   }
@@ -325,5 +329,52 @@ describe('TelemetryTransmitter — error resilience (NFR-R1)', () => {
     await vi.runAllTimersAsync()
 
     await expect(flushPromise).resolves.toBeUndefined()
+  })
+})
+
+// ── Tests: Opt-out clears transmission (FR44/FR45) ───────────────────────────
+
+describe('TelemetryTransmitter — opt-out clears transmission (FR44/FR45)', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.stubGlobal('fetch', vi.fn())
+  })
+
+  it('does not call fetch when user is not opted in at flush time', async () => {
+    // User had queued payloads while opted in, but opted out before flush
+    const collector = makeCollector([makePayload()], false)
+    const transmitter = new TelemetryTransmitter(collector as never, { backendEnabled: true })
+
+    await transmitter.flushQueue()
+
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('clears the queue when user is not opted in at flush time', async () => {
+    // Queue must be cleared so previously-collected data is not transmitted later
+    const collector = makeCollector([makePayload(), makePayload({ timestamp: 1700000001000 })], false)
+    const transmitter = new TelemetryTransmitter(collector as never, { backendEnabled: true })
+
+    await transmitter.flushQueue()
+
+    expect(collector.clearQueue).toHaveBeenCalledTimes(1)
+  })
+
+  it('logs a debug message when flush is skipped due to opt-out', async () => {
+    const collector = makeCollector([makePayload()], false)
+    const transmitter = new TelemetryTransmitter(collector as never, { backendEnabled: true })
+
+    await transmitter.flushQueue()
+
+    expect(logger.debug).toHaveBeenCalledWith(
+      expect.stringContaining('not opted in'),
+    )
+  })
+
+  it('does not throw when opt-out clears the queue (NFR-R1)', async () => {
+    const collector = makeCollector([makePayload()], false)
+    const transmitter = new TelemetryTransmitter(collector as never, { backendEnabled: true })
+
+    await expect(transmitter.flushQueue()).resolves.toBeUndefined()
   })
 })

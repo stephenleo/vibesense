@@ -69,6 +69,13 @@ export class TelemetryTransmitter {
         return
       }
 
+      // FR44/FR45: Re-check opt-in at flush time — user may have opted out after payloads were queued
+      if (!this.collector.isOptedIn()) {
+        logger.debug('TelemetryTransmitter: user not opted in — clearing queue and skipping flush')
+        await this.collector.clearQueue()
+        return
+      }
+
       const payloads = this.collector.getQueue()
 
       if (payloads.length === 0) {
