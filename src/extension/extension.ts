@@ -93,6 +93,12 @@ export function activate(context: vscode.ExtensionContext): void {
   // Set/cleared in ControllerLifecycleManager connect/disconnect callbacks below
   let currentDriver: ControllerHAL | null = null
 
+  // Track current controller type for battery event correlation and telemetry context.
+  // Declared here (before subscriptions block) to avoid a temporal dead zone: the dispose
+  // closure registered in the subscriptions block reads this variable, so it must be
+  // reachable even if the early HID-permission-error return fires before HidManager starts.
+  let currentControllerType: ControllerType | null = null
+
   // Story 6.4: NotifyDispatcher — routes vibeSense.notify() payloads to hardware controllers
   // Uses getter closure so it always sees the latest currentDriver value
   const notifyDispatcher = new NotifyDispatcher(() => currentDriver)
@@ -429,9 +435,6 @@ export function activate(context: vscode.ExtensionContext): void {
     handleHidPermissionError(accessCheck.error)
     return
   }
-
-  // Track current controller type for battery event correlation.
-  let currentControllerType: ControllerType | null = null
 
   hidManager = new HidManager()
   const initialDriver = hidManager.start()
