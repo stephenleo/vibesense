@@ -78,6 +78,23 @@ export function registerHooks(context: vscode.ExtensionContext): void {
     existing.hooks = {}
   }
 
+  // Purge malformed hook groups — entries with a missing or empty command cannot be executed
+  // and are likely left behind by automated tooling. Remove them before merging so they
+  // don't accumulate alongside the valid entries written below.
+  let purgedMalformed = false
+  for (const eventKey of ['Stop', 'PostToolUse'] as const) {
+    const groups = existing.hooks[eventKey]
+    if (Array.isArray(groups)) {
+      const cleaned = groups.filter(
+        (group) => group.hooks?.every((h) => typeof h.command === 'string' && h.command.length > 0),
+      )
+      if (cleaned.length !== groups.length) {
+        purgedMalformed = true
+        existing.hooks[eventKey] = cleaned
+      }
+    }
+  }
+
   // Merge Stop hook entry
   if (!existing.hooks.Stop) {
     existing.hooks.Stop = []
@@ -106,8 +123,8 @@ export function registerHooks(context: vscode.ExtensionContext): void {
     })
   }
 
-  // If both hooks were already present, nothing to write
-  if (stopAlreadyPresent && postToolUseAlreadyPresent) {
+  // If both hooks were already present and nothing was purged, nothing to write
+  if (stopAlreadyPresent && postToolUseAlreadyPresent && !purgedMalformed) {
     logger.info('HookWriter: VibeSense hooks already present — skipping write')
     return
   }

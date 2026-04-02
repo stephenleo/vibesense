@@ -268,6 +268,100 @@ describe('registerHooks()', () => {
     })
   })
 
+  // ── Malformed entry cleanup ───────────────────────────────────────────────────
+
+  describe('malformed hook group cleanup', () => {
+    it('removes hook groups with missing command field and writes valid entries', () => {
+      const existingSettings = {
+        hooks: {
+          Stop: [{ matcher: '', hooks: [{ type: 'command' }] }],
+          PostToolUse: [{ matcher: '', hooks: [{ type: 'command' }] }],
+        },
+      }
+      mockExistsSync.mockReturnValue(true)
+      mockReadFileSync.mockReturnValue(JSON.stringify(existingSettings))
+
+      registerHooks(makeContext() as Parameters<typeof registerHooks>[0])
+
+      expect(mockWriteFileSync).toHaveBeenCalledOnce()
+      const written = JSON.parse(mockWriteFileSync.mock.calls[0][1] as string) as {
+        hooks: {
+          Stop: Array<{ hooks: Array<{ command: string }> }>
+          PostToolUse: Array<{ hooks: Array<{ command: string }> }>
+        }
+      }
+      expect(written.hooks.Stop).toHaveLength(1)
+      expect(written.hooks.Stop[0].hooks[0].command).toContain('stop.sh')
+      expect(written.hooks.PostToolUse).toHaveLength(1)
+      expect(written.hooks.PostToolUse[0].hooks[0].command).toContain('post-tool-use.sh')
+    })
+
+    it('removes hook groups with empty-string command field', () => {
+      const existingSettings = {
+        hooks: {
+          Stop: [{ matcher: '', hooks: [{ type: 'command', command: '' }] }],
+          PostToolUse: [{ matcher: '', hooks: [{ type: 'command', command: '' }] }],
+        },
+      }
+      mockExistsSync.mockReturnValue(true)
+      mockReadFileSync.mockReturnValue(JSON.stringify(existingSettings))
+
+      registerHooks(makeContext() as Parameters<typeof registerHooks>[0])
+
+      expect(mockWriteFileSync).toHaveBeenCalledOnce()
+      const written = JSON.parse(mockWriteFileSync.mock.calls[0][1] as string) as {
+        hooks: { Stop: Array<{ hooks: Array<{ command: string }> }> }
+      }
+      expect(written.hooks.Stop[0].hooks[0].command).not.toBe('')
+    })
+
+    it('writes when valid entries coexist with malformed entries (purge + idempotency)', () => {
+      // Both valid entries present, but so is a malformed one — must still write to purge it
+      const existingSettings = {
+        hooks: {
+          Stop: [
+            { matcher: '', hooks: [{ type: 'command', command: '/ext/scripts/hooks/stop.sh' }] },
+            { matcher: '', hooks: [{ type: 'command' }] },
+          ],
+          PostToolUse: [
+            { matcher: '', hooks: [{ type: 'command', command: '/ext/scripts/hooks/post-tool-use.sh' }] },
+          ],
+        },
+      }
+      mockExistsSync.mockReturnValue(true)
+      mockReadFileSync.mockReturnValue(JSON.stringify(existingSettings))
+
+      registerHooks(makeContext() as Parameters<typeof registerHooks>[0])
+
+      expect(mockWriteFileSync).toHaveBeenCalledOnce()
+      const written = JSON.parse(mockWriteFileSync.mock.calls[0][1] as string) as {
+        hooks: { Stop: unknown[] }
+      }
+      expect(written.hooks.Stop).toHaveLength(1)
+    })
+
+    it('preserves valid third-party hook groups while removing malformed ones', () => {
+      const existingSettings = {
+        hooks: {
+          Stop: [
+            { matcher: 'some-tool', hooks: [{ type: 'command', command: '/other/tool.sh' }] },
+            { matcher: '', hooks: [{ type: 'command' }] },
+          ],
+          PostToolUse: [],
+        },
+      }
+      mockExistsSync.mockReturnValue(true)
+      mockReadFileSync.mockReturnValue(JSON.stringify(existingSettings))
+
+      registerHooks(makeContext() as Parameters<typeof registerHooks>[0])
+
+      const written = JSON.parse(mockWriteFileSync.mock.calls[0][1] as string) as {
+        hooks: { Stop: Array<{ hooks: Array<{ command: string }> }> }
+      }
+      expect(written.hooks.Stop.some((g) => g.hooks[0].command === '/other/tool.sh')).toBe(true)
+    })
+  })
+
   // ── AC 1: Idempotency ────────────────────────────────────────────────────────
 
   describe('idempotency — VibeSense hooks already present', () => {
