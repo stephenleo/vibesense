@@ -18,9 +18,6 @@ vi.mock('vscode', () => ({}))
 
 // ── Hoisted mock state (available before module code runs) ────────────────────
 const mocks = vi.hoisted(() => {
-  let capturedLevelUpListener: ((event: { previousLevel: number; newLevel: number; totalXp: number }) => void) | undefined
-  let capturedAchievementUnlockedListener: ((event: { id: string; label: string; tier: string; description: string }) => void) | undefined
-
   const ratioTracker = {
     recordKeyboardAction: vi.fn(),
     recordControllerAction: vi.fn(),
@@ -36,15 +33,10 @@ const mocks = vi.hoisted(() => {
     load: vi.fn(() => ({ totalXp: 0, level: 1, streakDays: 0, lastSessionDate: null as string | null })),
     awardSessionXp: vi.fn(async () => {}),
     on: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
-      if (event === 'levelUp') {
-        capturedLevelUpListener = listener as typeof capturedLevelUpListener
-      }
       return xpManager
     }),
     emit: vi.fn(),
     removeAllListeners: vi.fn(),
-    getCapturedLevelUpListener: () => capturedLevelUpListener,
-    resetListeners: () => { capturedLevelUpListener = undefined },
   }
 
   const achievementManager = {
@@ -52,15 +44,10 @@ const mocks = vi.hoisted(() => {
     checkAndUnlockForLevelUp: vi.fn(async () => {}),
     checkAndUnlockForSession: vi.fn(async () => {}),
     on: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
-      if (event === 'achievementUnlocked') {
-        capturedAchievementUnlockedListener = listener as typeof capturedAchievementUnlockedListener
-      }
       return achievementManager
     }),
     emit: vi.fn(),
     removeAllListeners: vi.fn(),
-    getCapturedUnlockedListener: () => capturedAchievementUnlockedListener,
-    resetListeners: () => { capturedAchievementUnlockedListener = undefined },
   }
 
   const sessionHealthManager = {
@@ -235,6 +222,12 @@ describe('StatsSubsystemCoordinator — dispose() (AC4, subtask 3.4)', () => {
     expect(mocks.sessionHealthManager.dispose).toHaveBeenCalledTimes(1)
   })
 
+  it('calls xpManager.removeAllListeners()', () => {
+    const coordinator = makeCoordinator()
+    coordinator.dispose()
+    expect(mocks.xpManager.removeAllListeners).toHaveBeenCalled()
+  })
+
   it('calls achievementManager.removeAllListeners()', () => {
     const coordinator = makeCoordinator()
     coordinator.dispose()
@@ -280,6 +273,22 @@ describe('StatsSubsystemCoordinator — achievementUnlocked event (AC6, subtask 
   })
 
   it('re-emits achievementUnlocked on coordinator for hardware feedback', () => {
+    const coordinator = makeCoordinator()
+    const hardwareSpy = vi.fn()
+    coordinator.on('achievementUnlocked', hardwareSpy)
+
+    const onCalls = mocks.achievementManager.on.mock.calls
+    const unlockedCall = onCalls.find(c => c[0] === 'achievementUnlocked')
+    const listener = unlockedCall?.[1] as ((event: { id: string; label: string; tier: string; description: string }) => void) | undefined
+
+    const event = { id: 'first-steps', label: 'First Steps', tier: 'bronze', description: 'Desc' }
+    listener?.(event)
+
+    expect(hardwareSpy).toHaveBeenCalledWith(event)
+  })
+
+  it('re-emits achievementUnlocked even when burst panel show() throws', () => {
+    mocks.burstPanelManager.show.mockImplementationOnce(() => { throw new Error('panel error') })
     const coordinator = makeCoordinator()
     const hardwareSpy = vi.fn()
     coordinator.on('achievementUnlocked', hardwareSpy)

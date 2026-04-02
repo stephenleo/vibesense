@@ -63,9 +63,14 @@ export class StatsSubsystemCoordinator extends EventEmitter {
     this.achievementManager.on('achievementUnlocked', (event: AchievementUnlockedEvent) => {
       try {
         this.achievementBurstPanelManager.show(event.id, event.label, event.tier, event.description)
+      } catch (err) {
+        logger.error('StatsSubsystemCoordinator: achievementBurst show failed', err)
+      }
+      // Always re-emit so hardware feedback fires even if burst panel fails
+      try {
         this.emit('achievementUnlocked', event)
       } catch (err) {
-        logger.error('StatsSubsystemCoordinator: achievementUnlocked handler failed', err)
+        logger.error('StatsSubsystemCoordinator: achievementUnlocked emit failed', err)
       }
     })
   }
@@ -78,6 +83,7 @@ export class StatsSubsystemCoordinator extends EventEmitter {
   /** Dispose all managed resources (AC4). */
   dispose(): void {
     this.sessionHealthManager.dispose()
+    this.xpManager.removeAllListeners()
     this.achievementManager.removeAllListeners()
     this.removeAllListeners()
   }
