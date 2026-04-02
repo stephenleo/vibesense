@@ -371,33 +371,44 @@ describe('AC1 — NFR-R1 error isolation: internal failures do not propagate', (
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('AC2 — CI regression detection: assertion messages identify which step failed', () => {
-  it('reports step 1 regression clearly when SESSION_HISTORY_KEY is not written', async () => {
+  it('step 1 regression guard: finalizeSession writes SESSION_HISTORY_KEY', async () => {
     const globalState = makeGlobalState()
-    // Do NOT run finalizeSession — simulate step 1 regression
+    const ratioTracker = new SessionRatioTracker()
+    ratioTracker.recordControllerAction()
+
+    await ratioTracker.finalizeSession(globalState)
 
     const history = globalState._store.get(SESSION_HISTORY_KEY) as SessionRecord[] | undefined
-    // This assertion documents the expected failure message for step 1
     expect(
       history,
       'step 1 regression: finalizeSession did not write SessionRecord to SESSION_HISTORY_KEY',
-    ).toBeUndefined()
+    ).toBeDefined()
+    expect(
+      history,
+      'step 1 regression: SESSION_HISTORY_KEY should contain exactly 1 session record',
+    ).toHaveLength(1)
   })
 
-  it('reports step 2 regression clearly when XP_KEY is not written', async () => {
+  it('step 2 regression guard: awardSessionXp writes XP_KEY', async () => {
     const globalState = makeGlobalState()
     const ratioTracker = new SessionRatioTracker()
     ratioTracker.recordControllerAction()
     await ratioTracker.finalizeSession(globalState)
-    // Do NOT run awardSessionXp — simulate step 2 regression
+    const raw = globalState.get<unknown>(SESSION_HISTORY_KEY)
+    const history = SessionHistorySchema.safeParse(raw ?? []).data ?? []
+    const latest = history[0]
+
+    const xpManager = new XpManager(globalState)
+    await xpManager.awardSessionXp(latest, 0)
 
     const xpRecord = globalState._store.get(XP_KEY)
     expect(
       xpRecord,
       'step 2 regression: awardSessionXp did not write XpRecord to XP_KEY',
-    ).toBeUndefined()
+    ).toBeDefined()
   })
 
-  it('reports step 3 regression clearly when ACHIEVEMENT_KEY is not written', async () => {
+  it('step 3 regression guard: checkAndUnlockForSession writes ACHIEVEMENT_KEY', async () => {
     const globalState = makeGlobalState()
     const ratioTracker = new SessionRatioTracker()
     ratioTracker.recordControllerAction()
@@ -407,16 +418,18 @@ describe('AC2 — CI regression detection: assertion messages identify which ste
     const latest = history[0]
     const xpManager = new XpManager(globalState)
     await xpManager.awardSessionXp(latest, 0)
-    // Do NOT run checkAndUnlockForSession — simulate step 3 regression
+
+    const achievementManager = new AchievementManager(globalState)
+    await achievementManager.checkAndUnlockForSession(latest, xpManager.load())
 
     const achievements = globalState._store.get(ACHIEVEMENT_KEY)
     expect(
       achievements,
       'step 3 regression: checkAndUnlockForSession did not write to ACHIEVEMENT_KEY',
-    ).toBeUndefined()
+    ).toBeDefined()
   })
 
-  it('reports step 4 regression clearly when TELEMETRY_QUEUE_KEY is not written (opted in)', async () => {
+  it('step 4 regression guard: collectSession writes TELEMETRY_QUEUE_KEY when opted in', async () => {
     const globalState = makeGlobalState()
     const ratioTracker = new SessionRatioTracker()
     ratioTracker.recordControllerAction()
@@ -428,13 +441,19 @@ describe('AC2 — CI regression detection: assertion messages identify which ste
     await xpManager.awardSessionXp(latest, 0)
     const achievementManager = new AchievementManager(globalState)
     await achievementManager.checkAndUnlockForSession(latest, xpManager.load())
-    // Do NOT run collectSession — simulate step 4 regression
+
+    const telemetryCollector = new TelemetryCollector(globalState, () => makeConfig(true))
+    await telemetryCollector.collectSession(latest, { featuresActive: [], controllerType: null })
 
     const queue = globalState._store.get(TELEMETRY_QUEUE_KEY)
     expect(
       queue,
       'step 4 regression: collectSession did not write to TELEMETRY_QUEUE_KEY when opted in',
-    ).toBeUndefined()
+    ).toBeDefined()
+    expect(
+      queue as unknown[],
+      'step 4 regression: TELEMETRY_QUEUE_KEY should have exactly 1 queued payload',
+    ).toHaveLength(1)
   })
 })
 
