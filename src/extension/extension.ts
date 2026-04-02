@@ -38,12 +38,8 @@ import { loadR2PersonalSegments } from './input/radial-wheel-segments'
 import { HudPanelManager } from './panels/hud-panel'
 import { MiniGamePanelManager } from './panels/mini-game-panel'
 import { GameHighScoreStore } from './panels/game-high-score-store'
-import { SessionRatioTracker, SESSION_HISTORY_KEY } from './stats/session-ratio-tracker'
-import { SessionHistorySchema } from './stats/session-record-schema'
-import { XpManager } from './stats/xp-manager'
-import { SessionHealthManager } from './stats/session-health-manager'
-import { AchievementManager } from './stats/achievement-manager'
-import { AchievementBurstPanelManager } from './panels/achievement-burst-panel'
+import { StatsSubsystemCoordinator } from './stats/stats-subsystem-coordinator'
+import type { AchievementUnlockedEvent } from './stats/achievement-manager'
 import { QuickSaveManager } from './session/quicksave-manager'
 import { StatsPanelManager } from './panels/stats-panel'
 import { TelemetryCollector } from './telemetry/telemetry'
@@ -264,8 +260,72 @@ export function activate(context: vscode.ExtensionContext): void {
   // Story 2.5: Load binding profile (file may now exist from above)
   const bindings = loadBindings(workspaceRoot)
 
-  // Story 9.1: Controller action ratio tracker — data foundation for Epic 9 gamification
-  const ratioTracker = new SessionRatioTracker()
+  // Story 12.1: Stats subsystem coordinator — owns SessionRatioTracker, XpManager,
+  // AchievementManager, AchievementBurstPanelManager, SessionHealthManager
+  const statsCoordinator = new StatsSubsystemCoordinator(context, slidePanelManager)
+  statsCoordinator.start()
+  context.subscriptions.push({ dispose: () => statsCoordinator.dispose() })
+
+  // Story 12.1: Hardware feedback for achievement unlocks — requires currentDriver ref (extension.ts only)
+  statsCoordinator.on('achievementUnlocked', (_event: AchievementUnlockedEvent) => {
+    try {
+      // Haptic-first (UX-DR14): fire haptic before visual burst
+      if (currentDriver?.controllerType === 'dualsense') {
+        currentDriver.setHaptic('triple_pulse')
+      }
+      // Rainbow LED cycle (only for DualSense): 6 colors × 200ms = 1200ms, then restore
+      if (currentDriver?.controllerType === 'dualsense') {
+        const rainbowColors = ['#FF0000', '#FF8800', '#FFFF00', '#00FF00', '#00C8FF', '#7B5CFA']
+        let step = 0
+        const rainbowInterval = setInterval(() => {
+          if (step < rainbowColors.length && currentDriver) {
+            currentDriver.setLED(rainbowColors[step])
+            step++
+          } else {
+            clearInterval(rainbowInterval)
+            currentDriver?.setLED('#000000')
+          }
+        }, 200)
+      }
+    } catch (err) {
+      logger.error('extension: achievementUnlocked hardware feedback failed', err)
+      // NFR-R1: never rethrow
+    }
+  })
+
+  // Story 9.1: Keyboard action detection via text document change events (AC2)
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeTextDocument((event) => {
+      // Ignore undo/redo — not user-initiated keyboard actions
+      if (
+        event.reason === vscode.TextDocumentChangeReason.Undo ||
+        event.reason === vscode.TextDocumentChangeReason.Redo
+      ) return
+      if (event.contentChanges.length > 0) {
+        statsCoordinator.recordKeyboardAction()
+      }
+    }),
+  )
+
+  // Story 9.1 + 9.3: Session finalization on extension deactivate via subscriptions dispose (AC3)
+  // Story 12.1: Delegates to coordinator.finalizeSession() — telemetry call stays in extension.ts
+  context.subscriptions.push({
+    dispose: () => {
+      const snapshotControllerType = currentControllerType
+      void statsCoordinator.finalizeSession(context.globalState, snapshotControllerType).then(async ({ sessionRecord, distinctFeatureNames }) => {
+        if (sessionRecord !== undefined) {
+          // Story 11.1: Telemetry collection — opt-in only (FR44, FR46, NFR-S4)
+          // Only extension.ts may import from src/extension/telemetry/ (AC3, ESLint-enforced)
+          await telemetryCollector.collectSession(sessionRecord, {
+            featuresActive: distinctFeatureNames,
+            controllerType: snapshotControllerType,
+          })
+        }
+      }).catch((err: unknown) => {
+        logger.error('extension: stats finalization failed', err)
+      })
+    },
+  })
 
   // Story 7.4: Instantiate DispatchTracker + getR2Segments closure for live label fading
   // Must be after workspaceRoot is defined so the closure can read .vscode/vibesense.json
@@ -279,119 +339,14 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Story 9.3: Pass ratioTracker so radial wheel dispatches are counted as feature usage (AC3)
   // Story 10.3: Pass hudPanelManager to mirror wheel events in streaming overlay
-  const radialWheelController = new RadialWheelController(radialWheelPanelManager, dispatchTracker, getR2Segments, ratioTracker, hudPanelManager)
+  // Story 12.1: Use statsCoordinator.getRatioTracker() — ratioTracker is now private to coordinator
+  const radialWheelController = new RadialWheelController(radialWheelPanelManager, dispatchTracker, getR2Segments, statsCoordinator.getRatioTracker(), hudPanelManager)
   context.subscriptions.push({ dispose: () => radialWheelController.dispose() })
-
-  // Story 9.3: XP, level, and streak manager — gamified session rewards (FR53)
-  const xpManager = new XpManager(context.globalState)
-
-  // Story 9.5: Achievement system — unlock logic + burst celebration
-  const achievementManager = new AchievementManager(context.globalState)
-  const achievementBurstPanelManager = new AchievementBurstPanelManager(context)
-  context.subscriptions.push(achievementBurstPanelManager)
-
-  // Story 9.5: Wire achievementUnlocked → haptic-first burst + rainbow LED cycle
-  achievementManager.on('achievementUnlocked', (event: { id: string; label: string; tier: string; description: string }) => {
-    try {
-      // Haptic-first (UX-DR14): fire haptic before visual burst
-      if (currentDriver?.controllerType === 'dualsense') {
-        currentDriver.setHaptic('triple_pulse')
-      }
-
-      // Show achievement burst overlay
-      achievementBurstPanelManager.show(event.id, event.label, event.tier, event.description)
-
-      // Rainbow LED cycle (only for DualSense): 6 colors × 200ms = 1200ms, then restore
-      if (currentDriver?.controllerType === 'dualsense') {
-        const rainbowColors = ['#FF0000', '#FF8800', '#FFFF00', '#00FF00', '#00C8FF', '#7B5CFA']
-        let step = 0
-        const rainbowInterval = setInterval(() => {
-          if (step < rainbowColors.length && currentDriver) {
-            currentDriver.setLED(rainbowColors[step])
-            step++
-          } else {
-            clearInterval(rainbowInterval)
-            // Restore LED to off (idle state — LedController will re-drive next event)
-            currentDriver?.setLED('#000000')
-          }
-        }, 200)
-      }
-    } catch (err) {
-      logger.error('extension: achievementUnlocked handler failed', err)
-      // NFR-R1: never rethrow
-    }
-  })
-
-  // Story 9.5: Level-up → check achievements (replaces Story 9.3 log-only stub)
-  xpManager.on('levelUp', (event: { previousLevel: number; newLevel: number; totalXp: number }) => {
-    logger.info(`VibeSense: level up! ${event.previousLevel} → ${event.newLevel} (${event.totalXp} XP)`)
-    achievementManager.checkAndUnlockForLevelUp(event.newLevel).catch((err: unknown) => {
-      logger.error('extension: checkAndUnlockForLevelUp failed', err)
-    })
-  })
-
-  // Story 9.4: Session health bar — live polling loop (FR57)
-  const sessionHealthManager = new SessionHealthManager(slidePanelManager, ratioTracker, xpManager)
-  sessionHealthManager.start()
-  context.subscriptions.push(sessionHealthManager)
-
-  context.subscriptions.push({ dispose: () => achievementManager.removeAllListeners() })
-
-  // Story 9.1: Keyboard action detection via text document change events (AC2)
-  context.subscriptions.push(
-    vscode.workspace.onDidChangeTextDocument((event) => {
-      // Ignore undo/redo — not user-initiated keyboard actions
-      if (
-        event.reason === vscode.TextDocumentChangeReason.Undo ||
-        event.reason === vscode.TextDocumentChangeReason.Redo
-      ) return
-      if (event.contentChanges.length > 0) {
-        ratioTracker.recordKeyboardAction()
-      }
-    }),
-  )
-
-  // Story 9.1 + 9.3: Session finalization on extension deactivate via subscriptions dispose (AC3)
-  // Story 9.3: After finalizing ratio, award XP based on the session record (AC1–AC4)
-  const featureCountAtDispose = () => ratioTracker.getDistinctFeatureCount()
-  const featureNamesAtDispose = () => ratioTracker.getDistinctFeatureNames()
-  context.subscriptions.push({
-    dispose: () => {
-      // Capture feature count and names before ratioTracker state is cleared
-      const distinctFeatureCount = featureCountAtDispose()
-      const distinctFeatureNames = featureNamesAtDispose()
-      // Capture current controller type for telemetry context
-      const snapshotControllerType = currentControllerType
-      void ratioTracker.finalizeSession(context.globalState).then(async () => {
-        // Read the latest session record from history to compute XP
-        try {
-          const raw = context.globalState.get<unknown>(SESSION_HISTORY_KEY)
-          const parseResult = SessionHistorySchema.safeParse(raw ?? [])
-          const history = parseResult.success ? parseResult.data : []
-          const latest = history.length > 0 ? history[history.length - 1] : undefined
-          if (latest !== undefined) {
-            await xpManager.awardSessionXp(latest, distinctFeatureCount)
-            // Story 9.5: Check session-triggered achievements after XP award
-            await achievementManager.checkAndUnlockForSession(latest, xpManager.load())
-            // Story 11.1: Telemetry collection — opt-in only (FR44, FR46, NFR-S4)
-            await telemetryCollector.collectSession(latest, {
-              featuresActive: distinctFeatureNames,
-              controllerType: snapshotControllerType,
-            })
-          }
-        } catch (err) {
-          logger.error('extension: XP award on session finalize failed', err)
-        }
-      }).catch((err: unknown) => {
-        logger.error('extension: session finalization failed', err)
-      })
-    },
-  })
 
   // Story 4.3: Filter bindings based on current mode before passing to InputRouter (AC 1, 5).
   // In Guided mode only core button IDs are exposed; in Full mode all bindings pass through.
   const initialBindings = modeManager.getFilteredBindings(bindings)
-  const inputRouter = new InputRouter(initialBindings, ratioTracker)
+  const inputRouter = new InputRouter(initialBindings, statsCoordinator.getRatioTracker())
   context.subscriptions.push(inputRouter)
 
   // Story 4.3: Subscribe to mode changes — hot-swap the binding map on mode transitions (AC 2, 3).
@@ -460,7 +415,7 @@ export function activate(context: vscode.ExtensionContext): void {
     // Story 6.2: Provide initial HAL to LED controller
     ledController?.updateHal(initialDriver)
     // Story 9.4: Notify session health manager on initial connect
-    sessionHealthManager.notifyConnected(true)
+    statsCoordinator.notifyConnected(true)
   }
 
   /**
@@ -637,7 +592,7 @@ export function activate(context: vscode.ExtensionContext): void {
       // Story 7.3: Update HUD bindings when controller (re)connects (AC2)
       hudPanelManager.updateBindings(modeManager.getFilteredBindings(bindings), driver.controllerType, modeManager.mode)
       // Story 9.4: Notify session health manager on controller connect
-      sessionHealthManager.notifyConnected(true)
+      statsCoordinator.notifyConnected(true)
     },
     () => {
       logger.info('VibeSense: controller disconnected — keyboard fallback active')
@@ -649,7 +604,7 @@ export function activate(context: vscode.ExtensionContext): void {
       // Story 7.3: Update HUD bindings on disconnect so stale controller icons are replaced with generic-hid fallback (AC2)
       hudPanelManager.updateBindings(modeManager.getFilteredBindings(bindings), null, modeManager.mode)
       // Story 9.4: Notify session health manager on controller disconnect
-      sessionHealthManager.notifyConnected(false)
+      statsCoordinator.notifyConnected(false)
     },
   )
 
