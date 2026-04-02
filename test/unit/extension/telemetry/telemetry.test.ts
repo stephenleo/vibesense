@@ -469,6 +469,39 @@ describe('TelemetryCollector — queue management', () => {
     expect(collector.getQueue()).toEqual([])
   })
 
+  it('caps the queue at MAX_QUEUE_SIZE (500) by evicting oldest payloads', async () => {
+    const globalState = makeGlobalState()
+    const config = makeConfig(true)
+    const collector = new TelemetryCollector(globalState, () => config)
+
+    // Pre-fill the queue with 500 payloads (at the cap)
+    const prefilled = Array.from({ length: 500 }, (_, i) => ({
+      version: '1.0' as const,
+      timestamp: 1000 + i,
+      controllerOnly: false,
+      controllerActionRatio: 0.5,
+      featuresActive: [],
+      sessionDurationMs: 1000,
+      agentInteractionCount: 1,
+      controllerType: null,
+      platform: 'darwin',
+    }))
+    globalState._store.set('vibesense.telemetryQueue', prefilled)
+
+    // Add one more — should evict the oldest
+    await collector.collectSession(
+      makeSessionRecord({ endedAt: 9999999 }),
+      { featuresActive: [], controllerType: null },
+    )
+
+    const queue = collector.getQueue()
+    expect(queue).toHaveLength(500)
+    // Oldest payload (timestamp 1000) should have been evicted
+    expect(queue[0].timestamp).toBe(1001)
+    // Newest payload should be the one we just added
+    expect(queue[queue.length - 1].timestamp).toBe(9999999)
+  })
+
   it('getQueue() handles corrupted globalState data gracefully', () => {
     const globalState = makeGlobalState()
     globalState._store.set(TELEMETRY_QUEUE_KEY, { invalid: 'data' })

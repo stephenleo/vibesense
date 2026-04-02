@@ -75,6 +75,12 @@ And this is enforced by an ESLint rule.
   - [x] 7.7 Test: isOptedIn() returns false by default
   - [x] 7.8 Test: isOptedIn() returns true when setting is true
 
+### Review Findings
+
+- [x] [Review][Patch] Unbounded telemetry queue growth — added MAX_QUEUE_SIZE=500 cap with FIFO eviction in enqueuePayload [src/extension/telemetry/telemetry.ts] — fixed
+- [x] [Review][Dismiss] Redundant webview restriction in second ESLint override block — functionally correct due to last-override-wins semantics
+- [x] [Review][Dismiss] Theoretical race condition in enqueuePayload — sessions finalize sequentially in dispose chain, not practically reachable
+
 ---
 
 ## Dev Notes
@@ -167,4 +173,4 @@ _No issues encountered during implementation._
 
 ## Status
 
-review
+done

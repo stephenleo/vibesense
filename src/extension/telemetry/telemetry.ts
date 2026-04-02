@@ -25,6 +25,13 @@ export interface TelemetrySessionContext {
 const PAYLOAD_SCHEMA_VERSION = '1.0' as const
 
 /**
+ * Maximum number of payloads to retain in the local queue.
+ * Prevents unbounded globalState growth before Story 11.3 (transmission layer) ships.
+ * When the cap is reached, the oldest payload is dropped (FIFO eviction).
+ */
+const MAX_QUEUE_SIZE = 500
+
+/**
  * Collects and queues aggregate-only, non-PII telemetry payloads when the user has opted in.
  *
  * At MVP: payloads are queued locally in globalState. Story 11.3 activates the transmission layer.
@@ -133,7 +140,11 @@ export class TelemetryCollector {
     const raw = this.globalState.get<unknown>(TELEMETRY_QUEUE_KEY)
     const parseResult = TelemetryQueueSchema.safeParse(raw ?? [])
     const existing = parseResult.success ? parseResult.data : []
-    const updated = [...existing, payload]
+    // Cap queue size to prevent unbounded globalState growth (FIFO eviction)
+    const trimmed = existing.length >= MAX_QUEUE_SIZE
+      ? existing.slice(existing.length - MAX_QUEUE_SIZE + 1)
+      : existing
+    const updated = [...trimmed, payload]
     await this.globalState.update(TELEMETRY_QUEUE_KEY, updated)
     logger.info(`TelemetryCollector: queued payload (queue length: ${updated.length})`)
   }
