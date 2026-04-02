@@ -8,6 +8,9 @@
   "engines": {
     "vscode": "^1.85.0"
   },
+  "enabledApiProposals": [
+    "terminalDataWriteEvent"
+  ],
   "categories": [
     "Other"
   ],
@@ -364,7 +367,7 @@
     "watch": "webpack --mode development --watch",
     "lint": "eslint src --ext ts,tsx",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.webview.json",
-    "package": "vsce package",
+    "package": "vsce package --no-dependencies",
     "vscode:prepublish": "npm run build",
     "postinstall": "electron-rebuild -f -w node-hid",
     "test": "vitest run",
