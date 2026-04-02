@@ -47,6 +47,7 @@ import { AchievementBurstPanelManager } from './panels/achievement-burst-panel'
 import { QuickSaveManager } from './session/quicksave-manager'
 import { StatsPanelManager } from './panels/stats-panel'
 import { TelemetryCollector } from './telemetry/telemetry'
+import { TelemetryTransmitter } from './telemetry/telemetry-transmitter'
 import type { ControllerEvent, ControllerType, Session } from '../shared/types'
 import type { ControllerHAL } from './hid/hal'
 import type { AggregateGameState } from './fsm/states'
@@ -240,6 +241,11 @@ export function activate(context: vscode.ExtensionContext): void {
     context.globalState,
     () => vscode.workspace.getConfiguration('vibesense'),
   )
+
+  // Story 11.3: Telemetry transmission — stub guard active until backend deploys (FR44, FR46, NFR-S2)
+  const telemetryTransmitter = new TelemetryTransmitter(telemetryCollector)
+  // Story 11.3: Flush any locally queued telemetry payloads on activation
+  void telemetryTransmitter.flushQueue()
 
   // Story 3.1: Register controller-triggered terminal and agent launch commands (FR10, FR11, FR12)
   // Story 3.3: Pass slidePanelManager so session-switch commands can notify the webview (FR13)
