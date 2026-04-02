@@ -45,6 +45,14 @@ export class SessionRatioTracker {
     return this.featuresUsed.size
   }
 
+  /**
+   * Returns the names of distinct VibeSense features used this session (Story 11.1 — telemetry).
+   * Feature names are internal identifiers — never user-entered text.
+   */
+  getDistinctFeatureNames(): string[] {
+    return Array.from(this.featuresUsed)
+  }
+
   /** Debounced keyboard action. Called from onDidChangeTextDocument handler. */
   recordKeyboardAction(): void {
     if (this.pendingKeyboardIncrement) return

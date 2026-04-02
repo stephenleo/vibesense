@@ -44,6 +44,7 @@ import { AchievementManager } from './stats/achievement-manager'
 import { AchievementBurstPanelManager } from './panels/achievement-burst-panel'
 import { QuickSaveManager } from './session/quicksave-manager'
 import { StatsPanelManager } from './panels/stats-panel'
+import { TelemetryCollector } from './telemetry/telemetry'
 import type { ControllerEvent, ControllerType, Session } from '../shared/types'
 import type { ControllerHAL } from './hid/hal'
 import type { AggregateGameState } from './fsm/states'
@@ -91,6 +92,12 @@ export function activate(context: vscode.ExtensionContext): void {
   // Story 6.1: Track the currently active HAL driver for haptic routing
   // Set/cleared in ControllerLifecycleManager connect/disconnect callbacks below
   let currentDriver: ControllerHAL | null = null
+
+  // Track current controller type for battery event correlation and telemetry context.
+  // Declared here (before subscriptions block) to avoid a temporal dead zone: the dispose
+  // closure registered in the subscriptions block reads this variable, so it must be
+  // reachable even if the early HID-permission-error return fires before HidManager starts.
+  let currentControllerType: ControllerType | null = null
 
   // Story 6.4: NotifyDispatcher — routes vibeSense.notify() payloads to hardware controllers
   // Uses getter closure so it always sees the latest currentDriver value
@@ -221,6 +228,13 @@ export function activate(context: vscode.ExtensionContext): void {
   const statsPanelManager = new StatsPanelManager(context, context.globalState)
   context.subscriptions.push(statsPanelManager)
 
+  // Story 11.1: Telemetry collection — opt-in only (FR44, FR46, NFR-S4)
+  // Only extension.ts may import from src/extension/telemetry/ (AC3, ESLint-enforced)
+  const telemetryCollector = new TelemetryCollector(
+    context.globalState,
+    () => vscode.workspace.getConfiguration('vibesense'),
+  )
+
   // Story 3.1: Register controller-triggered terminal and agent launch commands (FR10, FR11, FR12)
   // Story 3.3: Pass slidePanelManager so session-switch commands can notify the webview (FR13)
   // Story 4.3: Pass modeManager so vibesense.completeTutorial can call setFullMode() (AC 2)
@@ -328,10 +342,14 @@ export function activate(context: vscode.ExtensionContext): void {
   // Story 9.1 + 9.3: Session finalization on extension deactivate via subscriptions dispose (AC3)
   // Story 9.3: After finalizing ratio, award XP based on the session record (AC1–AC4)
   const featureCountAtDispose = () => ratioTracker.getDistinctFeatureCount()
+  const featureNamesAtDispose = () => ratioTracker.getDistinctFeatureNames()
   context.subscriptions.push({
     dispose: () => {
-      // Capture feature count before ratioTracker state is cleared
+      // Capture feature count and names before ratioTracker state is cleared
       const distinctFeatureCount = featureCountAtDispose()
+      const distinctFeatureNames = featureNamesAtDispose()
+      // Capture current controller type for telemetry context
+      const snapshotControllerType = currentControllerType
       void ratioTracker.finalizeSession(context.globalState).then(async () => {
         // Read the latest session record from history to compute XP
         try {
@@ -343,6 +361,11 @@ export function activate(context: vscode.ExtensionContext): void {
             await xpManager.awardSessionXp(latest, distinctFeatureCount)
             // Story 9.5: Check session-triggered achievements after XP award
             await achievementManager.checkAndUnlockForSession(latest, xpManager.load())
+            // Story 11.1: Telemetry collection — opt-in only (FR44, FR46, NFR-S4)
+            await telemetryCollector.collectSession(latest, {
+              featuresActive: distinctFeatureNames,
+              controllerType: snapshotControllerType,
+            })
           }
         } catch (err) {
           logger.error('extension: XP award on session finalize failed', err)
@@ -412,9 +435,6 @@ export function activate(context: vscode.ExtensionContext): void {
     handleHidPermissionError(accessCheck.error)
     return
   }
-
-  // Track current controller type for battery event correlation.
-  let currentControllerType: ControllerType | null = null
 
   hidManager = new HidManager()
   const initialDriver = hidManager.start()

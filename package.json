@@ -348,6 +348,12 @@
           "default": "vibesense.voicePtt",
           "markdownDescription": "**View** \u2014 Xbox view button",
           "order": 41
+        },
+        "vibesense.telemetry.enabled": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "**Opt in to anonymous usage analytics.**\n\nWhen enabled, VibeSense collects aggregate-only, non-PII usage signals at the end of each session:\n- Controller-only session flag (boolean)\n- Controller action ratio (aggregate %)\n- Which VibeSense features were active (feature names only)\n- Session duration (milliseconds)\n- Agent interaction count (button press count)\n- Controller type (e.g. DualSense, Xbox)\n- Platform (macOS / Linux / Windows)\n\n**What is NEVER collected:** keystrokes, terminal content, file names, project names, workspace paths, user names, machine names, or any identifiable data.\n\nYou can change this preference at any time. Telemetry is OFF by default.",
+          "order": 50
         }
       }
     }

@@ -65,6 +65,27 @@
       }
     },
     {
+      "files": ["src/extension/**/*.ts"],
+      "excludedFiles": ["src/extension/extension.ts", "src/extension/telemetry/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["**/webview/**"],
+                "message": "Extension host code must not import from webview. Use src/shared/ for shared types."
+              },
+              {
+                "group": ["**/telemetry/**"],
+                "message": "Telemetry module is isolated — only src/extension/extension.ts may import from src/extension/telemetry/. (Story 11.1 AC3)"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "files": ["src/webview/**/*.{ts,tsx}"],
       "parserOptions": {
         "ecmaFeatures": {

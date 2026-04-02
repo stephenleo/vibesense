@@ -24,6 +24,9 @@ export const WHEEL_DEAD_ZONE = 0.25
 /** globalState key for session quicksave snapshot (Story 9.6) */
 export const QUICKSAVE_KEY = 'vibesense.quicksaveState'
 
+/** globalState key for queued telemetry payloads (Story 11.1) */
+export const TELEMETRY_QUEUE_KEY = 'vibesense.telemetryQueue'
+
 /** globalState key for achievements store (Story 9.5) */
 export const ACHIEVEMENT_KEY = 'vibesense.achievements'
 
