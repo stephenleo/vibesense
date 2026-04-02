@@ -18,6 +18,8 @@ import { ModeManager } from './input/mode-manager'
 import { SlidePanelManager } from './panels/slide-panel-manager'
 import { SettingsPanelManager } from './panels/settings-panel'
 import { OnboardingPanelManager } from './panels/onboarding-panel'
+import { showTelemetryConsentPrompt } from './panels/consent-prompt'
+import { TELEMETRY_CONSENT_SHOWN_KEY } from '../shared/constants'
 import { SettingsBridge } from './input/settings-bridge'
 import { registerCommands } from './commands/register'
 import { SessionManager } from './session/session-manager'
@@ -172,7 +174,11 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(modeManager)
 
   // Story 4.4: Instantiate OnboardingPanelManager before registerCommands
-  const onboardingPanelManager = new OnboardingPanelManager(context)
+  // Story 11.2: Pass consent prompt callback (dependency injection)
+  const onboardingPanelManager = new OnboardingPanelManager(
+    context,
+    () => showTelemetryConsentPrompt(context),
+  )
   context.subscriptions.push(onboardingPanelManager)
 
   // Story 7.1: Instantiate RadialWheelPanelManager (lazy panel creation)
@@ -557,6 +563,13 @@ export function activate(context: vscode.ExtensionContext): void {
   const onboardingDone = context.globalState.get<boolean>('vibesense.onboardingComplete') === true
   if (!onboardingDone) {
     onboardingPanelManager.open(currentControllerType)
+  }
+
+  // Story 11.2: Telemetry consent — shown once after onboarding or on upgrade
+  // Covers users who completed onboarding before Story 11.2 shipped (upgrade path)
+  const consentAlreadyShown = context.globalState.get<boolean>(TELEMETRY_CONSENT_SHOWN_KEY) === true
+  if (onboardingDone && !consentAlreadyShown) {
+    void showTelemetryConsentPrompt(context)
   }
 
   // Story 9.6: Show resume prompt if quicksave state exists (AC2, AC3, AC4)
