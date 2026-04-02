@@ -1,6 +1,6 @@
 # Story 12.2: Session Finalization Integration Test
 
-Status: review
+Status: done
 
 ## Story
 
@@ -59,6 +59,12 @@ Then steps 1–3 complete normally and step 4 (`collectSession`) is a no-op with
   - [x] 5.1 Test: with `telemetry.enabled = false` in config, steps 1–3 complete normally (XP awarded, achievement checked)
   - [x] 5.2 Test: with `telemetry.enabled = false`, `TELEMETRY_QUEUE_KEY` remains empty in globalState after chain completes
   - [x] 5.3 Test: no errors thrown when opted out (NFR-R1 — silent no-op)
+
+### Review Findings
+
+- [x] [Review][Patch] Incorrect assertion `resolves.not.toThrow()` on line 376 — `toThrow()` expects a function, but `resolves` unwraps to `undefined`; replaced with `resolves.toBeUndefined()` for correctness and consistency [session-finalization-chain.test.ts:376]
+- [x] [Review][Patch] Dead optional parameters in `runFinalizationChain` helper — `xpManager`, `achievementManager`, `telemetryCollector`, `distinctFeatureCount` were never injected from any call site; simplified to remove unused options object and return type [session-finalization-chain.test.ts:83-127]
+- [x] [Review][Defer] Duplicate `SESSION_HISTORY_KEY` import in Dev Notes code snippet (lines 102 and 106 of story spec) — deferred, documentation-only issue
 
 ## Dev Notes
 

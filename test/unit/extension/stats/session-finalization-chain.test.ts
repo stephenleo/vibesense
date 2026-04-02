@@ -82,18 +82,10 @@ function makeSessionRecord(overrides: Partial<SessionRecord> = {}): SessionRecor
  */
 async function runFinalizationChain(
   globalState: vscode.Memento & { _store: Map<string, unknown> },
-  opts: {
-    xpManager?: XpManager
-    achievementManager?: AchievementManager
-    telemetryCollector?: TelemetryCollector
-    distinctFeatureCount?: number
-    recordControllerActions?: number
-  } = {},
-): Promise<{ ratioTracker: SessionRatioTracker; xpManager: XpManager; achievementManager: AchievementManager; telemetryCollector: TelemetryCollector }> {
+): Promise<void> {
   const ratioTracker = new SessionRatioTracker()
-  // Optionally simulate controller actions
-  const controllerActions = opts.recordControllerActions ?? 10
-  for (let i = 0; i < controllerActions; i++) {
+  // Simulate 10 controller actions to produce a controller-only session
+  for (let i = 0; i < 10; i++) {
     ratioTracker.recordControllerAction()
   }
 
@@ -106,14 +98,13 @@ async function runFinalizationChain(
   const history = parseResult.success ? parseResult.data : []
   const latest = history.length > 0 ? history[history.length - 1] : undefined
 
-  const xpManager = opts.xpManager ?? new XpManager(globalState)
-  const achievementManager = opts.achievementManager ?? new AchievementManager(globalState)
-  const telemetryCollector = opts.telemetryCollector ?? new TelemetryCollector(globalState, () => makeConfig(true))
-  const distinctFeatureCount = opts.distinctFeatureCount ?? 0
+  const xpManager = new XpManager(globalState)
+  const achievementManager = new AchievementManager(globalState)
+  const telemetryCollector = new TelemetryCollector(globalState, () => makeConfig(true))
 
   if (latest !== undefined) {
     // Step 2: Award XP
-    await xpManager.awardSessionXp(latest, distinctFeatureCount)
+    await xpManager.awardSessionXp(latest, 0)
     // Step 3: Check achievements
     await achievementManager.checkAndUnlockForSession(latest, xpManager.load())
     // Step 4: Collect telemetry
@@ -122,8 +113,6 @@ async function runFinalizationChain(
       controllerType: null,
     })
   }
-
-  return { ratioTracker, xpManager, achievementManager, telemetryCollector }
 }
 
 // ── Test Suite ────────────────────────────────────────────────────────────────
@@ -373,7 +362,7 @@ describe('AC1 — NFR-R1 error isolation: internal failures do not propagate', (
     await expect(
       xpManager.awardSessionXp(session, 0),
       'NFR-R1 violation: awardSessionXp rejected — internal error escaped the try/catch boundary',
-    ).resolves.not.toThrow()
+    ).resolves.toBeUndefined()
   })
 })
 
