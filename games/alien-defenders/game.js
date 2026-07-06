@@ -45,32 +45,39 @@
   // no two fleets look alike. Masks that come out too sparse fall back to a
   // full grid.
   function formationMask() {
-    const rows = 3 + Math.floor(Math.random() * 3) // 3–5
+    const rows = 4 + Math.floor(Math.random() * 3) // 4–6
     const cols = 8 + Math.floor(Math.random() * 5) // 8–12
     const midR = (rows - 1) / 2
     const midC = (cols - 1) / 2
     const type = Math.floor(Math.random() * 5)
     const half = Array.from({ length: rows }, () =>
-      Array.from({ length: Math.ceil(cols / 2) }, () => Math.random() < 0.72),
+      Array.from({ length: Math.ceil(cols / 2) }, () => Math.random() < 0.6),
     )
+    const pyramid = (r, c) => Math.abs(c - midC) <= (r / (rows - 1)) * midC + 0.5
     const cell = (r, c) => {
       if (type === 0) return half[r][Math.min(c, cols - 1 - c)] // mirrored random
-      if (type === 1) return (r + c) % 2 === 0 // checkerboard
-      if (type === 2) return Math.abs(r - midR) / midR + Math.abs(c - midC) / midC <= 1.05 // diamond
-      if (type === 3) return Math.abs(c - midC) >= ((rows - 1 - r) * midC) / rows // V wings
-      return true // full grid
+      if (type === 1)
+        return Math.abs(r - midR) / (midR + 0.5) + Math.abs(c - midC) / (midC + 0.5) <= 1 // diamond
+      if (type === 2) return Math.abs(c - midC) >= ((rows - 1 - r) / (rows - 1)) * midC - 0.5 // V wings
+      if (type === 3) return pyramid(r, c)
+      return Math.abs(Math.abs(r - midR) / (midR + 0.5) - Math.abs(c - midC) / (midC + 0.5)) < 0.3 // X cross
     }
-    const mask = []
-    let count = 0
-    for (let r = 0; r < rows; r++) {
-      mask.push([])
-      for (let c = 0; c < cols; c++) {
-        const v = cell(r, c)
-        mask[r].push(v)
-        if (v) count++
+    const build = (fn) => {
+      const mask = []
+      let count = 0
+      for (let r = 0; r < rows; r++) {
+        mask.push([])
+        for (let c = 0; c < cols; c++) {
+          const v = fn(r, c)
+          mask[r].push(v)
+          if (v) count++
+        }
       }
+      return { mask, count }
     }
-    if (count < 12) return { rows, cols, mask: mask.map((row) => row.map(() => true)) }
+    const { mask, count } = build(cell)
+    // Too sparse to play? Fall back to a pyramid — still a shape, never a slab.
+    if (count < 12) return { rows, cols, mask: build(pyramid).mask }
     return { rows, cols, mask }
   }
 
@@ -181,6 +188,7 @@
 
     bullets = bullets.filter((b) => (b.y -= 480 * dt) > 0)
     bombs = bombs.filter((b) => (b.y += 220 * dt) < H)
+    for (const b of bombs) b.x = b.x0 + Math.sin(b.y / 26 + b.phase) * 9 // weave as they fall
 
     // March the fleet; drop and reverse at the edges.
     const alive = aliens.filter((a) => a.alive)
@@ -200,7 +208,7 @@
     // Random bombs from the fleet.
     if (Math.random() < 0.9 * dt) {
       const shooter = alive[Math.floor(Math.random() * alive.length)]
-      bombs.push({ x: shooter.x, y: shooter.y + 14 })
+      bombs.push({ x: shooter.x, y: shooter.y + 14, x0: shooter.x, phase: Math.random() * Math.PI * 2 })
     }
 
     // Collisions.
@@ -428,7 +436,28 @@
     drawShip(ship.x, ship.y, 1, playing && !gameOver)
 
     for (const b of bullets) tracer(b.x, b.y - 4, 14, '#eaffea')
-    for (const b of bombs) tracer(b.x, b.y + 10, -14, '#ff4d6d')
+
+    // Alien bombs: pulsing plasma orbs with a fading trail — nothing like the
+    // player's clean tracer rounds.
+    for (const b of bombs) {
+      const pulse = 1 + 0.25 * Math.sin(now / 60 + b.phase)
+      for (let i = 1; i <= 3; i++) {
+        ctx.globalAlpha = 0.22 / i
+        ctx.fillStyle = '#ff4d6d'
+        ctx.beginPath()
+        ctx.arc(b.x0 + Math.sin((b.y - i * 10) / 26 + b.phase) * 9, b.y - i * 10, 3.5 * pulse, 0, Math.PI * 2)
+        ctx.fill()
+      }
+      ctx.globalAlpha = 1
+      ctx.fillStyle = '#ff4d6d'
+      ctx.beginPath()
+      ctx.arc(b.x, b.y, 5 * pulse, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = '#ffd0da'
+      ctx.beginPath()
+      ctx.arc(b.x, b.y, 2.2 * pulse, 0, Math.PI * 2)
+      ctx.fill()
+    }
 
     for (const p of particles) {
       ctx.globalAlpha = Math.max(0, p.life / p.max)
