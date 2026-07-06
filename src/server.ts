@@ -160,21 +160,6 @@ export class HostServer extends EventEmitter {
       return
     }
 
-    // Dev/scripting: type text into the focused session's terminal, exactly as
-    // controller keystrokes would. Localhost-only, same trust level as /hook.
-    if (req.method === 'POST' && pathname === '/type') {
-      const body = await readBody(req)
-      try {
-        const { text } = JSON.parse(body) as { text?: string }
-        if (text) this.emit('type', text)
-        res.writeHead(200)
-      } catch {
-        res.writeHead(400)
-      }
-      res.end()
-      return
-    }
-
     if (req.method === 'POST' && pathname === '/register') {
       const body = await readBody(req)
       let cwd = ''
