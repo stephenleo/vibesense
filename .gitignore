@@ -1,12 +1,5 @@
-.claude/commands
-.claude/skills
-_bmad/
-_bmad-output/implementation-artifacts
-.DS_Store
-memory/
-
-# Extension build artifacts
 node_modules/
 dist/
-*.vsix
+.DS_Store
 *.log
+.claude/settings.local.json
