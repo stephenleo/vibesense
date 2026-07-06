@@ -24,6 +24,17 @@ Agent state comes from Claude Code hooks (`UserPromptSubmit`, `Stop`, `Notificat
 
 Terminal buttons and game buttons are disjoint sets, with a 750 ms input guard on every mode flip — mashing fire can never accidentally accept a question.
 
+## Games marketplace
+
+```sh
+vibesense games            # list installed games (* = active)
+vibesense install <id>     # install vibesense-game-<id> from npm (tarballs/paths work too)
+vibesense use <id>         # switch the active game
+vibesense uninstall <id>
+```
+
+A game is an npm package `vibesense-game-<id>` with a `vibesense-game.json` manifest — either a `web` game (canvas page served to the game tab) or an `external` adapter (shell commands on state transitions, e.g. launching/pausing a Steam game). See [docs/plugin-contract.md](docs/plugin-contract.md) to build one. Paid games are a reserved manifest field (`entitlement`) with the activation gate already in place — licensing bolts on later without changing the contract.
+
 ## Status
 
 Ground-up rebuild in progress (the previous VSCode-extension incarnation lives in git history). macOS-first.
