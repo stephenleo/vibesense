@@ -1,6 +1,6 @@
 {
   "name": "vibesense",
-  "version": "2.0.0-alpha.0",
+  "version": "2.0.0",
   "description": "Drive Claude Code with a game controller — and play retro games while the agent works.",
   "license": "Apache-2.0",
   "author": "stephenleo",
@@ -17,6 +17,7 @@
   },
   "scripts": {
     "postinstall": "chmod +x node_modules/node-pty/prebuilds/*/spawn-helper 2>/dev/null || true",
+    "prepublishOnly": "npm run build",
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsx src/cli.ts",
     "test": "vitest run --passWithNoTests",
