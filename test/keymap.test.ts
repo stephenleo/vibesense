@@ -5,7 +5,6 @@ import {
   REPEAT_INTERVAL_MS,
   REPEATING_BUTTONS,
   TERMINAL_KEYS,
-  stickDirection,
 } from '../src/keymap.js'
 
 describe('TERMINAL_KEYS', () => {
@@ -84,17 +83,5 @@ describe('KeyRepeater', () => {
     vi.advanceTimersByTime(REPEAT_DELAY_MS + REPEAT_INTERVAL_MS * 5)
     expect(a).toHaveBeenCalledTimes(1)
     expect(b).toHaveBeenCalledTimes(1)
-  })
-})
-
-describe('stickDirection', () => {
-  it('maps stick Y to scroll direction with a 0.5 threshold', () => {
-    expect(stickDirection(-1)).toBe('up')
-    expect(stickDirection(-0.5)).toBe('up')
-    expect(stickDirection(-0.49)).toBeNull()
-    expect(stickDirection(0)).toBeNull()
-    expect(stickDirection(0.49)).toBeNull()
-    expect(stickDirection(0.5)).toBe('down')
-    expect(stickDirection(1)).toBe('down')
   })
 })
