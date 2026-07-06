@@ -6,6 +6,7 @@ Drive Claude Code with a game controller — and play retro games while the agen
 
 - **Agent waiting on you?** D-pad navigates AskUserQuestion options, A/✕ accepts, B/○ cancels, Y/△ triggers Claude Code's native voice input, right stick scrolls.
 - **Agent executing?** A retro alien-defenders game auto-starts in a browser tab — left stick moves, RT/R2 fires. The moment Claude stops or asks a question, the game pauses and the controller flips back to driving the terminal.
+- **Want a break?** Menu/Options pauses the game and hands the controller to the terminal; press it again to resume. This manual pause sticks — the agent starting or stopping won't un-pause it.
 - **Games are plugins.** Anyone can publish a game as an npm package (`vibesense-game-<id>`); install with `vibesense install <id>`.
 
 ## How it works

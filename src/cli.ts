@@ -128,6 +128,24 @@ if (!isHost) {
     activeGame?.manifest.kind === 'external' ? new ExternalGame(activeGame) : null
   const scroller = new SmoothScroller()
   let focusSessionId: string | null = null
+  // Manual pause (Menu button): while true the game stays frozen regardless of
+  // agent state; controller drives the terminal. lastPlaying remembers the
+  // agent's real state so "resume" hands back to it instead of guessing.
+  let userPaused = false
+  let lastPlaying = false
+
+  /** Reconcile game/terminal mode from agent state + the manual pause flag. */
+  function applyMode(): void {
+    const shouldPlay = lastPlaying && !userPaused
+    const mode = shouldPlay ? 'game' : 'terminal'
+    if (mode === router.currentMode()) return
+    repeater.releaseAll()
+    scroller.setValue(0)
+    router.setMode(mode)
+    server.broadcastGameState(shouldPlay ? 'playing' : 'paused')
+    externalGame?.setPlaying(shouldPlay)
+    logger.info(`mode → ${mode}`, { userPaused, lastPlaying })
+  }
 
   /** Terminal keystrokes go to the focused session's instance, else our own pty. */
   function writeTerminal(bytes: string): void {
@@ -157,15 +175,8 @@ if (!isHost) {
     // Sticky focus: when nobody is waiting, keep routing to the session that
     // last needed the user instead of falling back to the host's own pty.
     focusSessionId = agg.focusSessionId ?? focusSessionId
-    const mode = agg.playing ? 'game' : 'terminal'
-    if (mode !== router.currentMode()) {
-      repeater.releaseAll()
-      scroller.setValue(0)
-      router.setMode(mode)
-      server.broadcastGameState(agg.playing ? 'playing' : 'paused')
-      externalGame?.setPlaying(agg.playing)
-      logger.info(`mode → ${mode}`, agg)
-    }
+    lastPlaying = agg.playing
+    applyMode() // a manual pause overrides this until the user resumes
   })
 
   process.on('exit', () => {
@@ -223,13 +234,13 @@ if (!isHost) {
         return
       }
 
-      // Manual override: Menu/Options flips modes regardless of agent state.
+      // Pause/resume: Menu/Options toggles a sticky manual pause. Paused freezes
+      // the game and puts the controller on the terminal until you resume, no
+      // matter what the agent does in between.
       if (e.kind === 'button' && e.button === 'menu' && e.pressed) {
-        const mode = router.currentMode() === 'game' ? 'terminal' : 'game'
-        repeater.releaseAll()
-        scroller.setValue(0)
-        router.setMode(mode)
-        server.broadcastGameState(mode === 'game' ? 'playing' : 'paused')
+        userPaused = !userPaused
+        applyMode()
+        logger.info(userPaused ? 'game paused (manual)' : 'game resumed (manual)')
         return
       }
 
