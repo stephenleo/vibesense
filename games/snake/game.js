@@ -4,7 +4,8 @@
 // BOTH axes, unlike Alien Defenders' 1-D move), R2 boosts. When nobody's
 // touching the controller, a greedy-safe autopilot keeps the snake alive so the
 // demo doesn't wall itself the moment the agent starts a long run.
-// Keyboard fallback (arrows + space) for development.
+// Keyboard fallback (arrows + space) for development. `?play` forces the
+// playing state so the game is testable without a host.
 
 ;(() => {
   'use strict'
@@ -54,7 +55,15 @@
   const canvas = document.getElementById('game')
   const ctx = canvas.getContext('2d')
   const statusEl = document.getElementById('status')
-  const CELL = canvas.width / COLS // 25px; canvas is 800×600 = 32×24 cells
+
+  // Logical resolution stays 800×600; backing store scales for HiDPI.
+  const W = 800
+  const H = 600
+  const dpr = Math.min(2, window.devicePixelRatio || 1)
+  canvas.width = W * dpr
+  canvas.height = H * dpr
+  ctx.scale(dpr, dpr)
+  const CELL = W / COLS // 25px logical; grid is 32×24 cells
 
   let playing = false
   let snake = []
@@ -67,6 +76,7 @@
   let boost = false
   let lastHumanInput = 0
   let acc = 0 // seconds accumulated toward the next grid step
+  let particles = [] // {x, y, vx, vy, life, max, color}
 
   const STEP_MS = 120
   const BOOST_MS = 55
@@ -93,6 +103,7 @@
     gameOver = false
     boost = false
     acc = 0
+    particles = []
     placeFood()
   }
   reset()
@@ -148,7 +159,7 @@
   function setPlaying(next) {
     playing = next
     setStatus(
-      playing ? '▶ agent executing — steer the snake!' : '⏸ claude needs you — controller is on the terminal',
+      playing ? 'agent executing — steer the snake!' : 'claude needs you — controller is on the terminal',
       playing,
     )
   }
@@ -158,7 +169,22 @@
     statusEl.className = isPlaying ? 'playing' : ''
   }
 
+  // Dev affordance: `?play` runs the game without a host.
+  if (location.search.includes('play')) setPlaying(true)
+
   // ── Simulation: advance one grid cell ─────────────────────────────────
+  const center = (c) => ({ x: c.x * CELL + CELL / 2, y: c.y * CELL + CELL / 2 })
+
+  function burst(cell, color, n = 14) {
+    const p = center(cell)
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2
+      const v = 90 + Math.random() * 130
+      const max = 0.3 + Math.random() * 0.35
+      particles.push({ x: p.x, y: p.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: max, max, color })
+    }
+  }
+
   function tick() {
     if (gameOver) return
 
@@ -173,12 +199,19 @@
     if (!safe(head, snake.slice(0, -1))) {
       gameOver = true
       gameOverAt = performance.now()
+      burst(snake[0], '#ff4d6d', 22)
       return
     }
 
     snake.unshift(head)
+    if (boost) {
+      const tail = snake[snake.length - 1]
+      const t = center(tail)
+      particles.push({ x: t.x, y: t.y, vx: 0, vy: 0, life: 0.3, max: 0.3, color: '#2e7d4f' })
+    }
     if (head.x === food.x && head.y === food.y) {
       score += 10
+      burst(food, '#ff4d6d')
       placeFood() // grew: keep the tail
     } else {
       snake.pop()
@@ -186,51 +219,142 @@
   }
 
   // ── Rendering ─────────────────────────────────────────────────────────
-  const W = canvas.width
-  const H = canvas.height
+  const FONT = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace'
 
-  function cellRect(c, inset) {
-    ctx.fillRect(c.x * CELL + inset, c.y * CELL + inset, CELL - inset * 2, CELL - inset * 2)
+  function drawBoard() {
+    ctx.fillStyle = 'rgba(140, 170, 255, 0.022)'
+    for (let x = 0; x < COLS; x++) {
+      for (let y = 0; y < ROWS; y++) {
+        if ((x + y) % 2 === 0) ctx.fillRect(x * CELL, y * CELL, CELL, CELL)
+      }
+    }
   }
 
-  function render() {
-    ctx.clearRect(0, 0, W, H)
+  function drawFood(now) {
+    const p = center(food)
+    const pulse = 0.5 + 0.5 * Math.sin(now / 220)
+    ctx.save()
+    ctx.shadowColor = '#ff4d6d'
+    ctx.shadowBlur = 14 + pulse * 8
+    const grad = ctx.createRadialGradient(p.x - 2, p.y - 3, 1, p.x, p.y, CELL * 0.42)
+    grad.addColorStop(0, '#ffb3c2')
+    grad.addColorStop(0.45, '#ff4d6d')
+    grad.addColorStop(1, '#c9184a')
+    ctx.fillStyle = grad
+    ctx.beginPath()
+    ctx.arc(p.x, p.y, CELL * 0.3 + pulse * 2, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+  }
 
-    // Faint grid dots.
-    ctx.fillStyle = '#0c1420'
-    for (let x = 0; x < COLS; x++) {
-      for (let y = 0; y < ROWS; y++) ctx.fillRect(x * CELL + CELL / 2, y * CELL + CELL / 2, 1, 1)
+  // Body drawn as capsules spanning each adjacent pair of cells — connected
+  // and rounded instead of a row of loose squares. Painted tail→head so the
+  // brighter head-end sits on top.
+  function drawSnake() {
+    const inset = 3
+    for (let i = snake.length - 1; i >= 0; i--) {
+      const a = snake[i]
+      const b = snake[Math.max(0, i - 1)]
+      const x = Math.min(a.x, b.x) * CELL + inset
+      const y = Math.min(a.y, b.y) * CELL + inset
+      const w = (Math.abs(a.x - b.x) + 1) * CELL - inset * 2
+      const h = (Math.abs(a.y - b.y) + 1) * CELL - inset * 2
+      const t = i / Math.max(1, snake.length - 1) // 0 head → 1 tail
+      ctx.fillStyle = `hsl(140, ${85 - t * 30}%, ${62 - t * 28}%)`
+      if (i === 0) {
+        ctx.save()
+        ctx.shadowColor = '#4dff88'
+        ctx.shadowBlur = 12
+      }
+      ctx.beginPath()
+      ctx.roundRect(x, y, w, h, (CELL - inset * 2) / 2)
+      ctx.fill()
+      if (i === 0) ctx.restore()
     }
 
-    ctx.fillStyle = '#ff5c8a'
-    cellRect(food, 5)
+    // Eyes on the head, facing the direction of travel.
+    const hp = center(snake[0])
+    const d = DIRS[dir]
+    const fx = d.x * 4
+    const fy = d.y * 4
+    const sx = d.y * 4.5 // perpendicular offset
+    const sy = d.x * 4.5
+    ctx.fillStyle = '#06210f'
+    for (const s of [1, -1]) {
+      ctx.beginPath()
+      ctx.arc(hp.x + fx + s * sx, hp.y + fy + s * sy, 2.4, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }
 
-    snake.forEach((s, i) => {
-      ctx.fillStyle = i === 0 ? '#eaffea' : '#7cff7c'
-      cellRect(s, 2)
-    })
-
-    ctx.fillStyle = '#7cff7c'
-    ctx.font = '16px "Courier New", monospace'
+  function drawHud() {
+    ctx.fillStyle = '#8fa3c0'
+    ctx.font = `600 13px ${FONT}`
     ctx.textAlign = 'left'
-    ctx.fillText(`SCORE ${score}`, 16, 22)
+    ctx.fillText('SCORE', 16, 18)
     ctx.textAlign = 'right'
-    ctx.fillText(`LEN ${snake.length}`, W - 16, 22)
+    ctx.fillText('LENGTH', W - 16, 18)
+    ctx.fillStyle = '#eaf2ff'
+    ctx.font = `700 16px ${FONT}`
+    ctx.textAlign = 'left'
+    ctx.fillText(String(score).padStart(5, '0'), 16, 33)
+    ctx.textAlign = 'right'
+    ctx.fillText(String(snake.length), W - 16, 33)
+  }
 
-    if (gameOver || !playing) {
-      ctx.fillStyle = 'rgba(2, 2, 10, 0.72)'
-      ctx.fillRect(0, 0, W, H)
-      ctx.textAlign = 'center'
-      ctx.fillStyle = gameOver ? '#ff5c8a' : '#7cff7c'
-      ctx.font = 'bold 36px "Courier New", monospace'
-      ctx.fillText(gameOver ? 'GAME OVER' : 'PAUSED', W / 2, H / 2 - 12)
-      ctx.font = '18px "Courier New", monospace'
-      ctx.fillStyle = '#9ab'
-      ctx.fillText(
-        gameOver ? 'restarting…' : 'claude needs you — answer in the terminal',
-        W / 2,
-        H / 2 + 22,
-      )
+  function overlay(title, sub, color, showScore) {
+    ctx.fillStyle = 'rgba(3, 5, 14, 0.78)'
+    ctx.fillRect(0, 0, W, H)
+    const cw = 460
+    const ch = showScore ? 190 : 160
+    const cx = (W - cw) / 2
+    const cy = (H - ch) / 2
+    ctx.save()
+    ctx.shadowColor = color
+    ctx.shadowBlur = 30
+    ctx.fillStyle = 'rgba(9, 13, 28, 0.95)'
+    ctx.beginPath()
+    ctx.roundRect(cx, cy, cw, ch, 14)
+    ctx.fill()
+    ctx.shadowBlur = 0
+    ctx.strokeStyle = color
+    ctx.globalAlpha = 0.5
+    ctx.stroke()
+    ctx.restore()
+
+    ctx.textAlign = 'center'
+    ctx.fillStyle = color
+    ctx.font = `700 34px ${FONT}`
+    ctx.fillText(title, W / 2, cy + 62)
+    if (showScore) {
+      ctx.fillStyle = '#eaf2ff'
+      ctx.font = `700 18px ${FONT}`
+      ctx.fillText(`SCORE ${score} · LENGTH ${snake.length}`, W / 2, cy + 100)
+    }
+    ctx.fillStyle = '#8fa3c0'
+    ctx.font = `500 14px ${FONT}`
+    ctx.fillText(sub, W / 2, cy + ch - 38)
+  }
+
+  function render(now) {
+    ctx.clearRect(0, 0, W, H)
+    drawBoard()
+    drawFood(now)
+    drawSnake()
+
+    for (const p of particles) {
+      ctx.globalAlpha = Math.max(0, p.life / p.max)
+      ctx.fillStyle = p.color
+      ctx.fillRect(p.x - 2.5, p.y - 2.5, 5, 5)
+    }
+    ctx.globalAlpha = 1
+
+    drawHud()
+
+    if (gameOver) {
+      overlay('GAME OVER', 'restarting…', '#ff4d6d', true)
+    } else if (!playing) {
+      overlay('PAUSED', 'claude needs you — answer in the terminal', '#4dff88', false)
     }
   }
 
@@ -240,15 +364,23 @@
     const dt = Math.min(0.05, (now - last) / 1000)
     last = now
     if (gameOver && now - gameOverAt > 4000) reset()
-    if (playing && !gameOver) {
-      acc += dt
-      const stepInterval = (boost ? BOOST_MS : STEP_MS) / 1000
-      while (acc >= stepInterval) {
-        acc -= stepInterval
-        tick()
+    if (playing) {
+      for (const p of particles) {
+        p.x += p.vx * dt
+        p.y += p.vy * dt
+        p.life -= dt
+      }
+      particles = particles.filter((p) => p.life > 0)
+      if (!gameOver) {
+        acc += dt
+        const stepInterval = (boost ? BOOST_MS : STEP_MS) / 1000
+        while (acc >= stepInterval) {
+          acc -= stepInterval
+          tick()
+        }
       }
     }
-    render()
+    render(now)
     requestAnimationFrame(frame)
   }
   requestAnimationFrame(frame)
