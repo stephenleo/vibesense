@@ -142,6 +142,11 @@ export class HostServer extends EventEmitter {
     for (const res of this.gameStreams) send(res, { type: 'input', ...input })
   }
 
+  /** Tell open game tabs to navigate to a different game (live controller swap). */
+  broadcastReload(id: string, entry: string): void {
+    for (const res of this.gameStreams) send(res, { type: 'reload', url: `/games/${id}/${entry}` })
+  }
+
   /** Write keystrokes to a registered client instance's pty. Returns false if unknown. */
   sendKeysToInstance(instanceId: string, bytes: string): boolean {
     const instance = this.instances.get(instanceId)

@@ -148,6 +148,20 @@ if (!isHost) {
         return
       }
 
+      // View/Share button cycles to the next web game — swap games controller-only.
+      if (e.kind === 'button' && e.button === 'view' && e.pressed) {
+        const webGames = [...games.values()].filter((g) => g.manifest.kind === 'web')
+        if (webGames.length > 1) {
+          const i = webGames.findIndex((g) => g.manifest.id === activeGame?.manifest.id)
+          const next = webGames[(i + 1) % webGames.length]!
+          activeGame = next // active() reads this → also updates / and a later restart
+          setActiveGameId(next.manifest.id)
+          server.broadcastReload(next.manifest.id, next.manifest.entry!)
+          logger.info(`game → ${next.manifest.name}`)
+        }
+        return
+      }
+
       // Manual override: Menu/Options flips modes regardless of agent state.
       if (e.kind === 'button' && e.button === 'menu' && e.pressed) {
         const mode = router.currentMode() === 'game' ? 'terminal' : 'game'
