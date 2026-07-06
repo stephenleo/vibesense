@@ -1,10 +1,6 @@
-// Xbox Series controller driver — node-hid raw report parsing.
+// Xbox Series wired-USB report parsing.
 // Ported from the v1 extension (src/extension/hid/xbox-driver.ts in git history).
 
-import { EventEmitter } from 'node:events'
-import { HID } from 'node-hid'
-import { logger } from '../logger.js'
-import type { ControllerHAL } from './hal.js'
 import type { ButtonId, ControllerEvent } from '../types.js'
 
 export const XBOX_VID = 0x045e
@@ -74,50 +70,4 @@ export function parseXboxReport(data: Buffer): ControllerEvent[] {
   events.push({ kind: 'axis', axis: 'right_y', value: normalizeAxis(data.readInt16LE(14)) })
 
   return events
-}
-
-export class XboxDriver extends EventEmitter implements ControllerHAL {
-  readonly controllerType = 'xbox' as const
-
-  private device: HID | null = null
-
-  constructor(
-    private readonly vendorId: number,
-    private readonly productId: number,
-  ) {
-    super()
-  }
-
-  start(): void {
-    try {
-      this.device = new HID(this.vendorId, this.productId)
-      this.emit('data', { kind: 'connected', controllerType: 'xbox' } satisfies ControllerEvent)
-      logger.info(
-        `Xbox controller connected VID=${this.vendorId.toString(16)} PID=${this.productId.toString(16)}`,
-      )
-
-      this.device.on('data', (data: Buffer) => {
-        try {
-          for (const event of parseXboxReport(data)) this.emit('data', event)
-        } catch (err) {
-          logger.error('Xbox HID parse error', err)
-        }
-      })
-      this.device.on('error', (err: Error) => {
-        logger.error('Xbox HID device error', err)
-        this.emit('data', { kind: 'disconnected' } satisfies ControllerEvent)
-      })
-    } catch (err) {
-      logger.error('XboxDriver start failed', err)
-    }
-  }
-
-  stop(): void {
-    try {
-      this.device?.close()
-    } catch (err) {
-      logger.error('XboxDriver stop failed', err)
-    }
-    this.device = null
-  }
 }
