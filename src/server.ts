@@ -27,6 +27,28 @@ export interface GameProvider {
   resolveDir(id: string): string | null
   /** The active web game (id + entry file), or null if none. */
   active(): { id: string; entry: string } | null
+  /** All switchable web games, for the picker. */
+  list(): { id: string; name: string }[]
+  /** Make `id` the active game (persisted). Returns false if not a switchable web game. */
+  setActive(id: string): boolean
+}
+
+/** The game picker page — one anchor per web game; clicking navigates + switches. */
+function renderPicker(games: { id: string; name: string }[], activeId: string | undefined): string {
+  const cards = games
+    .map((g) => {
+      const cur = g.id === activeId
+      return `<a class="card${cur ? ' active' : ''}" href="/switch/${g.id}">${cur ? '▶ ' : ''}${g.name}</a>`
+    })
+    .join('')
+  return `<!doctype html><meta charset="utf-8"><title>Change game — VibeSense</title><style>
+html,body{margin:0;height:100%;background:#050510;color:#7cff7c;font-family:'Courier New',monospace}
+#wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100%;gap:16px;padding:24px}
+h1{font-size:18px;letter-spacing:3px;text-transform:uppercase;color:#567}
+.card{display:block;min-width:240px;text-align:center;padding:16px 24px;border:2px solid #234;border-radius:8px;color:#7cff7c;text-decoration:none;letter-spacing:2px}
+.card:hover{border-color:#7cff7c;box-shadow:0 0 24px rgba(124,255,124,.15)}
+.card.active{border-color:#7cff7c;background:#02120a}
+</style><div id="wrap"><h1>Change game</h1>${cards || '<p>no web games installed</p>'}</div>`
 }
 
 function sse(res: http.ServerResponse): void {
@@ -202,6 +224,20 @@ export class HostServer extends EventEmitter {
         return
       }
       res.writeHead(302, { Location: `/games/${active.id}/${active.entry}` })
+      res.end()
+      return
+    }
+
+    if (pathname === '/games') {
+      res.writeHead(200, { 'Content-Type': 'text/html' })
+      res.end(renderPicker(this.games.list(), this.games.active()?.id))
+      return
+    }
+
+    const switchMatch = pathname.match(/^\/switch\/([^/]+)$/)
+    if (switchMatch) {
+      this.games.setActive(decodeURIComponent(switchMatch[1]!))
+      res.writeHead(302, { Location: '/' }) // → redirect chain lands in the new active game
       res.end()
       return
     }

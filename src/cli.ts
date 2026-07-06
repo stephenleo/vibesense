@@ -14,7 +14,13 @@ import { HidManager } from './controller/hid-manager.js'
 import { installHooks } from './hooks-install.js'
 import { KeyRepeater, REPEATING_BUTTONS, TERMINAL_KEYS } from './keymap.js'
 import { logger } from './logger.js'
-import { checkEntitlement, discoverGames, ExternalGame, getActiveGame } from './plugins.js'
+import {
+  checkEntitlement,
+  discoverGames,
+  ExternalGame,
+  getActiveGame,
+  setActiveGameId,
+} from './plugins.js'
 import { ClaudePty } from './pty.js'
 import { InputRouter } from './router.js'
 import { SmoothScroller } from './scroll.js'
@@ -51,6 +57,25 @@ const server = new HostServer({
     activeGame && activeGame.manifest.kind === 'web'
       ? { id: activeGame.manifest.id, entry: activeGame.manifest.entry! }
       : null,
+  // ponytail: picker lists web games only; external (Steam-style) games stay
+  // CLI-restart-only since switching one live means starting/stopping its shell
+  // lifecycle — add that when an external game actually ships.
+  list: () =>
+    [...games.values()]
+      .filter((g) => g.manifest.kind === 'web')
+      .map((g) => ({ id: g.manifest.id, name: g.manifest.name })),
+  setActive: (id) => {
+    const game = games.get(id)
+    if (!game || game.manifest.kind !== 'web') return false
+    try {
+      checkEntitlement(game.manifest)
+    } catch {
+      return false
+    }
+    activeGame = game // reassigns the var active() reads → takes effect with no restart
+    setActiveGameId(id) // persists so a later CLI restart keeps the choice
+    return true
+  },
 })
 const isHost = await server.listen()
 
@@ -176,6 +201,8 @@ if (!isHost) {
       if (err) logger.warn('could not open game tab', err)
     })
   }
+
+  if (games.size > 1) logger.info(`change games at ${HOST_URL}/games`)
 }
 
 logger.info(
