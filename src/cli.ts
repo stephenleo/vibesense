@@ -92,7 +92,9 @@ if (!isHost) {
   }
 
   server.on('aggregate', (agg: Aggregate) => {
-    focusSessionId = agg.focusSessionId
+    // Sticky focus: when nobody is waiting, keep routing to the session that
+    // last needed the user instead of falling back to the host's own pty.
+    focusSessionId = agg.focusSessionId ?? focusSessionId
     const mode = agg.playing ? 'game' : 'terminal'
     if (mode !== router.currentMode()) {
       repeater.releaseAll()
