@@ -63,6 +63,25 @@
     return foldX(x + (vx * (targetY - y)) / vy, W)
   }
 
+  // Per-level wall layouts, cycling every five levels. Each entry decides
+  // whether the (col, row) brick exists.
+  const LAYOUTS = [
+    ['full', () => true],
+    ['checker', (c, r) => (c + r) % 2 === 0],
+    ['pyramid', (c, r) => Math.abs(c - (COLS - 1) / 2) <= r + 1],
+    ['diamond', (c, r) => Math.abs(c - (COLS - 1) / 2) + Math.abs(r - (ROWS - 1) / 2) <= 4],
+    [
+      'fortress',
+      (c, r) => r === 0 || r === ROWS - 1 || c === 0 || c === COLS - 1 || (r % 2 === 0 && c % 3 === 1),
+    ],
+  ]
+
+  // Row-major alive flags for a level's wall.
+  function wallFor(level) {
+    const fn = LAYOUTS[(level - 1) % LAYOUTS.length][1]
+    return Array.from({ length: COLS * ROWS }, (_, i) => fn(i % COLS, Math.floor(i / COLS)))
+  }
+
   // Which axis a ball centered at (bx, by) should reflect on after hitting
   // rect: the axis of least penetration.
   function hitAxis(bx, by, r, rect) {
@@ -131,8 +150,8 @@
     (performance.now() < slowUntil ? 0.62 : 1)
 
   function buildWall() {
-    bricks = Array.from({ length: COLS * ROWS }, () => true)
-    bricksLeft = COLS * ROWS
+    bricks = wallFor(level)
+    bricksLeft = bricks.filter(Boolean).length
   }
 
   function serve() {
@@ -153,7 +172,8 @@
   function reset() {
     score = 0
     lives = 3
-    level = 1
+    // Dev affordance: `?level=4` starts on a later layout for testing.
+    level = parseInt(new URLSearchParams(location.search).get('level'), 10) || 1
     combo = 0
     bestCombo = 0
     broken = 0
@@ -311,7 +331,7 @@
     level++
     combo = 0
     broken = 0
-    banner = { text: `LEVEL ${level}`, t: 1.4 }
+    banner = { text: `LEVEL ${level} · ${LAYOUTS[(level - 1) % LAYOUTS.length][0].toUpperCase()}`, t: 1.4 }
     buildWall()
     serve()
   }
@@ -724,6 +744,19 @@
     const r = brickRect(0, 0)
     ok(hitAxis(r.x - 5, r.y + r.h / 2, 7, r) === 'x', 'side hit reflects on x')
     ok(hitAxis(r.x + r.w / 2, r.y + r.h + 5, 7, r) === 'y', 'bottom hit reflects on y')
+
+    const count = (w) => w.filter(Boolean).length
+    ok(count(wallFor(1)) === COLS * ROWS, 'level 1 is a full wall')
+    ok(count(wallFor(2)) === (COLS * ROWS) / 2, 'checker fills every other brick')
+    const pyr = wallFor(3)
+    ok(count(pyr.slice(0, COLS)) === 2 && count(pyr.slice(-COLS)) === COLS, 'pyramid widens downward')
+    const dia = wallFor(4)
+    ok(
+      dia.every((v, i) => v === dia[Math.floor(i / COLS) * COLS + (COLS - 1 - (i % COLS))]),
+      'diamond is mirror-symmetric',
+    )
+    for (let lv = 1; lv <= LAYOUTS.length; lv++) ok(count(wallFor(lv)) > 0, `layout ${lv} has bricks`)
+    ok(count(wallFor(LAYOUTS.length + 1)) === COLS * ROWS, 'layouts cycle back to the full wall')
 
     const fan = fanVelocities(0, 300, 3)
     ok(fan.length === 3, 'multi-ball fans into three')
