@@ -111,6 +111,8 @@ if (!isHost) {
     scroller.stop()
   })
 
+  server.on('type', (text: string) => writeTerminal(text))
+
   hid.on('data', (e: ControllerEvent) => {
     try {
       if (e.kind === 'connected') {
