@@ -1,0 +1,9 @@
+{
+  "id": "snake",
+  "name": "Snake",
+  "version": "1.0.0",
+  "protocolVersion": 1,
+  "kind": "web",
+  "entry": "index.html",
+  "entitlement": "free"
+}
