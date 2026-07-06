@@ -40,6 +40,16 @@
     return { vx: Math.sin(a), vy: -Math.cos(a) }
   }
 
+  // Fan one velocity into `n` copies spread ±`spread` radians, speed kept.
+  function fanVelocities(vx, vy, n, spread = 0.45) {
+    const s = Math.hypot(vx, vy)
+    const a0 = Math.atan2(vy, vx)
+    return Array.from({ length: n }, (_, i) => {
+      const a = a0 + (n === 1 ? 0 : -spread + (2 * spread * i) / (n - 1))
+      return { vx: Math.cos(a) * s, vy: Math.sin(a) * s }
+    })
+  }
+
   // Fold a raw x onto [0, W] as if reflecting off both side walls.
   function foldX(raw, w) {
     const m = ((raw % (2 * w)) + 2 * w) % (2 * w)
@@ -81,8 +91,8 @@
   let paddleX = W / 2 // paddle center
   let stick = 0 // analog input in [-1, 1]
   let keyDir = 0
-  let ball = { x: 0, y: 0, vx: 0, vy: 0 }
-  let stuck = true // ball riding the paddle, waiting for launch
+  let balls = [] // {x, y, vx, vy, trail: [{x, y}...]}
+  let stuck = true // serve ball riding the paddle, waiting for launch
   let stuckAt = 0
   let bricks = [] // alive flags, row-major
   let bricksLeft = 0
@@ -99,13 +109,26 @@
   let banner = { text: '', t: 0 }
   let particles = [] // {x, y, vx, vy, life, max, color}
   let floats = [] // {x, y, text, life, max, color}
-  let trail = [] // recent ball positions
+  let powerups = [] // falling capsules {x, y, type}
+  let wideUntil = 0 // wide-paddle effect deadline (ms timestamp)
+  let slowUntil = 0 // slow-ball effect deadline
 
   const PADDLE_SPEED = 620
   const BASE_SPEED = 330
   const AUTOPILOT_IDLE_MS = 2500
+  const DROP_CHANCE = 0.12
+  const MAX_BALLS = 9
 
-  const ballSpeed = () => Math.min(BASE_SPEED + (level - 1) * 28 + broken * 2.2, 560)
+  const POWERUPS = {
+    multi: { color: '#7dd3fc', letter: 'M', label: 'MULTI-BALL' },
+    wide: { color: '#4dff88', letter: 'W', label: 'WIDE PADDLE' },
+    slow: { color: '#c084fc', letter: 'S', label: 'SLOW BALL' },
+  }
+
+  const paddleW = () => (performance.now() < wideUntil ? PADDLE_W * 1.5 : PADDLE_W)
+  const ballSpeed = () =>
+    Math.min(BASE_SPEED + (level - 1) * 28 + broken * 2.2, 560) *
+    (performance.now() < slowUntil ? 0.62 : 1)
 
   function buildWall() {
     bricks = Array.from({ length: COLS * ROWS }, () => true)
@@ -115,11 +138,7 @@
   function serve() {
     stuck = true
     stuckAt = performance.now()
-    ball.x = paddleX
-    ball.y = PADDLE_Y - BALL_R - 1
-    ball.vx = 0
-    ball.vy = 0
-    trail = []
+    balls = [{ x: paddleX, y: PADDLE_Y - BALL_R - 1, vx: 0, vy: 0, trail: [] }]
   }
 
   function launch() {
@@ -127,8 +146,8 @@
     stuck = false
     const d = bounceDir((Math.random() - 0.5) * 0.7)
     const s = ballSpeed()
-    ball.vx = d.vx * s
-    ball.vy = d.vy * s
+    balls[0].vx = d.vx * s
+    balls[0].vy = d.vy * s
   }
 
   function reset() {
@@ -141,6 +160,9 @@
     gameOver = false
     particles = []
     floats = []
+    powerups = []
+    wideUntil = 0
+    slowUntil = 0
     buildWall()
     paddleX = W / 2
     serve()
@@ -234,9 +256,21 @@
       // ball off-center, aimed at the remaining wall's centroid — a perfectly
       // centered catch would rally the ball vertically in a cleared channel
       // forever.
-      const landing = stuck ? ball.x : predictLandingX(ball.x, ball.y, ball.vx, ball.vy, PADDLE_Y)
-      let target = ball.x
-      if (landing !== null && !stuck) {
+      let landing = null
+      if (!stuck) {
+        // With multi-ball live, defend whichever ball lands soonest.
+        let eta = Infinity
+        for (const b of balls) {
+          if (b.vy <= 0) continue
+          const t = (PADDLE_Y - b.y) / b.vy
+          if (t < eta) {
+            eta = t
+            landing = predictLandingX(b.x, b.y, b.vx, b.vy, PADDLE_Y)
+          }
+        }
+      }
+      let target = landing ?? balls[0]?.x ?? W / 2
+      if (landing !== null) {
         let sum = 0
         let n = 0
         for (let i = 0; i < bricks.length; i++) {
@@ -244,23 +278,27 @@
         }
         const aim = n ? sum / n : W / 2
         const desired = Math.max(-0.8, Math.min(0.8, (aim - landing) / 320))
-        target = landing - (desired * PADDLE_W) / 2
+        target = landing - (desired * paddleW()) / 2
       }
       vx = Math.max(-PADDLE_SPEED, Math.min(PADDLE_SPEED, (target - paddleX) * 8))
       if (stuck && now - stuckAt > 900) launch()
     } else {
       vx = (stick !== 0 ? stick : keyDir) * PADDLE_SPEED
     }
-    paddleX = Math.max(PADDLE_W / 2, Math.min(W - PADDLE_W / 2, paddleX + vx * dt))
-    if (stuck) ball.x = paddleX
+    const pw = paddleW()
+    paddleX = Math.max(pw / 2, Math.min(W - pw / 2, paddleX + vx * dt))
+    if (stuck && balls[0]) balls[0].x = paddleX
   }
 
   function loseLife() {
     lives--
     combo = 0
     broken = 0
+    wideUntil = 0
+    slowUntil = 0
+    powerups = []
     kick(9)
-    burst(ball.x, H - 8, '#ff4d6d', 20)
+    burst(paddleX, H - 8, '#ff4d6d', 20)
     if (lives <= 0) {
       gameOver = true
       gameOverAt = performance.now()
@@ -291,11 +329,54 @@
     burst(r.x + r.w / 2, r.y + r.h / 2, rowColor(row, 65))
     float(r.x + r.w / 2, r.y, `+${points}`, rowColor(row, 75))
     kick(1.6)
+    if (Math.random() < DROP_CHANCE) {
+      const types = Object.keys(POWERUPS)
+      powerups.push({ x: r.x + r.w / 2, y: r.y + r.h / 2, type: types[Math.floor(Math.random() * types.length)] })
+    }
     if (bricksLeft <= 0) nextLevel()
   }
 
-  function moveBall(dt) {
-    if (stuck || gameOver) return
+  function applyPowerup(type) {
+    const now = performance.now()
+    float(paddleX, PADDLE_Y - 20, POWERUPS[type].label, POWERUPS[type].color)
+    if (type === 'multi') {
+      const src = balls[0]
+      if (!src || stuck) return
+      const fans = fanVelocities(src.vx, src.vy, 3)
+      src.vx = fans[1].vx
+      src.vy = fans[1].vy
+      for (const k of [0, 2]) {
+        if (balls.length >= MAX_BALLS) break
+        balls.push({ x: src.x, y: src.y, vx: fans[k].vx, vy: fans[k].vy, trail: [] })
+      }
+    } else if (type === 'wide') {
+      wideUntil = Math.max(now, wideUntil) + 12000
+    } else {
+      slowUntil = Math.max(now, slowUntil) + 8000
+    }
+  }
+
+  function movePowerups(dt) {
+    const pw = paddleW()
+    for (let i = powerups.length - 1; i >= 0; i--) {
+      const p = powerups[i]
+      p.y += 150 * dt
+      if (p.y > H + 20) {
+        powerups.splice(i, 1)
+      } else if (
+        p.y > PADDLE_Y - 10 &&
+        p.y < PADDLE_Y + PADDLE_H + 14 &&
+        Math.abs(p.x - paddleX) < pw / 2 + 14
+      ) {
+        powerups.splice(i, 1)
+        burst(p.x, PADDLE_Y, POWERUPS[p.type].color, 10)
+        applyPowerup(p.type)
+      }
+    }
+  }
+
+  // Advance one ball; returns false when it falls below the floor.
+  function moveOne(ball, dt) {
     // Substep so a fast ball can't tunnel through a brick or the paddle.
     const dist = Math.hypot(ball.vx, ball.vy) * dt
     const steps = Math.max(1, Math.ceil(dist / (BALL_R * 0.8)))
@@ -306,16 +387,17 @@
       if (ball.x < BALL_R) (ball.x = BALL_R), (ball.vx = Math.abs(ball.vx))
       if (ball.x > W - BALL_R) (ball.x = W - BALL_R), (ball.vx = -Math.abs(ball.vx))
       if (ball.y < BALL_R) (ball.y = BALL_R), (ball.vy = Math.abs(ball.vy))
-      if (ball.y > H + BALL_R * 2) return loseLife()
+      if (ball.y > H + BALL_R * 2) return false
 
       // Paddle (only while falling, so the ball can't get trapped inside).
+      const pw = paddleW()
       if (
         ball.vy > 0 &&
         ball.y + BALL_R >= PADDLE_Y &&
         ball.y < PADDLE_Y + PADDLE_H &&
-        Math.abs(ball.x - paddleX) <= PADDLE_W / 2 + BALL_R
+        Math.abs(ball.x - paddleX) <= pw / 2 + BALL_R
       ) {
-        const d = bounceDir((ball.x - paddleX) / (PADDLE_W / 2))
+        const d = bounceDir((ball.x - paddleX) / (pw / 2))
         const sp = ballSpeed()
         ball.vx = d.vx * sp
         ball.vy = d.vy * sp
@@ -335,6 +417,7 @@
           if (hitAxis(ball.x, ball.y, BALL_R, r) === 'x') ball.vx = -ball.vx
           else ball.vy = -ball.vy
           hitBrick(i)
+          if (stuck) return true // hitBrick cleared the wall; a fresh serve is riding
           // Rescale to the new ramped speed so hits genuinely accelerate play.
           const sp = ballSpeed() / Math.hypot(ball.vx, ball.vy)
           ball.vx *= sp
@@ -343,8 +426,21 @@
         }
       }
     }
-    trail.push({ x: ball.x, y: ball.y })
-    if (trail.length > 10) trail.shift()
+    ball.trail.push({ x: ball.x, y: ball.y })
+    if (ball.trail.length > 10) ball.trail.shift()
+    return true
+  }
+
+  function moveBalls(dt) {
+    if (stuck || gameOver) return
+    for (let i = balls.length - 1; i >= 0; i--) {
+      if (stuck) return // a level clear mid-loop replaced the whole set
+      if (!moveOne(balls[i], dt)) {
+        burst(balls[i].x, H - 8, '#ffb347', 8)
+        balls.splice(i, 1)
+      }
+    }
+    if (!balls.length) loseLife()
   }
 
   // ── Rendering ─────────────────────────────────────────────────────────
@@ -379,42 +475,69 @@
     }
   }
 
-  function drawPaddle() {
+  function drawPaddle(now) {
+    const pw = paddleW()
     ctx.save()
-    ctx.shadowColor = '#ffb347'
+    ctx.shadowColor = now < wideUntil ? '#4dff88' : '#ffb347'
     ctx.shadowBlur = 16
     const g = ctx.createLinearGradient(0, PADDLE_Y, 0, PADDLE_Y + PADDLE_H)
     g.addColorStop(0, '#ffd28f')
     g.addColorStop(1, '#e08c1f')
     ctx.fillStyle = g
     ctx.beginPath()
-    ctx.roundRect(paddleX - PADDLE_W / 2, PADDLE_Y, PADDLE_W, PADDLE_H, PADDLE_H / 2)
+    ctx.roundRect(paddleX - pw / 2, PADDLE_Y, pw, PADDLE_H, PADDLE_H / 2)
     ctx.fill()
     ctx.restore()
   }
 
-  function drawBall(now) {
-    for (let i = 0; i < trail.length; i++) {
-      const t = trail[i]
-      ctx.globalAlpha = ((i + 1) / trail.length) * 0.25
-      ctx.fillStyle = '#ffb347'
+  function drawPowerups(now) {
+    for (const p of powerups) {
+      const c = POWERUPS[p.type]
+      ctx.save()
+      ctx.translate(p.x + Math.sin(now / 260 + p.y / 40) * 4, p.y)
+      ctx.shadowColor = c.color
+      ctx.shadowBlur = 12
+      ctx.fillStyle = c.color
       ctx.beginPath()
-      ctx.arc(t.x, t.y, BALL_R * 0.8 * ((i + 1) / trail.length), 0, Math.PI * 2)
+      ctx.roundRect(-14, -8, 28, 16, 8)
       ctx.fill()
+      ctx.shadowBlur = 0
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)'
+      ctx.beginPath()
+      ctx.roundRect(-11, -6, 22, 5, 3)
+      ctx.fill()
+      ctx.fillStyle = '#04050d'
+      ctx.font = `800 11px ${FONT}`
+      ctx.textAlign = 'center'
+      ctx.fillText(c.letter, 0, 4)
+      ctx.restore()
     }
-    ctx.globalAlpha = 1
-    ctx.save()
-    ctx.shadowColor = '#ffcf8a'
-    ctx.shadowBlur = 18
-    const g = ctx.createRadialGradient(ball.x - 2, ball.y - 3, 1, ball.x, ball.y, BALL_R)
-    g.addColorStop(0, '#ffffff')
-    g.addColorStop(0.5, '#ffe1b0')
-    g.addColorStop(1, '#f5a623')
-    ctx.fillStyle = g
-    ctx.beginPath()
-    ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.restore()
+  }
+
+  function drawBalls(now) {
+    for (const ball of balls) {
+      for (let i = 0; i < ball.trail.length; i++) {
+        const t = ball.trail[i]
+        ctx.globalAlpha = ((i + 1) / ball.trail.length) * 0.25
+        ctx.fillStyle = '#ffb347'
+        ctx.beginPath()
+        ctx.arc(t.x, t.y, BALL_R * 0.8 * ((i + 1) / ball.trail.length), 0, Math.PI * 2)
+        ctx.fill()
+      }
+      ctx.globalAlpha = 1
+      ctx.save()
+      ctx.shadowColor = '#ffcf8a'
+      ctx.shadowBlur = 18
+      const g = ctx.createRadialGradient(ball.x - 2, ball.y - 3, 1, ball.x, ball.y, BALL_R)
+      g.addColorStop(0, '#ffffff')
+      g.addColorStop(0.5, '#ffe1b0')
+      g.addColorStop(1, '#f5a623')
+      ctx.fillStyle = g
+      ctx.beginPath()
+      ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.restore()
+    }
     if (stuck && !gameOver) {
       const pulse = 0.55 + 0.45 * Math.sin(now / 240)
       ctx.globalAlpha = pulse
@@ -426,7 +549,23 @@
     }
   }
 
-  function drawHud() {
+  function drawHud(now) {
+    // Active-effect chips under the score.
+    let chipX = 16
+    for (const [type, until] of [
+      ['wide', wideUntil],
+      ['slow', slowUntil],
+    ]) {
+      if (now >= until) continue
+      const c = POWERUPS[type]
+      ctx.globalAlpha = now > until - 2000 && Math.floor(now / 200) % 2 === 0 ? 0.3 : 0.9
+      ctx.fillStyle = c.color
+      ctx.font = `700 11px ${FONT}`
+      ctx.textAlign = 'left'
+      ctx.fillText(c.label, chipX, 52)
+      chipX += ctx.measureText(c.label).width + 14
+    }
+    ctx.globalAlpha = 1
     ctx.fillStyle = '#8fa3c0'
     ctx.font = `600 13px ${FONT}`
     ctx.textAlign = 'left'
@@ -497,8 +636,9 @@
     }
     drawBackdrop()
     drawBricks()
-    drawPaddle()
-    drawBall(now)
+    drawPowerups(now)
+    drawPaddle(now)
+    drawBalls(now)
 
     for (const p of particles) {
       ctx.globalAlpha = Math.max(0, p.life / p.max)
@@ -513,7 +653,7 @@
       ctx.fillText(f.text, f.x, f.y)
     }
     ctx.globalAlpha = 1
-    drawHud()
+    drawHud(now)
 
     if (banner.t > 0) {
       ctx.globalAlpha = Math.min(1, banner.t / 0.4)
@@ -555,7 +695,8 @@
       floats = floats.filter((f) => f.life > 0)
       if (!gameOver) {
         movePaddle(dt, now)
-        moveBall(dt)
+        moveBalls(dt)
+        movePowerups(dt)
       }
     }
     render(now)
@@ -583,6 +724,14 @@
     const r = brickRect(0, 0)
     ok(hitAxis(r.x - 5, r.y + r.h / 2, 7, r) === 'x', 'side hit reflects on x')
     ok(hitAxis(r.x + r.w / 2, r.y + r.h + 5, 7, r) === 'y', 'bottom hit reflects on y')
+
+    const fan = fanVelocities(0, 300, 3)
+    ok(fan.length === 3, 'multi-ball fans into three')
+    ok(
+      fan.every((v) => near(Math.hypot(v.vx, v.vy), 300)),
+      'fan preserves speed',
+    )
+    ok(fan[0].vx * fan[2].vx < 0 && near(fan[1].vx, 0), 'fan spreads around the original heading')
 
     console.log('[breakout] selftest passed')
     document.getElementById('status').textContent = 'selftest passed ✓'
