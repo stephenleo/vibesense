@@ -1,7 +1,9 @@
 // Integration test: real HostServer on an ephemeral port — hook POSTs drive
 // the aggregate, SSE streams deliver game state and forwarded keystrokes.
 
+import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { BUNDLED_GAMES_DIR } from '../src/plugins.js'
 import { HostServer } from '../src/server.js'
 import type { Aggregate } from '../src/state.js'
 
@@ -9,7 +11,10 @@ let server: HostServer
 let base: string
 
 beforeEach(async () => {
-  server = new HostServer()
+  server = new HostServer({
+    resolveDir: (id) => (id === 'alien-defenders' ? path.join(BUNDLED_GAMES_DIR, id) : null),
+    active: () => ({ id: 'alien-defenders', entry: 'index.html' }),
+  })
   await server.listen(0) // ephemeral port so tests never collide with a running vibesense
   base = `http://127.0.0.1:${server.boundPort}`
 })

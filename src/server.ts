@@ -6,7 +6,6 @@ import { EventEmitter } from 'node:events'
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { logger } from './logger.js'
 import { SessionTracker } from './state.js'
 
@@ -22,8 +21,13 @@ const CONTENT_TYPES: Record<string, string> = {
   '.svg': 'image/svg+xml',
 }
 
-// games/ ships at the package root, one level up from src/ (and from dist/).
-export const BUNDLED_GAMES_DIR = fileURLToPath(new URL('../games', import.meta.url))
+/** How the server finds game files — wired up from the plugin system by the CLI. */
+export interface GameProvider {
+  /** Directory for a game id, or null if unknown. */
+  resolveDir(id: string): string | null
+  /** The active web game (id + entry file), or null if none. */
+  active(): { id: string; entry: string } | null
+}
 
 function sse(res: http.ServerResponse): void {
   res.writeHead(200, {
@@ -62,7 +66,7 @@ export class HostServer extends EventEmitter {
   private nextInstanceId = 1
   private lastGameState: 'playing' | 'paused' = 'paused'
 
-  constructor(private readonly gamesDirs: string[] = [BUNDLED_GAMES_DIR]) {
+  constructor(private readonly games: GameProvider) {
     super()
   }
 
@@ -191,13 +195,20 @@ export class HostServer extends EventEmitter {
     }
 
     if (pathname === '/') {
-      res.writeHead(302, { Location: '/games/alien-defenders/index.html' })
+      const active = this.games.active()
+      if (!active) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' })
+        res.end('no web game installed')
+        return
+      }
+      res.writeHead(302, { Location: `/games/${active.id}/${active.entry}` })
       res.end()
       return
     }
 
-    if (pathname.startsWith('/games/')) {
-      this.serveStatic(pathname.slice('/games/'.length), res)
+    const gameMatch = pathname.match(/^\/games\/([^/]+)\/(.+)$/)
+    if (gameMatch) {
+      this.serveStatic(decodeURIComponent(gameMatch[1]!), decodeURIComponent(gameMatch[2]!), res)
       return
     }
 
@@ -207,16 +218,21 @@ export class HostServer extends EventEmitter {
 
   private pendingCwds = new Map<string, string>()
 
-  private serveStatic(relPath: string, res: http.ServerResponse): void {
-    for (const dir of this.gamesDirs) {
+  private serveStatic(gameId: string, relPath: string, res: http.ServerResponse): void {
+    const dir = this.games.resolveDir(gameId)
+    if (dir) {
       const full = path.normalize(path.join(dir, relPath))
-      if (!full.startsWith(path.normalize(dir) + path.sep)) continue // traversal guard
-      if (!fs.existsSync(full) || !fs.statSync(full).isFile()) continue
-      res.writeHead(200, {
-        'Content-Type': CONTENT_TYPES[path.extname(full)] ?? 'application/octet-stream',
-      })
-      res.end(fs.readFileSync(full))
-      return
+      if (
+        full.startsWith(path.normalize(dir) + path.sep) &&
+        fs.existsSync(full) &&
+        fs.statSync(full).isFile()
+      ) {
+        res.writeHead(200, {
+          'Content-Type': CONTENT_TYPES[path.extname(full)] ?? 'application/octet-stream',
+        })
+        res.end(fs.readFileSync(full))
+        return
+      }
     }
     res.writeHead(404)
     res.end()

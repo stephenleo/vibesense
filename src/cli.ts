@@ -9,10 +9,12 @@
 
 import { execFile } from 'node:child_process'
 import { isVibesenseHost, runAsClient } from './client.js'
+import { runSubcommand, SUBCOMMANDS } from './commands.js'
 import { HidManager } from './controller/hid-manager.js'
 import { installHooks } from './hooks-install.js'
 import { KeyRepeater, REPEATING_BUTTONS, TERMINAL_KEYS, stickDirection } from './keymap.js'
 import { logger } from './logger.js'
+import { checkEntitlement, discoverGames, ExternalGame, getActiveGame } from './plugins.js'
 import { ClaudePty } from './pty.js'
 import { InputRouter } from './router.js'
 import { scrollPage } from './scroll.js'
@@ -21,12 +23,35 @@ import type { Aggregate } from './state.js'
 import type { ControllerEvent } from './types.js'
 
 const args = process.argv.slice(2)
+
+// Marketplace subcommands (vibesense install/uninstall/games/use) never wrap claude.
+if ((SUBCOMMANDS as readonly string[]).includes(args[0] ?? '')) {
+  await runSubcommand(args[0]!, args.slice(1))
+}
+
 const noGame = args.includes('--no-game')
 const claudeArgs = args.filter((a) => a !== '--no-game')
 
 installHooks()
 
-const server = new HostServer()
+const games = discoverGames()
+let activeGame = getActiveGame(games)
+if (activeGame) {
+  try {
+    checkEntitlement(activeGame.manifest)
+  } catch (err) {
+    logger.warn('active game not playable — falling back to bundled default', err)
+    activeGame = games.get('alien-defenders') ?? null
+  }
+}
+
+const server = new HostServer({
+  resolveDir: (id) => games.get(id)?.dir ?? null,
+  active: () =>
+    activeGame && activeGame.manifest.kind === 'web'
+      ? { id: activeGame.manifest.id, entry: activeGame.manifest.entry! }
+      : null,
+})
 const isHost = await server.listen()
 
 const claude = new ClaudePty(claudeArgs, (code) => {
@@ -53,6 +78,8 @@ if (!isHost) {
   const hid = new HidManager()
   const router = new InputRouter()
   const repeater = new KeyRepeater()
+  const externalGame =
+    activeGame?.manifest.kind === 'external' ? new ExternalGame(activeGame) : null
   let scrolling: 'up' | 'down' | null = null
   let focusSessionId: string | null = null
 
@@ -72,9 +99,12 @@ if (!isHost) {
       scrolling = null
       router.setMode(mode)
       server.broadcastGameState(agg.playing ? 'playing' : 'paused')
+      externalGame?.setPlaying(agg.playing)
       logger.info(`mode → ${mode}`, agg)
     }
   })
+
+  process.on('exit', () => externalGame?.stop())
 
   hid.on('data', (e: ControllerEvent) => {
     try {
@@ -138,7 +168,7 @@ if (!isHost) {
 
   hid.start()
 
-  if (!noGame && process.platform === 'darwin') {
+  if (!noGame && process.platform === 'darwin' && activeGame?.manifest.kind === 'web') {
     execFile('open', ['-g', HOST_URL], (err) => {
       if (err) logger.warn('could not open game tab', err)
     })
