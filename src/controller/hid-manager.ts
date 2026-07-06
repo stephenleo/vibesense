@@ -8,8 +8,10 @@ import { logger } from '../logger.js'
 import { Deduper } from './hal.js'
 import type { ControllerHAL } from './hal.js'
 import { DualSenseDriver } from './dualsense-driver.js'
-import { GenericHidDriver } from './generic-driver.js'
-import { XboxDriver, XBOX_PIDS, XBOX_VID } from './xbox-driver.js'
+import { DS4_PIDS, DS4_VID, parseDs4Report } from './ds4-driver.js'
+import { parseGenericReport } from './generic-driver.js'
+import { RawHidDriver } from './raw-hid-driver.js'
+import { parseXboxReport, XBOX_PIDS, XBOX_VID } from './xbox-driver.js'
 import type { ControllerEvent } from '../types.js'
 
 export const DUALSENSE_VID = 0x054c
@@ -17,7 +19,7 @@ export const DUALSENSE_PIDS = [0x0ce6, 0x0df2] // DualSense, DualSense Edge
 
 const RECONNECT_POLL_MS = 2000
 
-/** Detect the best matching device: DualSense > Xbox > generic gamepad usage page. */
+/** Detect the best matching device: DualSense > DS4 > Xbox > generic gamepad. */
 export function createDriver(): ControllerHAL | null {
   let devices: Device[]
   try {
@@ -30,16 +32,20 @@ export function createDriver(): ControllerHAL | null {
   if (devices.some((d) => d.vendorId === DUALSENSE_VID && DUALSENSE_PIDS.includes(d.productId))) {
     return new DualSenseDriver()
   }
+  const ds4 = devices.find((d) => d.vendorId === DS4_VID && DS4_PIDS.includes(d.productId))
+  if (ds4?.path) {
+    return new RawHidDriver('ds4', ds4.path, parseDs4Report)
+  }
   const xbox = devices.find((d) => d.vendorId === XBOX_VID && XBOX_PIDS.includes(d.productId))
-  if (xbox) {
-    return new XboxDriver(xbox.vendorId, xbox.productId)
+  if (xbox?.path) {
+    return new RawHidDriver('xbox', xbox.path, parseXboxReport)
   }
   const generic = devices.find(
-    (d) => d.usagePage === 0x01 && (d.usage === 0x04 || d.usage === 0x05),
+    (d) => d.usagePage === 0x01 && (d.usage === 0x04 || d.usage === 0x05) && d.path,
   )
-  if (generic) {
+  if (generic?.path) {
     logger.warn('Unknown controller, using generic HID driver')
-    return new GenericHidDriver(generic.vendorId, generic.productId)
+    return new RawHidDriver('generic-hid', generic.path, parseGenericReport)
   }
   return null
 }

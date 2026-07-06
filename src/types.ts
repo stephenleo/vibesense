@@ -22,7 +22,7 @@ export type ButtonId =
 
 export type AxisId = 'left_x' | 'left_y' | 'right_x' | 'right_y' | 'l2' | 'r2'
 
-export type ControllerType = 'xbox' | 'dualsense' | 'generic-hid'
+export type ControllerType = 'xbox' | 'dualsense' | 'ds4' | 'generic-hid'
 
 export type ControllerEvent =
   | { kind: 'button'; button: ButtonId; pressed: boolean }

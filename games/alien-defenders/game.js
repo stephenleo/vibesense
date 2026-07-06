@@ -28,6 +28,7 @@
   let lives = 3
   let wave = 1
   let gameOver = false
+  let gameOverAt = 0
 
   function spawnWave() {
     aliens = []
@@ -149,10 +150,10 @@
       if (Math.abs(b.x - ship.x) < ship.w / 2 && Math.abs(b.y - ship.y) < ship.h) {
         b.y = H + 99
         lives--
-        if (lives <= 0) gameOver = true
+        if (lives <= 0) { gameOver = true; gameOverAt = performance.now() }
       }
     }
-    if (alive.some((a) => a.y > ship.y - 30)) gameOver = true
+    if (alive.some((a) => a.y > ship.y - 30)) { gameOver = true; gameOverAt = performance.now() }
   }
 
   // ── Rendering ─────────────────────────────────────────────────────────
@@ -205,7 +206,7 @@
       ctx.font = '18px "Courier New", monospace'
       ctx.fillStyle = '#9ab'
       ctx.fillText(
-        gameOver ? 'fire to restart' : 'claude needs you — answer in the terminal',
+        gameOver ? 'restarting…' : 'claude needs you — answer in the terminal',
         W / 2,
         H / 2 + 22,
       )
@@ -217,6 +218,7 @@
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000)
     last = now
+    if (gameOver && now - gameOverAt > 4000) reset()
     if (playing) step(dt)
     render()
     requestAnimationFrame(frame)

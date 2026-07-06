@@ -1,10 +1,6 @@
-// Generic HID gamepad driver — best-effort parsing of the common USB gamepad
-// report layout. Ported from the v1 extension.
+// Generic HID gamepad report parsing — best-effort for the common USB layout.
+// Ported from the v1 extension.
 
-import { EventEmitter } from 'node:events'
-import { HID } from 'node-hid'
-import { logger } from '../logger.js'
-import type { ControllerHAL } from './hal.js'
 import type { ButtonId, ControllerEvent } from '../types.js'
 
 /** Normalize a 0-255 centered-at-128 axis byte to -1.0..1.0. */
@@ -50,53 +46,4 @@ export function parseGenericReport(data: Buffer): ControllerEvent[] {
     events.push({ kind: 'axis', axis: 'right_y', value: normalizeGenericAxis(data[5]!) })
   }
   return events
-}
-
-export class GenericHidDriver extends EventEmitter implements ControllerHAL {
-  readonly controllerType = 'generic-hid' as const
-
-  private device: HID | null = null
-
-  constructor(
-    private readonly vendorId: number,
-    private readonly productId: number,
-  ) {
-    super()
-  }
-
-  start(): void {
-    try {
-      this.device = new HID(this.vendorId, this.productId)
-      this.emit('data', {
-        kind: 'connected',
-        controllerType: 'generic-hid',
-      } satisfies ControllerEvent)
-      logger.info(
-        `Generic HID connected VID=${this.vendorId.toString(16)} PID=${this.productId.toString(16)}`,
-      )
-
-      this.device.on('data', (data: Buffer) => {
-        try {
-          for (const event of parseGenericReport(data)) this.emit('data', event)
-        } catch (err) {
-          logger.error('Generic HID parse error', err)
-        }
-      })
-      this.device.on('error', (err: Error) => {
-        logger.error('Generic HID device error', err)
-        this.emit('data', { kind: 'disconnected' } satisfies ControllerEvent)
-      })
-    } catch (err) {
-      logger.error('GenericHidDriver start failed', err)
-    }
-  }
-
-  stop(): void {
-    try {
-      this.device?.close()
-    } catch (err) {
-      logger.error('GenericHidDriver stop failed', err)
-    }
-    this.device = null
-  }
 }
