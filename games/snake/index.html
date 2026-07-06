@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Snake — VibeSense</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #050510;
+        color: #7cff7c;
+        font-family: 'Courier New', monospace;
+        overflow: hidden;
+      }
+      #wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+      }
+      canvas {
+        border: 2px solid #234;
+        box-shadow: 0 0 40px rgba(124, 255, 124, 0.15);
+        background: #02020a;
+        max-width: 96vw;
+        max-height: 86vh;
+      }
+      #status {
+        margin-top: 12px;
+        font-size: 14px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: #567;
+      }
+      #status.playing {
+        color: #7cff7c;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="wrap">
+      <canvas id="game" width="800" height="600"></canvas>
+      <div id="status">connecting…</div>
+    </div>
+    <script src="game.js"></script>
+  </body>
+</html>
