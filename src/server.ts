@@ -27,6 +27,54 @@ export interface GameProvider {
   resolveDir(id: string): string | null
   /** The active web game (id + entry file), or null if none. */
   active(): { id: string; entry: string } | null
+  /** All switchable web games, for the picker. */
+  list(): { id: string; name: string }[]
+  /** Make `id` the active game (persisted). Returns false if not a switchable web game. */
+  setActive(id: string): boolean
+}
+
+const esc = (s: string): string =>
+  s.replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
+  )
+
+/**
+ * The game picker page. Cards are clickable (mouse) and controller-navigable:
+ * the host tracks the highlighted index and pushes {type:'highlight'} over SSE;
+ * pressing A makes the host push {type:'reload'} to the chosen game.
+ */
+function renderPicker(games: { id: string; name: string }[], activeId: string | undefined): string {
+  const cards = games
+    .map((g, i) => {
+      const cur = g.id === activeId
+      // id is schema-constrained to /^[a-z0-9][a-z0-9-]*$/; name is free-text → escape it.
+      return `<a class="card${cur ? ' sel' : ''}" data-i="${i}" href="/switch/${g.id}">${esc(g.name)}</a>`
+    })
+    .join('')
+  return `<!doctype html><meta charset="utf-8"><title>Change game — VibeSense</title><style>
+html,body{margin:0;height:100%;background:#050510;color:#7cff7c;font-family:'Courier New',monospace}
+#wrap{display:flex;flex-direction:column;align-items:center;min-height:100%;gap:14px;padding:32px 24px;box-sizing:border-box}
+h1{font-size:18px;letter-spacing:3px;text-transform:uppercase;color:#567;margin:0 0 8px}
+.card{display:block;min-width:260px;text-align:center;padding:16px 24px;border:2px solid #234;border-radius:8px;color:#7cff7c;text-decoration:none;letter-spacing:2px}
+.card:hover{border-color:#567}
+.card.sel{border-color:#7cff7c;background:#02120a;box-shadow:0 0 24px rgba(124,255,124,.15)}
+#hint{margin-top:8px;font-size:13px;letter-spacing:2px;color:#567}
+</style><div id="wrap"><h1>Change game</h1>${cards || '<p>no web games installed</p>'}
+<div id="hint">↕ move &nbsp;·&nbsp; Ⓐ select</div></div>
+<script>
+const cards = [...document.querySelectorAll('.card')]
+const es = new EventSource('/events')
+es.onmessage = (e) => {
+  let m; try { m = JSON.parse(e.data) } catch { return }
+  if (m.type === 'highlight') {
+    cards.forEach((c, i) => c.classList.toggle('sel', i === m.index))
+    cards[m.index]?.scrollIntoView({ block: 'nearest' })
+  } else if (m.type === 'reload') {
+    location.href = m.url
+  }
+}
+</script>`
 }
 
 function sse(res: http.ServerResponse): void {
@@ -35,7 +83,9 @@ function sse(res: http.ServerResponse): void {
     'Cache-Control': 'no-cache',
     Connection: 'keep-alive',
   })
-  res.write('\n')
+  // retry: reconnect in 1s so a tab left over from a previous CLI session
+  // re-attaches to the new host fast (the host reuses it instead of opening one).
+  res.write('retry: 1000\n\n')
 }
 
 function send(res: http.ServerResponse, payload: unknown): void {
@@ -111,6 +161,21 @@ export class HostServer extends EventEmitter {
   /** Forward a controller input event to the game. */
   broadcastGameInput(input: Record<string, unknown>): void {
     for (const res of this.gameStreams) send(res, { type: 'input', ...input })
+  }
+
+  /** Tell open game tabs to navigate somewhere (the picker, or a chosen game). */
+  broadcastReload(url: string): void {
+    for (const res of this.gameStreams) send(res, { type: 'reload', url })
+  }
+
+  /** Move the highlighted card in the open picker page. */
+  broadcastHighlight(index: number): void {
+    for (const res of this.gameStreams) send(res, { type: 'highlight', index })
+  }
+
+  /** How many game tabs are currently connected (used to decide whether to open one). */
+  gameStreamCount(): number {
+    return this.gameStreams.size
   }
 
   /** Write keystrokes to a registered client instance's pty. Returns false if unknown. */
@@ -202,6 +267,20 @@ export class HostServer extends EventEmitter {
         return
       }
       res.writeHead(302, { Location: `/games/${active.id}/${active.entry}` })
+      res.end()
+      return
+    }
+
+    if (pathname === '/games') {
+      res.writeHead(200, { 'Content-Type': 'text/html' })
+      res.end(renderPicker(this.games.list(), this.games.active()?.id))
+      return
+    }
+
+    const switchMatch = pathname.match(/^\/switch\/([^/]+)$/)
+    if (switchMatch) {
+      this.games.setActive(decodeURIComponent(switchMatch[1]!))
+      res.writeHead(302, { Location: '/' }) // → redirect chain lands in the new active game
       res.end()
       return
     }

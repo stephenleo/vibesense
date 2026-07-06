@@ -9,11 +9,18 @@ import type { Aggregate } from '../src/state.js'
 
 let server: HostServer
 let base: string
+let switched: string[]
 
 beforeEach(async () => {
+  switched = []
   server = new HostServer({
     resolveDir: (id) => (id === 'alien-defenders' ? path.join(BUNDLED_GAMES_DIR, id) : null),
     active: () => ({ id: 'alien-defenders', entry: 'index.html' }),
+    list: () => [{ id: 'alien-defenders', name: 'Alien Defenders' }],
+    setActive: (id) => {
+      switched.push(id)
+      return true
+    },
   })
   await server.listen(0) // ephemeral port so tests never collide with a running vibesense
   base = `http://127.0.0.1:${server.boundPort}`
@@ -68,6 +75,16 @@ describe('HostServer', () => {
     const page = await fetch(`${base}/games/alien-defenders/index.html`)
     expect(page.status).toBe(200)
     expect(await page.text()).toContain('Alien Defenders')
+  })
+
+  it('lists games on /games and switches via /switch/<id>', async () => {
+    const picker = await fetch(`${base}/games`)
+    expect(await picker.text()).toContain('Alien Defenders')
+
+    const res = await fetch(`${base}/switch/alien-defenders`, { redirect: 'manual' })
+    expect(res.status).toBe(302)
+    expect(res.headers.get('location')).toBe('/')
+    expect(switched).toEqual(['alien-defenders'])
   })
 
   it('blocks path traversal out of the games dir', async () => {

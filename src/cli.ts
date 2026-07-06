@@ -14,7 +14,14 @@ import { HidManager } from './controller/hid-manager.js'
 import { installHooks } from './hooks-install.js'
 import { KeyRepeater, REPEATING_BUTTONS, TERMINAL_KEYS } from './keymap.js'
 import { logger } from './logger.js'
-import { checkEntitlement, discoverGames, ExternalGame, getActiveGame } from './plugins.js'
+import {
+  checkEntitlement,
+  discoverGames,
+  ExternalGame,
+  getActiveGame,
+  setActiveGameId,
+} from './plugins.js'
+import type { GamePlugin } from './plugins.js'
 import { ClaudePty } from './pty.js'
 import { InputRouter } from './router.js'
 import { SmoothScroller } from './scroll.js'
@@ -45,12 +52,51 @@ if (activeGame) {
   }
 }
 
+// Game-picker state, shared between the mouse route (/switch) and the controller.
+let pickerOpen = false
+let pickerIndex = 0
+
+/** Web games in a stable order — what the picker lists and cycles through. */
+function webGames(): GamePlugin[] {
+  return [...games.values()].filter((g) => g.manifest.kind === 'web')
+}
+
+/**
+ * Make `id` the active game: persist it, point `active()` at it, and close the
+ * picker. Returns false if it isn't a playable web game. One path for both the
+ * mouse picker (/switch) and the controller so their state can't diverge.
+ */
+function activateGame(id: string): boolean {
+  const game = games.get(id)
+  if (!game || game.manifest.kind !== 'web') return false
+  try {
+    checkEntitlement(game.manifest)
+  } catch {
+    return false
+  }
+  activeGame = game
+  setActiveGameId(id)
+  pickerOpen = false
+  return true
+}
+
 const server = new HostServer({
   resolveDir: (id) => games.get(id)?.dir ?? null,
   active: () =>
     activeGame && activeGame.manifest.kind === 'web'
       ? { id: activeGame.manifest.id, entry: activeGame.manifest.entry! }
       : null,
+  // ponytail: picker lists web games only; external (Steam-style) games stay
+  // CLI-restart-only since switching one live means starting/stopping its shell
+  // lifecycle — add that when an external game actually ships.
+  list: () =>
+    [...games.values()]
+      .filter((g) => g.manifest.kind === 'web')
+      .map((g) => ({ id: g.manifest.id, name: g.manifest.name })),
+  setActive: (id) => {
+    // Mouse picker: /switch/<id> → this → 302 back into the chosen game.
+    return activateGame(id)
+  },
 })
 const isHost = await server.listen()
 
@@ -91,6 +137,22 @@ if (!isHost) {
     }
   }
 
+  /** Commit the highlighted game: activate it and navigate the tab into it. */
+  function selectGame(next: GamePlugin): void {
+    if (activateGame(next.manifest.id)) {
+      server.broadcastReload(`/games/${next.manifest.id}/${next.manifest.entry}`)
+      logger.info(`game → ${next.manifest.name}`)
+    }
+  }
+
+  /** Cancel the picker: drop back into the current game unchanged. */
+  function closePicker(): void {
+    pickerOpen = false
+    if (activeGame?.manifest.kind === 'web') {
+      server.broadcastReload(`/games/${activeGame.manifest.id}/${activeGame.manifest.entry}`)
+    }
+  }
+
   server.on('aggregate', (agg: Aggregate) => {
     // Sticky focus: when nobody is waiting, keep routing to the session that
     // last needed the user instead of falling back to the host's own pty.
@@ -120,6 +182,44 @@ if (!isHost) {
       if (e.kind === 'disconnected') {
         repeater.releaseAll()
         scroller.setValue(0)
+        return
+      }
+
+      // ── Game picker ──────────────────────────────────────────────────
+      // While the picker is open it owns all input: d-pad/stick moves the
+      // highlight (host-tracked, pushed over SSE), A commits, B/View cancels.
+      // We navigate the tab only once, on commit — no reload-per-press.
+      if (pickerOpen) {
+        if (e.kind === 'button' && e.pressed) {
+          const web = webGames()
+          if (e.button === 'dpad_down' || e.button === 'dpad_right') {
+            pickerIndex = (pickerIndex + 1) % web.length
+            server.broadcastHighlight(pickerIndex)
+          } else if (e.button === 'dpad_up' || e.button === 'dpad_left') {
+            pickerIndex = (pickerIndex - 1 + web.length) % web.length
+            server.broadcastHighlight(pickerIndex)
+          } else if (e.button === 'south') {
+            selectGame(web[pickerIndex]!)
+          } else if (e.button === 'view' || e.button === 'east') {
+            closePicker()
+          }
+        }
+        return
+      }
+
+      // View/Share opens the picker (only worth it with more than one game).
+      if (e.kind === 'button' && e.button === 'view' && e.pressed) {
+        const web = webGames()
+        if (web.length > 1) {
+          pickerIndex = Math.max(
+            0,
+            web.findIndex((g) => g.manifest.id === activeGame?.manifest.id),
+          )
+          pickerOpen = true
+          repeater.releaseAll() // don't let a held key auto-fire while we're picking
+          scroller.setValue(0)
+          server.broadcastReload('/games') // tab loads the picker, highlighting the active game
+        }
         return
       }
 
@@ -172,10 +272,17 @@ if (!isHost) {
   scroller.start()
 
   if (!noGame && process.platform === 'darwin' && activeGame?.manifest.kind === 'web') {
-    execFile('open', ['-g', HOST_URL], (err) => {
-      if (err) logger.warn('could not open game tab', err)
-    })
+    // Give a tab left over from a previous session ~1.5s to reconnect (SSE
+    // retry) and reuse it, instead of opening a fresh window every restart.
+    setTimeout(() => {
+      if (server.gameStreamCount() > 0) return
+      execFile('open', ['-g', HOST_URL], (err) => {
+        if (err) logger.warn('could not open game tab', err)
+      })
+    }, 1500)
   }
+
+  if (games.size > 1) logger.info(`change games at ${HOST_URL}/games`)
 }
 
 logger.info(

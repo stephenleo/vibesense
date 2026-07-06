@@ -126,6 +126,8 @@
         boost = msg.pressed
         if (msg.pressed && gameOver) reset()
       }
+    } else if (msg.type === 'reload') {
+      location.href = msg.url // controller swapped games — load the new one
     }
   }
   events.onerror = () => setStatus('host disconnected — is vibesense running?', false)

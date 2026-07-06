@@ -18,7 +18,9 @@ export const BUNDLED_GAMES_DIR = fileURLToPath(new URL('../games', import.meta.u
 export const VIBESENSE_DIR = path.join(os.homedir(), '.vibesense')
 export const INSTALL_PREFIX = path.join(VIBESENSE_DIR, 'games')
 export const INSTALLED_MODULES_DIR = path.join(INSTALL_PREFIX, 'node_modules')
-const CONFIG_FILE = path.join(VIBESENSE_DIR, 'config.json')
+// Override for tests so they don't read/write the dev's real ~/.vibesense config.
+const configFile = (): string =>
+  process.env.VIBESENSE_CONFIG ?? path.join(VIBESENSE_DIR, 'config.json')
 
 export const MANIFEST_FILENAME = 'vibesense-game.json'
 export const NPM_PREFIX = 'vibesense-game-'
@@ -101,7 +103,7 @@ export function checkEntitlement(manifest: GameManifest): void {
 
 function readConfig(): { activeGame?: string } {
   try {
-    return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')) as { activeGame?: string }
+    return JSON.parse(fs.readFileSync(configFile(), 'utf8')) as { activeGame?: string }
   } catch {
     return {}
   }
@@ -109,7 +111,7 @@ function readConfig(): { activeGame?: string } {
 
 export function setActiveGameId(id: string): void {
   fs.mkdirSync(VIBESENSE_DIR, { recursive: true })
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify({ ...readConfig(), activeGame: id }, null, 2))
+  fs.writeFileSync(configFile(), JSON.stringify({ ...readConfig(), activeGame: id }, null, 2))
 }
 
 /** The configured active game, falling back to the bundled default. */
