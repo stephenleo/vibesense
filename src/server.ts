@@ -33,12 +33,19 @@ export interface GameProvider {
   setActive(id: string): boolean
 }
 
+const esc = (s: string): string =>
+  s.replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
+  )
+
 /** The game picker page — one anchor per web game; clicking navigates + switches. */
 function renderPicker(games: { id: string; name: string }[], activeId: string | undefined): string {
   const cards = games
     .map((g) => {
       const cur = g.id === activeId
-      return `<a class="card${cur ? ' active' : ''}" href="/switch/${g.id}">${cur ? '▶ ' : ''}${g.name}</a>`
+      // id is schema-constrained to /^[a-z0-9][a-z0-9-]*$/; name is free-text → escape it.
+      return `<a class="card${cur ? ' active' : ''}" href="/switch/${g.id}">${cur ? '▶ ' : ''}${esc(g.name)}</a>`
     })
     .join('')
   return `<!doctype html><meta charset="utf-8"><title>Change game — VibeSense</title><style>
