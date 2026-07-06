@@ -1,7 +1,8 @@
 // Alien Defenders — the bundled VibeSense game.
 // Auto-plays while the Claude agent executes; pauses when it needs you.
 // Input arrives over SSE from the vibesense host (left stick = move, R2 = fire).
-// Keyboard fallback (arrows + space) for development.
+// Keyboard fallback (arrows + space) for development. `?play` forces the
+// playing state so the game is testable without a host.
 
 ;(() => {
   'use strict'
@@ -9,8 +10,14 @@
   const canvas = document.getElementById('game')
   const ctx = canvas.getContext('2d')
   const statusEl = document.getElementById('status')
-  const W = canvas.width
-  const H = canvas.height
+
+  // Logical resolution stays 800×600; backing store scales for HiDPI.
+  const W = 800
+  const H = 600
+  const dpr = Math.min(2, window.devicePixelRatio || 1)
+  canvas.width = W * dpr
+  canvas.height = H * dpr
+  ctx.scale(dpr, dpr)
 
   // ── State ─────────────────────────────────────────────────────────────
   let playing = false
@@ -29,14 +36,52 @@
   let wave = 1
   let gameOver = false
   let gameOverAt = 0
+  let particles = [] // {x, y, vx, vy, life, max, color}
+  let shake = 0
+  let hitFlash = 0
+
+  // ── Random formation ──────────────────────────────────────────────────
+  // Every wave (and every restart) rolls fresh dimensions and a pattern, so
+  // no two fleets look alike. Masks that come out too sparse fall back to a
+  // full grid.
+  function formationMask() {
+    const rows = 3 + Math.floor(Math.random() * 3) // 3–5
+    const cols = 8 + Math.floor(Math.random() * 5) // 8–12
+    const midR = (rows - 1) / 2
+    const midC = (cols - 1) / 2
+    const type = Math.floor(Math.random() * 5)
+    const half = Array.from({ length: rows }, () =>
+      Array.from({ length: Math.ceil(cols / 2) }, () => Math.random() < 0.72),
+    )
+    const cell = (r, c) => {
+      if (type === 0) return half[r][Math.min(c, cols - 1 - c)] // mirrored random
+      if (type === 1) return (r + c) % 2 === 0 // checkerboard
+      if (type === 2) return Math.abs(r - midR) / midR + Math.abs(c - midC) / midC <= 1.05 // diamond
+      if (type === 3) return Math.abs(c - midC) >= ((rows - 1 - r) * midC) / rows // V wings
+      return true // full grid
+    }
+    const mask = []
+    let count = 0
+    for (let r = 0; r < rows; r++) {
+      mask.push([])
+      for (let c = 0; c < cols; c++) {
+        const v = cell(r, c)
+        mask[r].push(v)
+        if (v) count++
+      }
+    }
+    if (count < 12) return { rows, cols, mask: mask.map((row) => row.map(() => true)) }
+    return { rows, cols, mask }
+  }
 
   function spawnWave() {
     aliens = []
-    const rows = 4
-    const cols = 10
+    const { rows, cols, mask } = formationMask()
+    const spacing = 56
+    const x0 = W / 2 - ((cols - 1) * spacing) / 2
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
-        aliens.push({ x: 90 + c * 62, y: 70 + r * 48, alive: true, row: r })
+        if (mask[r][c]) aliens.push({ x: x0 + c * spacing, y: 72 + r * 46, alive: true, row: r })
       }
     }
     alienDir = 1
@@ -50,6 +95,7 @@
     gameOver = false
     bullets = []
     bombs = []
+    particles = []
     ship.x = W / 2
     spawnWave()
   }
@@ -89,7 +135,7 @@
   function setPlaying(next) {
     playing = next
     setStatus(
-      playing ? '▶ agent executing — defend!' : '⏸ claude needs you — controller is on the terminal',
+      playing ? 'agent executing — defend!' : 'claude needs you — controller is on the terminal',
       playing,
     )
   }
@@ -99,8 +145,27 @@
     statusEl.className = isPlaying ? 'playing' : ''
   }
 
+  // Dev affordance: `?play` runs the game without a host.
+  if (location.search.includes('play')) setPlaying(true)
+
   // ── Simulation ────────────────────────────────────────────────────────
+  function burst(x, y, color, n = 16, speed = 180) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2
+      const v = speed * (0.3 + Math.random() * 0.7)
+      const max = 0.35 + Math.random() * 0.4
+      particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: max, max, color })
+    }
+  }
+
   function step(dt) {
+    for (const p of particles) {
+      p.x += p.vx * dt
+      p.y += p.vy * dt
+      p.vy += 60 * dt
+      p.life -= dt
+    }
+    particles = particles.filter((p) => p.life > 0)
     if (gameOver) return
 
     const kb = (keys.ArrowLeft ? -1 : 0) + (keys.ArrowRight ? 1 : 0)
@@ -132,7 +197,7 @@
     }
     for (const a of aliens) a.x += alienDir * alienSpeed * dt
 
-    // Random bombs from the lowest alien in a column.
+    // Random bombs from the fleet.
     if (Math.random() < 0.9 * dt) {
       const shooter = alive[Math.floor(Math.random() * alive.length)]
       bombs.push({ x: shooter.x, y: shooter.y + 14 })
@@ -145,6 +210,7 @@
           a.alive = false
           b.y = -99
           score += 10 * wave
+          burst(a.x, a.y, ROW_COLORS[a.row % ROW_COLORS.length])
         }
       }
     }
@@ -152,67 +218,239 @@
       if (Math.abs(b.x - ship.x) < ship.w / 2 && Math.abs(b.y - ship.y) < ship.h) {
         b.y = H + 99
         lives--
-        if (lives <= 0) { gameOver = true; gameOverAt = performance.now() }
+        shake = 12
+        hitFlash = 0.5
+        burst(ship.x, ship.y, '#4dff88', 24, 240)
+        if (lives <= 0) {
+          gameOver = true
+          gameOverAt = performance.now()
+        }
       }
     }
-    if (alive.some((a) => a.y > ship.y - 30)) { gameOver = true; gameOverAt = performance.now() }
+    if (alive.some((a) => a.y > ship.y - 30)) {
+      gameOver = true
+      gameOverAt = performance.now()
+    }
   }
 
   // ── Rendering ─────────────────────────────────────────────────────────
-  function drawAlien(a) {
-    ctx.fillStyle = ['#ff5c8a', '#ffb45c', '#7cff7c', '#5cc8ff'][a.row % 4]
-    ctx.fillRect(a.x - 16, a.y - 10, 32, 20)
-    ctx.fillRect(a.x - 22, a.y - 2, 6, 8)
-    ctx.fillRect(a.x + 16, a.y - 2, 6, 8)
-    ctx.fillStyle = '#02020a'
-    ctx.fillRect(a.x - 9, a.y - 4, 5, 5)
-    ctx.fillRect(a.x + 4, a.y - 4, 5, 5)
+  const FONT = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace'
+  const ROW_COLORS = ['#ff4d6d', '#ffb347', '#4dff88', '#4dc9ff', '#c77dff']
+
+  // Two-frame classic invader, pre-rendered per color with the glow baked in
+  // so the frame loop is pure drawImage (per-alien shadowBlur is too slow).
+  const SPRITE_FRAMES = [
+    [
+      '..X.....X..',
+      '...X...X...',
+      '..XXXXXXX..',
+      '.XX.XXX.XX.',
+      'XXXXXXXXXXX',
+      'X.XXXXXXX.X',
+      'X.X.....X.X',
+      '...XX.XX...',
+    ],
+    [
+      '..X.....X..',
+      'X..X...X..X',
+      'X.XXXXXXX.X',
+      'XXX.XXX.XXX',
+      'XXXXXXXXXXX',
+      '.XXXXXXXXX.',
+      '..X.....X..',
+      '.X.......X.',
+    ],
+  ]
+
+  function makeSprite(frame, color) {
+    const px = 3 * dpr
+    const pad = 8 * dpr
+    const off = document.createElement('canvas')
+    off.width = frame[0].length * px + pad * 2
+    off.height = frame.length * px + pad * 2
+    const g = off.getContext('2d')
+    g.shadowColor = color
+    g.shadowBlur = 8 * dpr
+    g.fillStyle = color
+    for (let y = 0; y < frame.length; y++) {
+      for (let x = 0; x < frame[y].length; x++) {
+        if (frame[y][x] === 'X') g.fillRect(pad + x * px, pad + y * px, px, px)
+      }
+    }
+    return off
+  }
+  const sprites = ROW_COLORS.map((c) => SPRITE_FRAMES.map((f) => makeSprite(f, c)))
+
+  // Static starfield with per-star depth and twinkle phase; drifts slowly.
+  const stars = Array.from({ length: 110 }, () => ({
+    x: Math.random() * W,
+    y: Math.random() * H,
+    z: 0.25 + Math.random() * 0.75,
+    ph: Math.random() * Math.PI * 2,
+  }))
+
+  function drawStars(now) {
+    for (const s of stars) {
+      const y = (s.y + now * 0.008 * s.z) % H
+      const tw = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(now * 0.002 * s.z + s.ph))
+      ctx.globalAlpha = tw * s.z
+      ctx.fillStyle = s.z > 0.7 ? '#cfe4ff' : '#5b7699'
+      const r = s.z > 0.7 ? 1.6 : 1
+      ctx.fillRect(s.x, y, r, r)
+    }
+    ctx.globalAlpha = 1
   }
 
-  function render() {
-    ctx.clearRect(0, 0, W, H)
-
-    ctx.fillStyle = '#123'
-    for (let i = 0; i < 60; i++) {
-      ctx.fillRect(((i * 137) % W) + ((i * 61) % 7), (i * 97) % H, 2, 2)
+  function drawShip(x, y, scale = 1, flame = false) {
+    ctx.save()
+    ctx.translate(x, y)
+    ctx.scale(scale, scale)
+    if (flame) {
+      const f = 8 + Math.random() * 7
+      const grad = ctx.createLinearGradient(0, 10, 0, 10 + f)
+      grad.addColorStop(0, 'rgba(255, 200, 80, 0.9)')
+      grad.addColorStop(1, 'rgba(255, 80, 40, 0)')
+      ctx.fillStyle = grad
+      ctx.beginPath()
+      ctx.moveTo(-5, 10)
+      ctx.lineTo(5, 10)
+      ctx.lineTo(0, 10 + f)
+      ctx.closePath()
+      ctx.fill()
     }
+    ctx.shadowColor = '#4dff88'
+    ctx.shadowBlur = 14
+    ctx.fillStyle = '#4dff88'
+    ctx.beginPath()
+    ctx.moveTo(0, -16)
+    ctx.lineTo(20, 10)
+    ctx.lineTo(-20, 10)
+    ctx.closePath()
+    ctx.fill()
+    ctx.shadowBlur = 0
+    ctx.fillStyle = '#0a2814'
+    ctx.beginPath()
+    ctx.moveTo(0, -9)
+    ctx.lineTo(9, 7)
+    ctx.lineTo(-9, 7)
+    ctx.closePath()
+    ctx.fill()
+    ctx.fillStyle = '#d6ffe4'
+    ctx.fillRect(-2, -6, 4, 8)
+    ctx.restore()
+  }
 
-    for (const a of aliens) if (a.alive) drawAlien(a)
+  function tracer(x, y, len, color) {
+    const grad = ctx.createLinearGradient(x, y, x, y + len)
+    grad.addColorStop(0, color)
+    grad.addColorStop(1, 'rgba(0,0,0,0)')
+    ctx.fillStyle = grad
+    ctx.fillRect(x - 1.5, y, 3, len)
+  }
 
-    ctx.fillStyle = '#7cff7c'
-    ctx.fillRect(ship.x - ship.w / 2, ship.y, ship.w, 8)
-    ctx.fillRect(ship.x - ship.w / 4, ship.y - 6, ship.w / 2, 6)
-    ctx.fillRect(ship.x - 3, ship.y - 12, 6, 6)
+  function drawHud() {
+    ctx.strokeStyle = 'rgba(140, 170, 255, 0.12)'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(16, 38)
+    ctx.lineTo(W - 16, 38)
+    ctx.stroke()
 
-    ctx.fillStyle = '#eaffea'
-    for (const b of bullets) ctx.fillRect(b.x - 2, b.y - 8, 4, 10)
-    ctx.fillStyle = '#ff5c8a'
-    for (const b of bombs) ctx.fillRect(b.x - 2, b.y, 4, 10)
-
-    ctx.fillStyle = '#7cff7c'
-    ctx.font = '16px "Courier New", monospace'
+    ctx.fillStyle = '#8fa3c0'
+    ctx.font = `600 13px ${FONT}`
     ctx.textAlign = 'left'
-    ctx.fillText(`SCORE ${score}`, 16, 26)
+    ctx.fillText('SCORE', 16, 18)
     ctx.textAlign = 'center'
-    ctx.fillText(`WAVE ${wave}`, W / 2, 26)
+    ctx.fillText('WAVE', W / 2, 18)
     ctx.textAlign = 'right'
-    ctx.fillText(`LIVES ${'▲'.repeat(Math.max(0, lives))}`, W - 16, 26)
+    ctx.fillText('LIVES', W - 16, 18)
 
-    if (gameOver || !playing) {
-      ctx.fillStyle = 'rgba(2, 2, 10, 0.72)'
-      ctx.fillRect(0, 0, W, H)
-      ctx.textAlign = 'center'
-      ctx.fillStyle = gameOver ? '#ff5c8a' : '#7cff7c'
-      ctx.font = 'bold 36px "Courier New", monospace'
-      ctx.fillText(gameOver ? 'GAME OVER' : 'PAUSED', W / 2, H / 2 - 12)
-      ctx.font = '18px "Courier New", monospace'
-      ctx.fillStyle = '#9ab'
-      ctx.fillText(
-        gameOver ? 'restarting…' : 'claude needs you — answer in the terminal',
-        W / 2,
-        H / 2 + 22,
-      )
+    ctx.fillStyle = '#eaf2ff'
+    ctx.font = `700 16px ${FONT}`
+    ctx.textAlign = 'left'
+    ctx.fillText(String(score).padStart(5, '0'), 16, 33)
+    ctx.textAlign = 'center'
+    ctx.fillText(String(wave), W / 2, 33)
+    for (let i = 0; i < lives; i++) drawShip(W - 24 - i * 26, 28, 0.42)
+  }
+
+  function overlay(title, sub, color, showScore) {
+    ctx.fillStyle = 'rgba(3, 5, 14, 0.78)'
+    ctx.fillRect(0, 0, W, H)
+    const cw = 460
+    const ch = showScore ? 190 : 160
+    const cx = (W - cw) / 2
+    const cy = (H - ch) / 2
+    ctx.save()
+    ctx.shadowColor = color
+    ctx.shadowBlur = 30
+    ctx.fillStyle = 'rgba(9, 13, 28, 0.95)'
+    ctx.beginPath()
+    ctx.roundRect(cx, cy, cw, ch, 14)
+    ctx.fill()
+    ctx.shadowBlur = 0
+    ctx.strokeStyle = color
+    ctx.globalAlpha = 0.5
+    ctx.stroke()
+    ctx.restore()
+
+    ctx.textAlign = 'center'
+    ctx.fillStyle = color
+    ctx.font = `700 34px ${FONT}`
+    ctx.fillText(title, W / 2, cy + 62)
+    if (showScore) {
+      ctx.fillStyle = '#eaf2ff'
+      ctx.font = `700 18px ${FONT}`
+      ctx.fillText(`SCORE ${score} · WAVE ${wave}`, W / 2, cy + 100)
     }
+    ctx.fillStyle = '#8fa3c0'
+    ctx.font = `500 14px ${FONT}`
+    ctx.fillText(sub, W / 2, cy + ch - 38)
+  }
+
+  function render(now) {
+    ctx.clearRect(0, 0, W, H)
+    ctx.save()
+    if (shake > 0.5) {
+      ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake)
+      shake *= 0.88
+    }
+
+    drawStars(now)
+
+    const frame = Math.floor(now / 420) % 2
+    for (const a of aliens) {
+      if (!a.alive) continue
+      const img = sprites[a.row % ROW_COLORS.length][frame]
+      ctx.drawImage(img, a.x - img.width / (2 * dpr), a.y - img.height / (2 * dpr), img.width / dpr, img.height / dpr)
+    }
+
+    drawShip(ship.x, ship.y, 1, playing && !gameOver)
+
+    for (const b of bullets) tracer(b.x, b.y - 4, 14, '#eaffea')
+    for (const b of bombs) tracer(b.x, b.y + 10, -14, '#ff4d6d')
+
+    for (const p of particles) {
+      ctx.globalAlpha = Math.max(0, p.life / p.max)
+      ctx.fillStyle = p.color
+      ctx.fillRect(p.x - 2, p.y - 2, 4, 4)
+    }
+    ctx.globalAlpha = 1
+
+    drawHud()
+
+    if (hitFlash > 0) {
+      ctx.fillStyle = `rgba(255, 60, 80, ${hitFlash * 0.35})`
+      ctx.fillRect(0, 0, W, H)
+      hitFlash -= 0.02
+    }
+
+    if (gameOver) {
+      overlay('GAME OVER', 'restarting…', '#ff4d6d', true)
+    } else if (!playing) {
+      overlay('PAUSED', 'claude needs you — answer in the terminal', '#4dff88', false)
+    }
+    ctx.restore()
   }
 
   // ── Main loop ─────────────────────────────────────────────────────────
@@ -222,7 +460,7 @@
     last = now
     if (gameOver && now - gameOverAt > 4000) reset()
     if (playing) step(dt)
-    render()
+    render(now)
     requestAnimationFrame(frame)
   }
   requestAnimationFrame(frame)
