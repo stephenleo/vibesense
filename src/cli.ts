@@ -12,12 +12,12 @@ import { isVibesenseHost, runAsClient } from './client.js'
 import { runSubcommand, SUBCOMMANDS } from './commands.js'
 import { HidManager } from './controller/hid-manager.js'
 import { installHooks } from './hooks-install.js'
-import { KeyRepeater, REPEATING_BUTTONS, TERMINAL_KEYS, stickDirection } from './keymap.js'
+import { KeyRepeater, REPEATING_BUTTONS, TERMINAL_KEYS } from './keymap.js'
 import { logger } from './logger.js'
 import { checkEntitlement, discoverGames, ExternalGame, getActiveGame } from './plugins.js'
 import { ClaudePty } from './pty.js'
 import { InputRouter } from './router.js'
-import { scrollPage } from './scroll.js'
+import { SmoothScroller } from './scroll.js'
 import { HostServer, HOST_URL } from './server.js'
 import type { Aggregate } from './state.js'
 import type { ControllerEvent } from './types.js'
@@ -80,7 +80,7 @@ if (!isHost) {
   const repeater = new KeyRepeater()
   const externalGame =
     activeGame?.manifest.kind === 'external' ? new ExternalGame(activeGame) : null
-  let scrolling: 'up' | 'down' | null = null
+  const scroller = new SmoothScroller()
   let focusSessionId: string | null = null
 
   /** Terminal keystrokes go to the focused session's instance, else our own pty. */
@@ -92,11 +92,13 @@ if (!isHost) {
   }
 
   server.on('aggregate', (agg: Aggregate) => {
-    focusSessionId = agg.focusSessionId
+    // Sticky focus: when nobody is waiting, keep routing to the session that
+    // last needed the user instead of falling back to the host's own pty.
+    focusSessionId = agg.focusSessionId ?? focusSessionId
     const mode = agg.playing ? 'game' : 'terminal'
     if (mode !== router.currentMode()) {
       repeater.releaseAll()
-      scrolling = null
+      scroller.setValue(0)
       router.setMode(mode)
       server.broadcastGameState(agg.playing ? 'playing' : 'paused')
       externalGame?.setPlaying(agg.playing)
@@ -104,7 +106,10 @@ if (!isHost) {
     }
   })
 
-  process.on('exit', () => externalGame?.stop())
+  process.on('exit', () => {
+    externalGame?.stop()
+    scroller.stop()
+  })
 
   hid.on('data', (e: ControllerEvent) => {
     try {
@@ -114,6 +119,7 @@ if (!isHost) {
       }
       if (e.kind === 'disconnected') {
         repeater.releaseAll()
+        scroller.setValue(0)
         return
       }
 
@@ -121,7 +127,7 @@ if (!isHost) {
       if (e.kind === 'button' && e.button === 'menu' && e.pressed) {
         const mode = router.currentMode() === 'game' ? 'terminal' : 'game'
         repeater.releaseAll()
-        scrolling = null
+        scroller.setValue(0)
         router.setMode(mode)
         server.broadcastGameState(mode === 'game' ? 'playing' : 'paused')
         return
@@ -155,11 +161,7 @@ if (!isHost) {
       }
 
       if (routed.event.kind === 'axis' && routed.event.axis === 'right_y') {
-        const direction = stickDirection(routed.event.value)
-        if (direction === scrolling) return
-        if (scrolling) repeater.release(`scroll:${scrolling}`)
-        scrolling = direction
-        if (direction) repeater.press(`scroll:${direction}`, () => scrollPage(direction))
+        scroller.setValue(routed.event.value)
       }
     } catch (err) {
       logger.error('controller event handling failed', err)
@@ -167,6 +169,7 @@ if (!isHost) {
   })
 
   hid.start()
+  scroller.start()
 
   if (!noGame && process.platform === 'darwin' && activeGame?.manifest.kind === 'web') {
     execFile('open', ['-g', HOST_URL], (err) => {

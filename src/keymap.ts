@@ -56,16 +56,3 @@ export class KeyRepeater {
     for (const key of [...this.timers.keys()]) this.release(key)
   }
 }
-
-export const STICK_THRESHOLD = 0.5
-
-/**
- * Convert a right-stick Y value into a scroll direction, treating the stick as
- * a digital up/down switch with hysteresis at STICK_THRESHOLD.
- * HID convention: negative Y = stick pushed up.
- */
-export function stickDirection(value: number): 'up' | 'down' | null {
-  if (value <= -STICK_THRESHOLD) return 'up'
-  if (value >= STICK_THRESHOLD) return 'down'
-  return null
-}
