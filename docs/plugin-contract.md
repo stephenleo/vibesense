@@ -1,5 +1,7 @@
 # VibeSense game plugin contract (protocol v1)
 
+> New to this? Start with the step-by-step tutorial: [Building a VibeSense game](building-a-game.md).
+
 A VibeSense game is anything that can start when the Claude agent begins executing and pause when it stops or needs the user. Two kinds exist under one contract:
 
 - **`web`** — a static web page (canvas game) served by the vibesense host and shown in a browser tab.
