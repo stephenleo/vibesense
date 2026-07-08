@@ -2,13 +2,40 @@
 // keyboard → pty, pty output → stdout, window resizes forwarded. Controller
 // keystrokes are just extra writes into the same pty.
 
+import fs from 'node:fs'
+import { createRequire } from 'node:module'
+import path from 'node:path'
 import * as pty from 'node-pty'
 import { logger } from './logger.js'
+
+// node-pty's npm tarball ships spawn-helper without the exec bit, and the
+// package.json postinstall chmod can't reach it when npm hoists node-pty out
+// of our own node_modules (npx, install-as-dependency). Fix it here, where
+// require() tells us where node-pty actually resolved to. Best effort: the
+// postinstall still covers root-owned global installs this can't write to.
+export function fixSpawnHelperPermissions(prebuildsDir?: string): void {
+  try {
+    const dir =
+      prebuildsDir ??
+      path.join(
+        path.dirname(createRequire(import.meta.url).resolve('node-pty/package.json')),
+        'prebuilds',
+      )
+    for (const entry of fs.readdirSync(dir)) {
+      const helper = path.join(dir, entry, 'spawn-helper')
+      if (fs.existsSync(helper)) fs.chmodSync(helper, 0o755)
+    }
+  } catch {
+    // no prebuilds (built from source) or no write permission — if the exec
+    // bit is genuinely missing, pty.spawn will surface the failure.
+  }
+}
 
 export class ClaudePty {
   private proc: pty.IPty
 
   constructor(args: string[], onExit: (code: number) => void) {
+    fixSpawnHelperPermissions()
     this.proc = pty.spawn('claude', args, {
       name: process.env.TERM ?? 'xterm-256color',
       cols: process.stdout.columns,
