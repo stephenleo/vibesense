@@ -10,7 +10,7 @@ VibeSense wraps the `claude` CLI in a pty and hands your game controller both jo
 
 - **Agent waiting on you?** The controller drives the terminal — D-pad picks options, A/✕ accepts, Y/△ triggers voice input.
 - **Agent executing?** A retro game auto-starts in a browser tab. The moment Claude needs you, the game freezes and the controller flips back to the terminal.
-- **Games are plugins.** Seven retro games ship built in; anyone can publish more as npm packages.
+- **Games are plugins.** Five retro games ship built in; more are installable as npm packages, and anyone can publish their own.
 
 Requires Node ≥ 22 and a controller (Xbox / DualSense / generic HID). macOS-first.
 

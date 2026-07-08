@@ -1,6 +1,6 @@
 {
   "name": "vibesense",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "Drive Claude Code with a game controller — and play retro games while the agent works.",
   "license": "Apache-2.0",
   "author": "stephenleo",
@@ -10,7 +10,11 @@
   },
   "files": [
     "dist",
-    "games"
+    "games/snake",
+    "games/tetris",
+    "games/pacman",
+    "games/breakout",
+    "games/asteroids"
   ],
   "engines": {
     "node": ">=22"
