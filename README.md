@@ -1,5 +1,7 @@
 # VibeSense
 
+[![npm](https://img.shields.io/npm/v/vibesense)](https://www.npmjs.com/package/vibesense)
+
 Drive Claude Code with a game controller — and play retro games while the agent works.
 
 `vibesense` wraps the `claude` CLI in a pty and passes its TUI through to your terminal untouched. A game controller (Xbox / DualSense / generic HID) drives everything:
@@ -36,9 +38,7 @@ vibesense uninstall <id>
 
 A game is an npm package `vibesense-game-<id>` with a `vibesense-game.json` manifest — either a `web` game (canvas page served to the game tab) or an `external` adapter (shell commands on state transitions, e.g. launching/pausing a Steam game). See [docs/plugin-contract.md](docs/plugin-contract.md) to build one. Paid games are a reserved manifest field (`entitlement`) with the activation gate already in place — licensing bolts on later without changing the contract.
 
-## Status
-
-Ground-up rebuild in progress (the previous VSCode-extension incarnation lives in git history). macOS-first.
+> **Trust model**: installing a game is installing an npm package, and `external` games run shell commands by design. Only install games from authors you trust — same judgement as adding any dependency.
 
 ## Install
 
