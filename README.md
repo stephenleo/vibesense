@@ -40,6 +40,14 @@ A game is an npm package `vibesense-game-<id>` with a `vibesense-game.json` mani
 
 Ground-up rebuild in progress (the previous VSCode-extension incarnation lives in git history). macOS-first.
 
+## Install
+
+```sh
+npm install -g vibesense    # or: npx vibesense
+```
+
+Requires **Node ≥22**, and is **macOS-first**. The native deps `node-hid` / `node-pty` compile on install, so you'll need build tools (Xcode Command Line Tools on macOS).
+
 ## Development
 
 ```sh
