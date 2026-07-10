@@ -7,7 +7,7 @@ Drive Claude Code with a game controller — and play retro games while the agen
 `vibesense` wraps the `claude` CLI in a pty and passes its TUI through to your terminal untouched. A game controller (Xbox / DualSense / generic HID) drives everything:
 
 - **Agent waiting on you?** D-pad navigates AskUserQuestion options, A/✕ accepts, B/○ cancels, Y/△ triggers Claude Code's native voice input, right stick scrolls.
-- **Agent executing?** A retro alien-defenders game auto-starts in a browser tab — left stick moves, RT/R2 fires. The moment Claude stops or asks a question, the game pauses and the controller flips back to driving the terminal.
+- **Agent executing?** A retro Snake game auto-starts in a browser tab — left stick steers. The moment Claude stops or asks a question, the game pauses and the controller flips back to driving the terminal.
 - **Want a break?** Menu/Options pauses the game and hands the controller to the terminal; press it again to resume. This manual pause sticks — the agent starting or stopping won't un-pause it.
 - **Games are plugins.** Anyone can publish a game as an npm package; official games are `@vibesense/game-<id>`, installed with `vibesense install <id>`.
 
@@ -29,7 +29,7 @@ Terminal buttons and game buttons are disjoint sets, with a 750 ms input guard o
 
 ## Games marketplace
 
-Five games ship built in; browse and install the rest from the catalog at [vibesense.dev/games](https://vibesense.dev/games).
+Five games ship built in; browse and install the rest from the catalog at [vibesense.dev/games](https://vibesense.dev/games). The official installable games live in [vibesense-games](https://github.com/stephenleo/vibesense-games), and [vibesense-game-template](https://github.com/stephenleo/vibesense-game-template) is the starting point for building your own.
 
 ```sh
 vibesense games            # list installed games (* = active)

@@ -72,17 +72,17 @@ describe('discoverGames', () => {
     expect([...games.keys()]).toEqual(['good'])
   })
 
-  it('finds the bundled alien-defenders by default', () => {
-    expect(discoverGames().has('alien-defenders')).toBe(true)
+  it('finds the bundled snake by default', () => {
+    expect(discoverGames().has('snake')).toBe(true)
   })
 
-  it('getActiveGame falls back to alien-defenders', () => {
+  it('getActiveGame falls back to snake', () => {
     // Point at a nonexistent config so the fallback path is what we actually test,
     // not whatever game the dev last selected in ~/.vibesense/config.json.
     process.env.VIBESENSE_CONFIG = path.join(os.tmpdir(), 'vibesense-no-such-config.json')
     try {
       const games = discoverGames()
-      expect(getActiveGame(games)?.manifest.id).toBe('alien-defenders')
+      expect(getActiveGame(games)?.manifest.id).toBe('snake')
     } finally {
       delete process.env.VIBESENSE_CONFIG
     }
