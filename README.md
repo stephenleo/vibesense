@@ -29,6 +29,8 @@ Terminal buttons and game buttons are disjoint sets, with a 750 ms input guard o
 
 ## Games marketplace
 
+Five games ship built in; browse and install the rest from the catalog at [vibesense.dev/games](https://vibesense.dev/games).
+
 ```sh
 vibesense games            # list installed games (* = active)
 vibesense install <id>     # install vibesense-game-<id> from npm (tarballs/paths work too)

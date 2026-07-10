@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Stax — VibeSense</title>
+    <title>Tunneler — VibeSense</title>
     <style>
       :root {
-        --accent: #c084fc;
+        --accent: #ff8a3d;
       }
       html,
       body {
@@ -18,7 +18,7 @@
       }
       body {
         background:
-          radial-gradient(1100px 700px at 50% 28%, #0b1226 0%, #05060f 62%, #020309 100%) fixed;
+          radial-gradient(1100px 700px at 50% 28%, #1a1122 0%, #0b0710 62%, #050308 100%) fixed;
       }
       #wrap {
         display: flex;
@@ -34,7 +34,7 @@
         font-weight: 600;
         letter-spacing: 7px;
         text-transform: uppercase;
-        color: #8fa3c0;
+        color: #b39a86;
       }
       h1 b {
         color: var(--accent);
@@ -44,12 +44,12 @@
         width: min(94vw, 800px);
         height: auto;
         border-radius: 12px;
-        border: 1px solid rgba(140, 170, 255, 0.14);
-        background: #04050d;
+        border: 1px solid rgba(255, 170, 120, 0.14);
+        background: #0a0507;
         box-shadow:
           0 0 0 1px rgba(0, 0, 0, 0.6),
           0 24px 70px rgba(0, 0, 0, 0.55),
-          0 0 90px rgba(192, 132, 252, 0.08);
+          0 0 90px rgba(255, 138, 61, 0.1);
       }
       #status {
         display: inline-flex;
@@ -57,12 +57,12 @@
         gap: 8px;
         padding: 7px 16px;
         border-radius: 999px;
-        border: 1px solid rgba(140, 170, 255, 0.14);
-        background: rgba(10, 14, 30, 0.7);
+        border: 1px solid rgba(255, 170, 120, 0.14);
+        background: rgba(26, 16, 10, 0.7);
         font-size: 12px;
         letter-spacing: 2px;
         text-transform: uppercase;
-        color: #8fa3c0;
+        color: #b39a86;
       }
       #status::before {
         content: '';
@@ -74,7 +74,7 @@
         flex: none;
       }
       #status.playing {
-        color: #f0e2ff;
+        color: #ffe0c4;
       }
       #status.playing::before {
         background: var(--accent);
@@ -90,7 +90,7 @@
   </head>
   <body>
     <div id="wrap">
-      <h1><b>Stax</b> · VibeSense</h1>
+      <h1><b>Tunneler</b> · VibeSense</h1>
       <canvas id="game" width="800" height="600"></canvas>
       <div id="status">connecting…</div>
     </div>

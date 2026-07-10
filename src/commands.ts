@@ -70,6 +70,7 @@ export async function runSubcommand(command: string, args: string[]): Promise<ne
           )
         }
         console.log('\n* = active. discover more: npm search vibesense-game-')
+        console.log('browse more games → https://vibesense.dev/games')
         break
       }
       case 'use': {
