@@ -48,7 +48,7 @@ if (activeGame) {
     checkEntitlement(activeGame.manifest)
   } catch (err) {
     logger.warn('active game not playable — falling back to bundled default', err)
-    activeGame = games.get('alien-defenders') ?? null
+    activeGame = games.get('snake') ?? null
   }
 }
 

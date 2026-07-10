@@ -122,7 +122,7 @@ export function getActiveGame(games: Map<string, GamePlugin>): GamePlugin | null
     if (game) return game
     logger.warn(`configured game "${configured}" not installed — falling back`)
   }
-  return games.get('alien-defenders') ?? games.values().next().value ?? null
+  return games.get('snake') ?? games.values().next().value ?? null
 }
 
 /**

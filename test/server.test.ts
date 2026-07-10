@@ -14,9 +14,9 @@ let switched: string[]
 beforeEach(async () => {
   switched = []
   server = new HostServer({
-    resolveDir: (id) => (id === 'alien-defenders' ? path.join(BUNDLED_GAMES_DIR, id) : null),
-    active: () => ({ id: 'alien-defenders', entry: 'index.html' }),
-    list: () => [{ id: 'alien-defenders', name: 'Alien Defenders' }],
+    resolveDir: (id) => (id === 'snake' ? path.join(BUNDLED_GAMES_DIR, id) : null),
+    active: () => ({ id: 'snake', entry: 'index.html' }),
+    list: () => [{ id: 'snake', name: 'Snake' }],
     setActive: (id) => {
       switched.push(id)
       return true
@@ -72,19 +72,19 @@ describe('HostServer', () => {
     const redirect = await fetch(`${base}/`, { redirect: 'manual' })
     expect(redirect.status).toBe(302)
 
-    const page = await fetch(`${base}/games/alien-defenders/index.html`)
+    const page = await fetch(`${base}/games/snake/index.html`)
     expect(page.status).toBe(200)
-    expect(await page.text()).toContain('Alien Defenders')
+    expect(await page.text()).toContain('Snake')
   })
 
   it('lists games on /games and switches via /switch/<id>', async () => {
     const picker = await fetch(`${base}/games`)
-    expect(await picker.text()).toContain('Alien Defenders')
+    expect(await picker.text()).toContain('Snake')
 
-    const res = await fetch(`${base}/switch/alien-defenders`, { redirect: 'manual' })
+    const res = await fetch(`${base}/switch/snake`, { redirect: 'manual' })
     expect(res.status).toBe(302)
     expect(res.headers.get('location')).toBe('/')
-    expect(switched).toEqual(['alien-defenders'])
+    expect(switched).toEqual(['snake'])
   })
 
   it('blocks path traversal out of the games dir', async () => {

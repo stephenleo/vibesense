@@ -2,7 +2,7 @@
 
 This is the tutorial companion to the [plugin contract reference](plugin-contract.md). Follow it top to bottom and you'll go from empty directory to a published game other people can `vibesense install`.
 
-The bundled Snake game ([`games/snake/`](../games/snake/)) is the reference implementation for everything below — three files plus a `package.json`, no build step.
+The fastest start is [vibesense-game-template](https://github.com/stephenleo/vibesense-game-template) — click "Use this template" and you have a working game to rename and rewrite. The bundled Snake game ([`games/snake/`](../games/snake/)) is the reference implementation for everything below — three files plus a `package.json`, no build step — and the official installable games in [vibesense-games](https://github.com/stephenleo/vibesense-games) are ten more examples to borrow from.
 
 ## 1. Package layout
 
