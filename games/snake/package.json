@@ -1,9 +1,16 @@
 {
-  "name": "vibesense-game-snake",
+  "name": "@vibesense/game-snake",
   "version": "1.0.0",
-  "description": "Snake for VibeSense — left stick steers; auto-pauses when Claude needs you.",
+  "description": "Snake for VibeSense \u2014 left stick steers; auto-pauses when Claude needs you.",
   "license": "Apache-2.0",
   "author": "stephenleo",
-  "keywords": ["vibesense", "vibesense-game"],
-  "files": ["vibesense-game.json", "index.html", "game.js"]
+  "keywords": [
+    "vibesense",
+    "vibesense-game"
+  ],
+  "files": [
+    "vibesense-game.json",
+    "index.html",
+    "game.js"
+  ]
 }

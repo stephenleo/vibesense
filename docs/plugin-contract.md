@@ -87,10 +87,10 @@ Note: external games own their controller input themselves (Steam already reads 
 
 The marketplace is npm:
 
-1. Name your package `vibesense-game-<id>` and put `vibesense-game.json` at the package root.
-2. `npm publish`.
-3. Users install it with `vibesense install <id>` and activate it with `vibesense use <id>`.
+1. Put `vibesense-game.json` at the package root. Official games are named `@vibesense/game-<id>`; name yours under your own scope (e.g. `@you/my-game`) and keep the `vibesense-game` keyword.
+2. `npm publish --access public`.
+3. Users install official games with `vibesense install <id>`, community games with their full npm name (`vibesense install @you/my-game`), and activate with `vibesense use <id>`.
 
-Discovery: `npm search vibesense-game-` or `vibesense games` for what's installed locally. Test unpublished games with `vibesense install ./my-game.tgz` (any npm-installable spec works).
+Discovery: `npm search vibesense-game` or `vibesense games` for what's installed locally. Test unpublished games with `vibesense install ./my-game.tgz` (any npm-installable spec works).
 
 **Trust model**: installing a game is installing an npm package — it can run code (external games run shell commands by design). Install games you trust, same as any dependency.

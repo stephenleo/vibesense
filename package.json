@@ -1,7 +1,7 @@
 {
-  "name": "vibesense",
-  "version": "2.1.0",
-  "description": "Drive Claude Code with a game controller — and play retro games while the agent works.",
+  "name": "@vibesense/cli",
+  "version": "2.2.0",
+  "description": "Drive Claude Code with a game controller \u2014 and play retro games while the agent works.",
   "license": "Apache-2.0",
   "author": "stephenleo",
   "type": "module",

@@ -1,5 +1,5 @@
 // Marketplace subcommands: install / uninstall / games / use.
-// Marketplace = npm. A game is a package named vibesense-game-<id> with a
+// Marketplace = npm. A game is a package named @vibesense/game-<id> with a
 // vibesense-game.json manifest at its root; installs land under
 // ~/.vibesense/games via `npm install --prefix`.
 
@@ -25,8 +25,10 @@ function npm(args: string[]): Promise<void> {
   })
 }
 
+// Bare ids get the official prefix; anything with a '/' or '.' (scoped names,
+// tarballs, paths, urls) is already a full npm spec and passes through as-is.
 function packageName(idOrPackage: string): string {
-  return idOrPackage.startsWith(NPM_PREFIX) ? idOrPackage : `${NPM_PREFIX}${idOrPackage}`
+  return /[/.]/.test(idOrPackage) ? idOrPackage : `${NPM_PREFIX}${idOrPackage}`
 }
 
 /** Handle a marketplace subcommand. Exits the process when done. */
@@ -37,8 +39,7 @@ export async function runSubcommand(command: string, args: string[]): Promise<ne
         const target = args[0]
         if (!target) throw new Error('usage: vibesense install <game-id | npm-package | tarball>')
         fs.mkdirSync(INSTALL_PREFIX, { recursive: true })
-        // Tarballs/paths/URLs install as-is (useful for testing unpublished games).
-        const spec = /[/.]/.test(target) ? target : packageName(target)
+        const spec = packageName(target)
         console.log(`installing ${spec} …`)
         await npm(['install', '--prefix', INSTALL_PREFIX, '--no-fund', '--no-audit', spec])
         const games = discoverGames()
@@ -69,7 +70,7 @@ export async function runSubcommand(command: string, args: string[]): Promise<ne
             `${marker} ${manifest.id}  ${manifest.name} v${manifest.version} (${manifest.kind}, ${manifest.entitlement})`,
           )
         }
-        console.log('\n* = active. discover more: npm search vibesense-game-')
+        console.log('\n* = active. discover more: npm search vibesense-game')
         console.log('browse more games → https://vibesense.dev/games')
         break
       }
