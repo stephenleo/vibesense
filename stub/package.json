@@ -1,0 +1,14 @@
+{
+  "name": "vibesense",
+  "version": "3.0.0",
+  "description": "Moved to @vibesense/cli — this package only prints a redirect notice.",
+  "license": "Apache-2.0",
+  "author": "stephenleo",
+  "type": "module",
+  "bin": {
+    "vibesense": "cli.js"
+  },
+  "files": [
+    "cli.js"
+  ]
+}
