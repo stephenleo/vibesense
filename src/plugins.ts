@@ -1,7 +1,7 @@
 // Game plugin system. A game is a directory with a vibesense-game.json
 // manifest — either kind "web" (static files served to the game tab) or kind
 // "external" (shell commands run on state transitions, e.g. a Steam adapter).
-// Marketplace = npm: packages named vibesense-game-<id>, installed under
+// Marketplace = npm: packages named @vibesense/game-<id>, installed under
 // ~/.vibesense/games with plain `npm install`.
 
 import { exec } from 'node:child_process'
@@ -23,7 +23,7 @@ const configFile = (): string =>
   process.env.VIBESENSE_CONFIG ?? path.join(VIBESENSE_DIR, 'config.json')
 
 export const MANIFEST_FILENAME = 'vibesense-game.json'
-export const NPM_PREFIX = 'vibesense-game-'
+export const NPM_PREFIX = '@vibesense/game-'
 
 export const manifestSchema = z
   .object({

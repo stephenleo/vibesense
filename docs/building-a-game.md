@@ -6,11 +6,11 @@ The bundled Snake game ([`games/snake/`](../games/snake/)) is the reference impl
 
 ## 1. Package layout
 
-A game is an npm package named `vibesense-game-<id>` with a manifest at its root. A minimal web game is four files:
+A game is an npm package with the VibeSense manifest at its root. Official games are named `@vibesense/game-<id>`; publish yours under your own scope (e.g. `@you/my-game`) — users install it by its full npm name. A minimal web game is four files:
 
 ```
-vibesense-game-my-game/
-├── package.json          # npm package, name must be vibesense-game-<id>
+my-game/
+├── package.json          # any npm name; use your own scope, e.g. @you/my-game
 ├── vibesense-game.json   # the VibeSense manifest
 ├── index.html            # your entry page
 └── game.js               # your game code
@@ -20,7 +20,7 @@ vibesense-game-my-game/
 
 ```json
 {
-  "name": "vibesense-game-my-game",
+  "name": "@you/my-game",
   "version": "1.0.0",
   "description": "My game for VibeSense",
   "license": "Apache-2.0",
@@ -114,9 +114,9 @@ Iterate on the game standalone first: open `index.html` directly in a browser. T
 Then test inside vibesense without publishing anything:
 
 ```sh
-cd vibesense-game-my-game
-npm pack                                  # → vibesense-game-my-game-1.0.0.tgz
-vibesense install ./vibesense-game-my-game-1.0.0.tgz
+cd my-game
+npm pack                                  # → you-my-game-1.0.0.tgz
+vibesense install ./you-my-game-1.0.0.tgz
 vibesense use my-game
 vibesense                                 # start a session; your game runs when the agent does
 ```
@@ -126,23 +126,23 @@ vibesense                                 # start a session; your game runs when
 ## 5. Publishing
 
 ```sh
-npm publish
+npm publish --access public   # scoped packages default to private
 ```
 
 That's the whole release process. Users then install and activate it:
 
 ```sh
-vibesense install my-game     # resolves to vibesense-game-my-game on npm
+vibesense install @you/my-game    # full npm name; bare ids resolve to official @vibesense/game-<id>
 vibesense use my-game
 ```
 
-Discovery is npm search (`npm search vibesense-game-`) plus `vibesense games` for what's installed locally.
+Discovery is npm keyword search (`npm search vibesense-game`) plus `vibesense games` for what's installed locally — keep the `vibesense-game` keyword in your `package.json`.
 
 **Trust note for your users**: installing a game is installing an npm package, and external games run shell commands by design. Keep your package minimal and auditable — small, unminified sources get installed more.
 
 ## 6. Checklist before you publish
 
-- [ ] Package named `vibesense-game-<id>`, `id` matches the manifest
+- [ ] Package named under your own scope, manifest `id` matches what users will `vibesense use`
 - [ ] `vibesense-game.json` at the package root, `protocolVersion: 1`
 - [ ] Game visibly freezes on `state: 'paused'`
 - [ ] Only left stick + R2/L2 used for input
