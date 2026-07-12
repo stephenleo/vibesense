@@ -104,4 +104,19 @@ describe('PauseGate', () => {
     gate.toggle()
     expect(gate.shouldPlay()).toBe(true)
   })
+
+  it('auto-play (pinned-true feed) keeps playing, and a menu pause sticks', () => {
+    // --auto-play feeds onAgent(true) forever: play from the first aggregate on.
+    const gate = new PauseGate(true)
+    gate.onAgent(true) // first aggregate — transition clears the ctor override
+    expect(gate.shouldPlay()).toBe(true)
+    gate.onAgent(true) // agent waits/idles — the pinned feed masks it
+    expect(gate.shouldPlay()).toBe(true)
+    gate.toggle() // manual pause must win over the pin...
+    expect(gate.shouldPlay()).toBe(false)
+    gate.onAgent(true) // ...and stick: no transition ever clears it
+    expect(gate.shouldPlay()).toBe(false)
+    gate.toggle() // until the user resumes
+    expect(gate.shouldPlay()).toBe(true)
+  })
 })
