@@ -112,7 +112,11 @@ const server = new HostServer(
     list: () =>
       [...games.values()]
         .filter((g) => g.manifest.kind === 'web')
-        .map((g) => ({ id: g.manifest.id, name: g.manifest.name })),
+        .map((g) => ({
+          id: g.manifest.id,
+          name: g.manifest.name,
+          entitlement: g.manifest.entitlement,
+        })),
     setActive: (id) => {
       // Mouse picker: /switch/<id> → this → 302 back into the chosen game.
       return activateGame(id)

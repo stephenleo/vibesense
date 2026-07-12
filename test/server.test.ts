@@ -16,7 +16,10 @@ beforeEach(async () => {
   server = new HostServer({
     resolveDir: (id) => (id === 'snake' ? path.join(BUNDLED_GAMES_DIR, id) : null),
     active: () => ({ id: 'snake', entry: 'index.html' }),
-    list: () => [{ id: 'snake', name: 'Snake' }],
+    list: () => [
+      { id: 'snake', name: 'Snake', entitlement: 'free' as const },
+      { id: 'cascade', name: 'Cascade', entitlement: 'paid' as const },
+    ],
     setActive: (id) => {
       switched.push(id)
       return true
@@ -75,6 +78,19 @@ describe('HostServer', () => {
     const page = await fetch(`${base}/games/snake/index.html`)
     expect(page.status).toBe(200)
     expect(await page.text()).toContain('Snake')
+  })
+
+  it('injects the Free/Paid sidebar into served game HTML only', async () => {
+    const page = await (await fetch(`${base}/games/snake/index.html`)).text()
+    // Sidebar present, grouped, with switch links; spliced inside the body.
+    expect(page).toContain('id="vs-sidebar"')
+    expect(page).toContain('<summary>Free</summary>')
+    expect(page).toContain('<summary>Paid</summary>')
+    expect(page).toContain('href="/switch/cascade"')
+
+    // Non-HTML assets pass through untouched.
+    const js = await (await fetch(`${base}/games/snake/game.js`)).text()
+    expect(js).not.toContain('vs-sidebar')
   })
 
   it('lists games on /games and switches via /switch/<id>', async () => {
