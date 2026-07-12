@@ -5,5 +5,10 @@
   "protocolVersion": 1,
   "kind": "web",
   "entry": "index.html",
-  "entitlement": "free"
+  "entitlement": "free",
+  "howToPlay": [
+    "Left stick slides the paddle — deflection sets speed",
+    "R2 or L2 launches the ball (and restarts)",
+    "Clear all the bricks"
+  ]
 }

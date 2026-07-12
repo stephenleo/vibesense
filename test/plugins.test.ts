@@ -36,6 +36,14 @@ describe('manifestSchema', () => {
     expect(manifestSchema.safeParse({ ...base, kind: 'external' }).success).toBe(false)
   })
 
+  it('howToPlay is optional and round-trips as a string array', () => {
+    const web = { ...base, kind: 'web', entry: 'index.html' }
+    expect(manifestSchema.parse(web).howToPlay).toBeUndefined()
+    expect(manifestSchema.parse({ ...web, howToPlay: ['step one'] }).howToPlay).toEqual([
+      'step one',
+    ])
+  })
+
   it('rejects bad ids and unknown kinds', () => {
     expect(
       manifestSchema.safeParse({ ...base, id: '../evil', kind: 'web', entry: 'i.html' }).success,

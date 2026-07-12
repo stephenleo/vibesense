@@ -116,6 +116,7 @@ const server = new HostServer(
           id: g.manifest.id,
           name: g.manifest.name,
           entitlement: g.manifest.entitlement,
+          howToPlay: g.manifest.howToPlay,
         })),
     setActive: (id) => {
       // Mouse picker: /switch/<id> → this → 302 back into the chosen game.

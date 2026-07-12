@@ -5,5 +5,10 @@
   "protocolVersion": 1,
   "kind": "web",
   "entry": "index.html",
-  "entitlement": "free"
+  "entitlement": "free",
+  "howToPlay": [
+    "Left stick rotates the ship — up thrusts",
+    "R2 fires (hold for autofire)",
+    "L2 hyperspace-jumps out of trouble"
+  ]
 }
