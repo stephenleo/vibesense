@@ -67,3 +67,34 @@ export class SessionTracker {
     }
   }
 }
+
+/**
+ * Play/pause decision: agent-driven by default, with a manual override (Menu
+ * button) that forces the opposite of the current effective state. The next
+ * agent playing-transition clears the override — by construction the override
+ * is the state the agent is about to catch up to, so clearing is seamless, and
+ * a stale force-play can never eat a permission prompt.
+ */
+export class PauseGate {
+  private agentPlaying = false
+  private override: 'play' | 'pause' | null
+
+  constructor(forcePlay = false) {
+    this.override = forcePlay ? 'play' : null
+  }
+
+  shouldPlay(): boolean {
+    return this.override ? this.override === 'play' : this.agentPlaying
+  }
+
+  /** Feed the agent aggregate; a playing-transition clears any manual override. */
+  onAgent(playing: boolean): void {
+    if (playing !== this.agentPlaying) this.override = null
+    this.agentPlaying = playing
+  }
+
+  /** Menu button: force the opposite of whatever is effective right now. */
+  toggle(): void {
+    this.override = this.shouldPlay() ? 'pause' : 'play'
+  }
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SessionTracker, stateForHookEvent } from '../src/state.js'
+import { PauseGate, SessionTracker, stateForHookEvent } from '../src/state.js'
 
 describe('stateForHookEvent', () => {
   it('maps hook events to agent states', () => {
@@ -68,5 +68,40 @@ describe('SessionTracker.aggregate', () => {
     t.apply('s1', 'UserPromptSubmit')
     expect(t.apply('s1', 'WeirdNewEvent')).toBe(false)
     expect(t.aggregate().playing).toBe(true)
+  })
+})
+
+describe('PauseGate', () => {
+  it('menu force-play overrides an idle agent; the next transition restores auto', () => {
+    const gate = new PauseGate()
+    expect(gate.shouldPlay()).toBe(false) // agent idle, no override
+    gate.toggle() // force play while claude is idle
+    expect(gate.shouldPlay()).toBe(true)
+    gate.onAgent(true) // claude starts executing — transition clears the override
+    expect(gate.shouldPlay()).toBe(true)
+    gate.onAgent(false) // claude waits on the user — auto pause wins, prompt not eaten
+    expect(gate.shouldPlay()).toBe(false)
+  })
+
+  it('manual pause holds while the agent state is unchanged, then auto resumes', () => {
+    const gate = new PauseGate()
+    gate.onAgent(true)
+    gate.toggle() // pause while claude executes
+    expect(gate.shouldPlay()).toBe(false)
+    gate.onAgent(true) // same state — override sticks
+    expect(gate.shouldPlay()).toBe(false)
+    gate.onAgent(false) // claude finishes — override cleared, still paused
+    expect(gate.shouldPlay()).toBe(false)
+    gate.onAgent(true) // next run — auto play resumes
+    expect(gate.shouldPlay()).toBe(true)
+  })
+
+  it('forcePlay starts playing and menu toggles it (play mode, no agent)', () => {
+    const gate = new PauseGate(true)
+    expect(gate.shouldPlay()).toBe(true)
+    gate.toggle()
+    expect(gate.shouldPlay()).toBe(false)
+    gate.toggle()
+    expect(gate.shouldPlay()).toBe(true)
   })
 })
