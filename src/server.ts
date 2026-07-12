@@ -90,8 +90,9 @@ function renderSidebar(
     items.length
       ? `<details class="vs-group" open><summary>${label}</summary>${items
           .map(
+            // id is schema-constrained, but esc() costs nothing — belt and braces.
             (g) =>
-              `<a class="vs-game${g.id === activeId ? ' vs-active' : ''}" href="/switch/${g.id}">${esc(g.name)}</a>`,
+              `<a class="vs-game${g.id === activeId ? ' vs-active' : ''}" href="/switch/${esc(g.id)}">${esc(g.name)}</a>`,
           )
           .join('')}</details>`
       : ''
