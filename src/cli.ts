@@ -19,6 +19,7 @@ import {
   discoverGames,
   ExternalGame,
   getActiveGame,
+  refreshEntitlements,
   setActiveGameId,
 } from './plugins.js'
 import type { GamePlugin } from './plugins.js'
@@ -42,6 +43,9 @@ const claudeArgs = args.filter((a) => a !== '--no-game')
 installHooks()
 
 const games = discoverGames()
+// Fire-and-forget: today's gate uses the cached entitlements (offline grace);
+// a revocation observed here takes effect on the next start.
+void refreshEntitlements()
 let activeGame = getActiveGame(games)
 if (activeGame) {
   try {

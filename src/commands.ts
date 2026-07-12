@@ -5,16 +5,22 @@
 
 import { execFile } from 'node:child_process'
 import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import {
+  API_BASE,
   checkEntitlement,
   discoverGames,
   getActiveGame,
   INSTALL_PREFIX,
   NPM_PREFIX,
+  readConfig,
+  refreshEntitlements,
   setActiveGameId,
+  writeConfig,
 } from './plugins.js'
 
-export const SUBCOMMANDS = ['install', 'uninstall', 'games', 'use'] as const
+export const SUBCOMMANDS = ['install', 'uninstall', 'games', 'use', 'login', 'logout'] as const
 
 function npm(args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -31,6 +37,36 @@ function packageName(idOrPackage: string): string {
   return /[/.]/.test(idOrPackage) ? idOrPackage : `${NPM_PREFIX}${idOrPackage}`
 }
 
+/**
+ * Resolve a bare game id to an installable npm spec. Paid games download from
+ * the marketplace (Bearer PAT) to a temp tarball; 404 or network trouble falls
+ * through to the public npm package, which npm errors on if it doesn't exist.
+ */
+async function resolveBareId(id: string): Promise<string> {
+  const token = readConfig().token
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}/api/download/${id}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      signal: AbortSignal.timeout(10_000),
+    })
+  } catch {
+    return packageName(id) // marketplace unreachable — free games still install
+  }
+  if (res.status === 401) {
+    throw new Error(
+      `"${id}" is a paid game — create a token at https://vibesense.dev/account, then run: vibesense login <token>`,
+    )
+  }
+  if (res.status === 402) {
+    throw new Error(`you don't own "${id}" — buy it at https://vibesense.dev/games/${id}`)
+  }
+  if (!res.ok) return packageName(id)
+  const file = path.join(os.tmpdir(), `vibesense-${id}.tgz`)
+  fs.writeFileSync(file, Buffer.from(await res.arrayBuffer()))
+  return file
+}
+
 /** Handle a marketplace subcommand. Exits the process when done. */
 export async function runSubcommand(command: string, args: string[]): Promise<never> {
   try {
@@ -39,9 +75,10 @@ export async function runSubcommand(command: string, args: string[]): Promise<ne
         const target = args[0]
         if (!target) throw new Error('usage: vibesense install <game-id | npm-package | tarball>')
         fs.mkdirSync(INSTALL_PREFIX, { recursive: true })
-        const spec = packageName(target)
+        const spec = /[/.]/.test(target) ? target : await resolveBareId(target)
         console.log(`installing ${spec} …`)
         await npm(['install', '--prefix', INSTALL_PREFIX, '--no-fund', '--no-audit', spec])
+        await refreshEntitlements() // so a just-bought game passes `use` immediately
         const games = discoverGames()
         console.log('installed. available games:')
         for (const { manifest } of games.values()) {
@@ -82,6 +119,35 @@ export async function runSubcommand(command: string, args: string[]): Promise<ne
         checkEntitlement(game.manifest)
         setActiveGameId(id)
         console.log(`active game: ${game.manifest.name}`)
+        break
+      }
+      case 'login': {
+        const token = args[0]
+        if (!token?.startsWith('vs_pat_')) {
+          throw new Error(
+            'usage: vibesense login <vs_pat_… token>  (create one at https://vibesense.dev/account)',
+          )
+        }
+        writeConfig({ token })
+        const games = await refreshEntitlements()
+        if (games === 'invalid') {
+          writeConfig({ token: undefined, entitlements: undefined })
+          throw new Error('token rejected — check https://vibesense.dev/account and try again')
+        }
+        if (games === null) {
+          console.log('logged in (could not reach vibesense.dev — will validate on next start)')
+        } else {
+          console.log(
+            games.length
+              ? `logged in — owned games: ${games.join(', ')}`
+              : 'logged in — no purchases yet',
+          )
+        }
+        break
+      }
+      case 'logout': {
+        writeConfig({ token: undefined, entitlements: undefined })
+        console.log('logged out')
         break
       }
       default:
