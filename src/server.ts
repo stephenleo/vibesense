@@ -109,6 +109,10 @@ export class HostServer extends EventEmitter {
   readonly tracker = new SessionTracker()
   /** session_id → cwd, learned from hook payloads, used to route keystrokes to instances. */
   readonly sessionCwds = new Map<string, string>()
+  /** Cwds of every client instance that ever registered. Append-only: a live
+   * session must keep driving the FSM (and deliver its SessionEnd) even if its
+   * instance's SSE connection drops. */
+  private knownCwds = new Set<string>()
 
   private server: http.Server | null = null
   private gameStreams = new Set<http.ServerResponse>()
@@ -116,7 +120,18 @@ export class HostServer extends EventEmitter {
   private nextInstanceId = 1
   private lastGameState: 'playing' | 'paused' = 'paused'
 
-  constructor(private readonly games: GameProvider) {
+  /**
+   * hostCwd is the directory of the claude session this host wraps. When set,
+   * hook events only reach the tracker from sessions whose cwd is ours or a
+   * registered instance's — globally-installed hooks fire from every claude
+   * session on the machine (e.g. headless observers), and a foreign session
+   * stuck 'waiting' would otherwise pin the game paused forever. Unset (tests):
+   * no filtering.
+   */
+  constructor(
+    private readonly games: GameProvider,
+    private readonly hostCwd?: string,
+  ) {
     super()
   }
 
@@ -186,6 +201,14 @@ export class HostServer extends EventEmitter {
     return true
   }
 
+  /** Should this session drive the FSM? Ours = host cwd or a registered instance's. */
+  private isTrustedSession(sessionId: string): boolean {
+    if (!this.hostCwd) return true // filtering off (bare server in tests)
+    const cwd = this.sessionCwds.get(sessionId)
+    if (!cwd) return false
+    return cwd === this.hostCwd || this.knownCwds.has(cwd)
+  }
+
   /** Find the client instance whose cwd matches the given session's cwd. */
   instanceForSession(sessionId: string): string | null {
     const cwd = this.sessionCwds.get(sessionId)
@@ -217,7 +240,7 @@ export class HostServer extends EventEmitter {
       } catch {
         // Payload shape is claude's internal contract — event name alone still works.
       }
-      if (this.tracker.apply(sessionId, event)) {
+      if (this.isTrustedSession(sessionId) && this.tracker.apply(sessionId, event)) {
         this.emit('aggregate', this.tracker.aggregate())
       }
       res.writeHead(200)
@@ -233,6 +256,7 @@ export class HostServer extends EventEmitter {
       } catch {
         // cwd stays unmatched; keystrokes just won't route to this instance
       }
+      if (cwd) this.knownCwds.add(cwd)
       const id = String(this.nextInstanceId++)
       res.writeHead(200, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({ instanceId: id, cwd }))

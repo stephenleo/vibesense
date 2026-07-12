@@ -84,24 +84,27 @@ function activateGame(id: string): boolean {
   return true
 }
 
-const server = new HostServer({
-  resolveDir: (id) => games.get(id)?.dir ?? null,
-  active: () =>
-    activeGame && activeGame.manifest.kind === 'web'
-      ? { id: activeGame.manifest.id, entry: activeGame.manifest.entry! }
-      : null,
-  // ponytail: picker lists web games only; external (Steam-style) games stay
-  // CLI-restart-only since switching one live means starting/stopping its shell
-  // lifecycle — add that when an external game actually ships.
-  list: () =>
-    [...games.values()]
-      .filter((g) => g.manifest.kind === 'web')
-      .map((g) => ({ id: g.manifest.id, name: g.manifest.name })),
-  setActive: (id) => {
-    // Mouse picker: /switch/<id> → this → 302 back into the chosen game.
-    return activateGame(id)
+const server = new HostServer(
+  {
+    resolveDir: (id) => games.get(id)?.dir ?? null,
+    active: () =>
+      activeGame && activeGame.manifest.kind === 'web'
+        ? { id: activeGame.manifest.id, entry: activeGame.manifest.entry! }
+        : null,
+    // ponytail: picker lists web games only; external (Steam-style) games stay
+    // CLI-restart-only since switching one live means starting/stopping its shell
+    // lifecycle — add that when an external game actually ships.
+    list: () =>
+      [...games.values()]
+        .filter((g) => g.manifest.kind === 'web')
+        .map((g) => ({ id: g.manifest.id, name: g.manifest.name })),
+    setActive: (id) => {
+      // Mouse picker: /switch/<id> → this → 302 back into the chosen game.
+      return activateGame(id)
+    },
   },
-})
+  process.cwd(),
+)
 const isHost = await server.listen()
 
 const claude = new ClaudePty(claudeArgs, (code) => {
