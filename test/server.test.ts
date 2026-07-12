@@ -118,4 +118,42 @@ describe('HostServer', () => {
   it('sendKeysToInstance returns false for unknown instances', () => {
     expect(server.sendKeysToInstance('nope', 'x')).toBe(false)
   })
+
+  it('ignores hook events from sessions outside the wrapped cwds', async () => {
+    // Global hooks fire from every claude session on the machine; a foreign
+    // session (e.g. a headless observer) going 'waiting' must not pin the game.
+    const scoped = new HostServer(
+      { resolveDir: () => null, active: () => null, list: () => [], setActive: () => false },
+      '/tmp/host-project',
+    )
+    await scoped.listen(0)
+    const scopedBase = `http://127.0.0.1:${scoped.boundPort}`
+    const aggregates: Aggregate[] = []
+    scoped.on('aggregate', (a: Aggregate) => aggregates.push(a))
+    const post = (event: string, body: Record<string, unknown>) =>
+      fetch(`${scopedBase}/hook/${event}`, { method: 'POST', body: JSON.stringify(body) })
+
+    try {
+      await post('UserPromptSubmit', { session_id: 'ours', cwd: '/tmp/host-project' })
+      expect(aggregates.at(-1)).toEqual({ playing: true, focusSessionId: null })
+
+      // Foreign observer goes 'waiting' — without scoping this pauses forever.
+      await post('Notification', { session_id: 'observer', cwd: '/tmp/unrelated' })
+      expect(aggregates.at(-1)).toEqual({ playing: true, focusSessionId: null })
+
+      // Missing cwd is also untrusted once scoping is on.
+      await post('Notification', { session_id: 'no-cwd' })
+      expect(aggregates.at(-1)).toEqual({ playing: true, focusSessionId: null })
+
+      // A registered client instance's cwd is trusted like the host's own.
+      await fetch(`${scopedBase}/register`, {
+        method: 'POST',
+        body: JSON.stringify({ cwd: '/tmp/client-project' }),
+      })
+      await post('PreToolUse', { session_id: 'client-sess', cwd: '/tmp/client-project' })
+      expect(aggregates.at(-1)).toEqual({ playing: false, focusSessionId: 'client-sess' })
+    } finally {
+      scoped.close()
+    }
+  })
 })
