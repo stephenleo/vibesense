@@ -27,8 +27,8 @@ export interface GameProvider {
   resolveDir(id: string): string | null
   /** The active web game (id + entry file), or null if none. */
   active(): { id: string; entry: string } | null
-  /** All switchable web games, for the picker. */
-  list(): { id: string; name: string }[]
+  /** All switchable web games, for the picker and the in-game sidebar. */
+  list(): { id: string; name: string; entitlement: 'free' | 'paid' }[]
   /** Make `id` the active game (persisted). Returns false if not a switchable web game. */
   setActive(id: string): boolean
 }
@@ -75,6 +75,46 @@ es.onmessage = (e) => {
   }
 }
 </script>`
+}
+
+/**
+ * Sidebar spliced into every served game page: a collapsed "☰ games" tab that
+ * expands into Free/Paid link groups. Zero JS — native <details> is both the
+ * tab and the dropdowns; links reuse the existing /switch/<id> flow.
+ */
+function renderSidebar(
+  games: { id: string; name: string; entitlement: 'free' | 'paid' }[],
+  activeId: string | undefined,
+): string {
+  const group = (label: string, items: typeof games): string =>
+    items.length
+      ? `<details class="vs-group" open><summary>${label}</summary>${items
+          .map(
+            // id is schema-constrained, but esc() costs nothing — belt and braces.
+            (g) =>
+              `<a class="vs-game${g.id === activeId ? ' vs-active' : ''}" href="/switch/${esc(g.id)}">${esc(g.name)}</a>`,
+          )
+          .join('')}</details>`
+      : ''
+  return `<aside id="vs-sidebar"><style>
+#vs-sidebar{position:fixed;top:8px;left:8px;z-index:9999;font-family:'Courier New',monospace;font-size:13px}
+#vs-sidebar>details{border:1px solid #234;border-radius:6px;background:rgba(5,5,16,.92);color:#7cff7c;min-width:150px}
+#vs-sidebar summary{cursor:pointer;padding:6px 10px;letter-spacing:2px;color:#567}
+#vs-sidebar summary:hover{color:#7cff7c}
+#vs-sidebar .vs-group{border:0;margin:0 0 4px;min-width:0}
+#vs-sidebar .vs-game{display:block;padding:3px 18px;color:#7cff7c;text-decoration:none;letter-spacing:1px}
+#vs-sidebar .vs-game:hover{color:#fff}
+#vs-sidebar .vs-active::after{content:' ◂'}
+</style><details><summary>☰ games</summary>${
+    group(
+      'Free',
+      games.filter((g) => g.entitlement === 'free'),
+    ) +
+    group(
+      'Paid',
+      games.filter((g) => g.entitlement === 'paid'),
+    )
+  }</details></aside>`
 }
 
 function sse(res: http.ServerResponse): void {
@@ -330,10 +370,21 @@ export class HostServer extends EventEmitter {
         fs.existsSync(full) &&
         fs.statSync(full).isFile()
       ) {
-        res.writeHead(200, {
-          'Content-Type': CONTENT_TYPES[path.extname(full)] ?? 'application/octet-stream',
-        })
-        res.end(fs.readFileSync(full))
+        const type = CONTENT_TYPES[path.extname(full)] ?? 'application/octet-stream'
+        res.writeHead(200, { 'Content-Type': type })
+        if (type === 'text/html') {
+          // Game pages are standalone files (incl. third-party marketplace
+          // games), so the sidebar is spliced in at serve time, not on disk.
+          const html = fs.readFileSync(full, 'utf8')
+          const sidebar = renderSidebar(this.games.list(), this.games.active()?.id)
+          res.end(
+            html.includes('</body>')
+              ? html.replace('</body>', `${sidebar}</body>`)
+              : html + sidebar,
+          )
+        } else {
+          res.end(fs.readFileSync(full))
+        }
         return
       }
     }
