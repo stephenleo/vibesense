@@ -5,5 +5,10 @@
   "protocolVersion": 1,
   "kind": "web",
   "entry": "index.html",
-  "entitlement": "free"
+  "entitlement": "free",
+  "howToPlay": [
+    "Left stick moves the piece — down soft-drops",
+    "R2 rotates, L2 hard-drops",
+    "Clear full rows to score"
+  ]
 }

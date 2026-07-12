@@ -5,5 +5,10 @@
   "protocolVersion": 1,
   "kind": "web",
   "entry": "index.html",
-  "entitlement": "free"
+  "entitlement": "free",
+  "howToPlay": [
+    "Left stick steers the snake",
+    "R2 boosts speed",
+    "Eat food to grow — don't hit walls or yourself"
+  ]
 }

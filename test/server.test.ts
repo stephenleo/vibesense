@@ -17,7 +17,12 @@ beforeEach(async () => {
     resolveDir: (id) => (id === 'snake' ? path.join(BUNDLED_GAMES_DIR, id) : null),
     active: () => ({ id: 'snake', entry: 'index.html' }),
     list: () => [
-      { id: 'snake', name: 'Snake', entitlement: 'free' as const },
+      {
+        id: 'snake',
+        name: 'Snake',
+        entitlement: 'free' as const,
+        howToPlay: ['Left stick steers the snake'],
+      },
       { id: 'cascade', name: 'Cascade', entitlement: 'paid' as const },
     ],
     setActive: (id) => {
@@ -91,6 +96,14 @@ describe('HostServer', () => {
     // Non-HTML assets pass through untouched.
     const js = await (await fetch(`${base}/games/snake/game.js`)).text()
     expect(js).not.toContain('vs-sidebar')
+  })
+
+  it('shows how-to-play steps for the served game plus the universal Menu line', async () => {
+    const page = await (await fetch(`${base}/games/snake/index.html`)).text()
+    expect(page).toContain('<summary>? how to play</summary>')
+    expect(page).toContain('<li>Left stick steers the snake</li>')
+    // Menu pause/resume is engine behavior — present even without manifest steps.
+    expect(page).toContain('<li>Menu — pause / resume</li>')
   })
 
   it('lists games on /games and switches via /switch/<id>', async () => {

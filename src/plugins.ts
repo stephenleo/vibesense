@@ -42,6 +42,8 @@ export const manifestSchema = z
       })
       .optional(),
     entitlement: z.enum(['free', 'paid']).default('free'),
+    /** Short how-to-play steps shown in the in-game sidebar. */
+    howToPlay: z.array(z.string()).optional(),
   })
   .refine((m) => m.kind !== 'web' || !!m.entry, {
     message: 'kind "web" requires an "entry" file',

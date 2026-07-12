@@ -28,7 +28,7 @@ export interface GameProvider {
   /** The active web game (id + entry file), or null if none. */
   active(): { id: string; entry: string } | null
   /** All switchable web games, for the picker and the in-game sidebar. */
-  list(): { id: string; name: string; entitlement: 'free' | 'paid' }[]
+  list(): { id: string; name: string; entitlement: 'free' | 'paid'; howToPlay?: string[] }[]
   /** Make `id` the active game (persisted). Returns false if not a switchable web game. */
   setActive(id: string): boolean
 }
@@ -79,12 +79,14 @@ es.onmessage = (e) => {
 
 /**
  * Sidebar spliced into every served game page: a collapsed "☰ games" tab that
- * expands into Free/Paid link groups. Zero JS — native <details> is both the
- * tab and the dropdowns; links reuse the existing /switch/<id> flow.
+ * expands into Free/Paid link groups, plus a "? how to play" tab with the
+ * served game's manifest steps. Zero JS — native <details> is both the tab
+ * and the dropdowns; links reuse the existing /switch/<id> flow.
  */
 function renderSidebar(
   games: { id: string; name: string; entitlement: 'free' | 'paid' }[],
   activeId: string | undefined,
+  howToPlay?: string[],
 ): string {
   const group = (label: string, items: typeof games): string =>
     items.length
@@ -96,8 +98,15 @@ function renderSidebar(
           )
           .join('')}</details>`
       : ''
+  // Menu pause/resume is engine behavior (PauseGate), true for every game —
+  // rendered once here instead of repeated in each game's manifest.
+  const howTo = `<details><summary>? how to play</summary><ol>${(howToPlay ?? [])
+    .map((s) => `<li>${esc(s)}</li>`)
+    .join('')}<li>Menu — pause / resume</li></ol></details>`
   return `<aside id="vs-sidebar"><style>
-#vs-sidebar{position:fixed;top:8px;left:8px;z-index:9999;font-family:'Courier New',monospace;font-size:13px}
+#vs-sidebar{position:fixed;top:8px;left:8px;z-index:9999;font-family:'Courier New',monospace;font-size:13px;display:flex;flex-direction:column;gap:4px}
+#vs-sidebar ol{margin:0;padding:4px 12px 8px 26px}
+#vs-sidebar li{padding:2px 0}
 #vs-sidebar>details{border:1px solid #234;border-radius:6px;background:rgba(5,5,16,.92);color:#7cff7c;min-width:150px}
 #vs-sidebar summary{cursor:pointer;padding:6px 10px;letter-spacing:2px;color:#567}
 #vs-sidebar summary:hover{color:#7cff7c}
@@ -114,7 +123,7 @@ function renderSidebar(
       'Paid',
       games.filter((g) => g.entitlement === 'paid'),
     )
-  }</details></aside>`
+  }</details>${howTo}</aside>`
 }
 
 function sse(res: http.ServerResponse): void {
@@ -376,7 +385,14 @@ export class HostServer extends EventEmitter {
           // Game pages are standalone files (incl. third-party marketplace
           // games), so the sidebar is spliced in at serve time, not on disk.
           const html = fs.readFileSync(full, 'utf8')
-          const sidebar = renderSidebar(this.games.list(), this.games.active()?.id)
+          const games = this.games.list()
+          // Steps come from the page actually served, not active() — a stale
+          // tab showing a non-active game still gets its own instructions.
+          const sidebar = renderSidebar(
+            games,
+            this.games.active()?.id,
+            games.find((g) => g.id === gameId)?.howToPlay,
+          )
           res.end(
             html.includes('</body>')
               ? html.replace('</body>', `${sidebar}</body>`)
