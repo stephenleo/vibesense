@@ -2,6 +2,7 @@
 // vibesense — wrap `claude` in a pty and drive it with a game controller.
 // Usage: vibesense [--no-game] [--auto-play] [claude args...]   (unknown args pass through)
 //        vibesense play [game] [--auto-play]                    (game only, no claude)
+//        vibesense --version | -v                               (print version, exit)
 //
 // First instance to bind the singleton port becomes the HOST: it owns the
 // controller, the game tab, and agent-state aggregation. Later instances run
@@ -9,6 +10,7 @@
 // the host forwards terminal keystrokes to them when they have focus.
 
 import { execFile, spawn } from 'node:child_process'
+import { createRequire } from 'node:module'
 import { isVibesenseHost, runAsClient } from './client.js'
 import { runSubcommand, SUBCOMMANDS } from './commands.js'
 import { HidManager } from './controller/hid-manager.js'
@@ -33,6 +35,14 @@ import type { Aggregate } from './state.js'
 import type { ControllerEvent } from './types.js'
 
 const args = process.argv.slice(2)
+
+// --version/-v must not fall through to claude (which has its own --version).
+if (args[0] === '--version' || args[0] === '-v') {
+  // createRequire: package.json sits one level above both src/ (tsx) and dist/ (built).
+  const pkg = createRequire(import.meta.url)('../package.json') as { version: string }
+  console.log(pkg.version)
+  process.exit(0)
+}
 
 // Marketplace subcommands (vibesense install/uninstall/games/use) never wrap claude.
 if ((SUBCOMMANDS as readonly string[]).includes(args[0] ?? '')) {
