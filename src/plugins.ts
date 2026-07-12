@@ -81,37 +81,98 @@ export function discoverGames(
   for (const root of roots) {
     if (!fs.existsSync(root)) continue
     for (const entry of fs.readdirSync(root)) {
-      const plugin = loadManifest(path.join(root, entry))
-      if (plugin) games.set(plugin.manifest.id, plugin)
+      // npm scopes (@vibesense/game-x) nest packages one level down.
+      const dirs = entry.startsWith('@')
+        ? fs.readdirSync(path.join(root, entry)).map((sub) => path.join(root, entry, sub))
+        : [path.join(root, entry)]
+      for (const dir of dirs) {
+        const plugin = loadManifest(dir)
+        if (plugin) games.set(plugin.manifest.id, plugin)
+      }
     }
   }
   return games
 }
 
 /**
- * Entitlement gate, called before a game activates. Paid games are a reserved
- * future: the manifest field and this choke point exist so licensing bolts on
- * without changing the plugin contract.
+ * Entitlement gate, called before a game activates (startup restore, `use`,
+ * and the in-app picker all route through here). Paid games pass when the id
+ * is in the locally cached entitlement list, which `refreshEntitlements()`
+ * keeps in sync with the marketplace — the cache doubles as offline grace.
  */
 export function checkEntitlement(manifest: GameManifest): void {
-  if (manifest.entitlement === 'paid') {
-    throw new Error(
-      `"${manifest.name}" is a paid game — licensing is not implemented yet (entitlement: paid)`,
-    )
-  }
+  if (manifest.entitlement !== 'paid') return
+  if (readConfig().entitlements?.includes(manifest.id)) return
+  throw new Error(
+    `"${manifest.name}" is a paid game — buy it at https://vibesense.dev/games/${manifest.id}, then run: vibesense login <token>`,
+  )
 }
 
-function readConfig(): { activeGame?: string } {
+interface Config {
+  activeGame?: string
+  token?: string
+  entitlements?: string[]
+}
+
+export function readConfig(): Config {
   try {
-    return JSON.parse(fs.readFileSync(configFile(), 'utf8')) as { activeGame?: string }
+    return JSON.parse(fs.readFileSync(configFile(), 'utf8')) as Config
   } catch {
     return {}
   }
 }
 
+/**
+ * Merge a patch into config.json; keys set to undefined are dropped.
+ * The config holds the marketplace token, so the dir is 0700 and the file is
+ * written 0600 via a temp file + rename (never world-readable, even briefly).
+ */
+export function writeConfig(patch: Partial<Config>): void {
+  fs.mkdirSync(VIBESENSE_DIR, { recursive: true, mode: 0o700 })
+  const file = configFile()
+  const tmp = `${file}.tmp`
+  fs.writeFileSync(tmp, JSON.stringify({ ...readConfig(), ...patch }, null, 2), { mode: 0o600 })
+  fs.renameSync(tmp, file)
+}
+
 export function setActiveGameId(id: string): void {
-  fs.mkdirSync(VIBESENSE_DIR, { recursive: true })
-  fs.writeFileSync(configFile(), JSON.stringify({ ...readConfig(), activeGame: id }, null, 2))
+  writeConfig({ activeGame: id })
+}
+
+export const API_BASE = process.env.VIBESENSE_API ?? 'https://vibesense.dev'
+
+/**
+ * Validate the stored token against the marketplace and cache the owned game
+ * ids in config.json. Returns the fresh list, 'invalid' when the marketplace
+ * rejected the token (cache is cleared), or null when there is no token or the
+ * API was unreachable (cache kept — that is the offline grace). Never throws;
+ * wrapper-path callers must stay silent on stdout, so diagnostics go to the
+ * file logger only. The token itself is never logged.
+ */
+export async function refreshEntitlements(): Promise<string[] | 'invalid' | null> {
+  const token = readConfig().token
+  if (!token) return null
+  try {
+    const res = await fetch(`${API_BASE}/api/entitlements`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(3000),
+    })
+    if (res.status === 401) {
+      logger.warn('marketplace token rejected — run `vibesense login <token>` with a fresh one')
+      writeConfig({ entitlements: [] })
+      return 'invalid'
+    }
+    if (!res.ok) {
+      logger.warn(`entitlement refresh failed (HTTP ${res.status}) — using cached entitlements`)
+      return null
+    }
+    const { games } = (await res.json()) as { games: string[] }
+    writeConfig({ entitlements: games })
+    return games
+  } catch (err) {
+    logger.warn('entitlement refresh failed — using cached entitlements', err)
+    return null
+  }
 }
 
 /** The configured active game, falling back to the bundled default. */
