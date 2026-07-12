@@ -122,10 +122,17 @@ export function readConfig(): Config {
   }
 }
 
-/** Merge a patch into config.json; keys set to undefined are dropped. */
+/**
+ * Merge a patch into config.json; keys set to undefined are dropped.
+ * The config holds the marketplace token, so the dir is 0700 and the file is
+ * written 0600 via a temp file + rename (never world-readable, even briefly).
+ */
 export function writeConfig(patch: Partial<Config>): void {
-  fs.mkdirSync(VIBESENSE_DIR, { recursive: true })
-  fs.writeFileSync(configFile(), JSON.stringify({ ...readConfig(), ...patch }, null, 2))
+  fs.mkdirSync(VIBESENSE_DIR, { recursive: true, mode: 0o700 })
+  const file = configFile()
+  const tmp = `${file}.tmp`
+  fs.writeFileSync(tmp, JSON.stringify({ ...readConfig(), ...patch }, null, 2), { mode: 0o600 })
+  fs.renameSync(tmp, file)
 }
 
 export function setActiveGameId(id: string): void {
