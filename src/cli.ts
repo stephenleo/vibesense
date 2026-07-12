@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 // vibesense — wrap `claude` in a pty and drive it with a game controller.
-// Usage: vibesense [--no-game] [claude args...]   (unknown args pass through)
-//        vibesense play [game]                    (game only, no claude)
+// Usage: vibesense [--no-game] [--auto-play] [claude args...]   (unknown args pass through)
+//        vibesense play [game] [--auto-play]                    (game only, no claude)
 //
 // First instance to bind the singleton port becomes the HOST: it owns the
 // controller, the game tab, and agent-state aggregation. Later instances run
 // as CLIENTS: their claude session still reports state via global hooks, and
 // the host forwards terminal keystrokes to them when they have focus.
 
-import { execFile } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 import { isVibesenseHost, runAsClient } from './client.js'
 import { runSubcommand, SUBCOMMANDS } from './commands.js'
 import { HidManager } from './controller/hid-manager.js'
@@ -43,7 +43,10 @@ if ((SUBCOMMANDS as readonly string[]).includes(args[0] ?? '')) {
 const playMode = args[0] === 'play'
 const playGameArg = playMode && !args[1]?.startsWith('-') ? args[1] : undefined
 const noGame = args.includes('--no-game')
-const claudeArgs = playMode ? [] : args.filter((a) => a !== '--no-game')
+// Opt-in only (see TODO #1): forces the game to keep playing regardless of
+// agent state, and keeps the machine awake / non-AFK while vibesense runs.
+const autoPlay = args.includes('--auto-play')
+const claudeArgs = playMode ? [] : args.filter((a) => a !== '--no-game' && a !== '--auto-play')
 
 installHooks()
 
@@ -158,7 +161,9 @@ if (!isHost) {
   let focusSessionId: string | null = null
   // Play/pause: agent-driven with a Menu-button override (see PauseGate).
   // In play mode there's no agent, so the gate starts (and stays) manual.
-  const gate = new PauseGate(playMode)
+  // --auto-play pins the agent signal to "playing" so the game never pauses;
+  // Menu can still force a pause (the override sticks — no transitions occur).
+  const gate = new PauseGate(playMode || autoPlay)
 
   /** Reconcile game/terminal mode from the pause gate. */
   function applyMode(): void {
@@ -202,7 +207,7 @@ if (!isHost) {
       // Sticky focus: when nobody is waiting, keep routing to the session that
       // last needed the user instead of falling back to the host's own pty.
       focusSessionId = agg.focusSessionId ?? focusSessionId
-      gate.onAgent(agg.playing)
+      gate.onAgent(autoPlay || agg.playing)
       applyMode()
     })
   }
@@ -309,7 +314,21 @@ if (!isHost) {
 
   hid.start()
   scroller.start()
-  if (playMode) applyMode() // no agent will kick us — start playing now
+  if (playMode || autoPlay) applyMode() // no agent will kick us — start playing now
+
+  if (autoPlay) {
+    if (process.platform === 'darwin') {
+      // -d/-i/-s: no display/idle/system sleep; -u: assert "user active" so
+      // OS-level idle time (what Teams/Slack read for AFK) keeps resetting.
+      // -w ties caffeinate's lifetime to our pid — self-cleans on any exit.
+      spawn('caffeinate', ['-disu', '-w', String(process.pid)], { stdio: 'ignore' }).on(
+        'error',
+        (err) => logger.warn('caffeinate failed to start — machine may still sleep', err),
+      )
+    } else {
+      logger.warn('auto-play keep-awake is macOS-only for now — game still plays')
+    }
+  }
 
   if (!noGame && process.platform === 'darwin' && activeGame?.manifest.kind === 'web') {
     // Give a tab left over from a previous session ~1.5s to reconnect (SSE

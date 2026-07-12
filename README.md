@@ -27,6 +27,8 @@ Agent state comes from Claude Code hooks (`UserPromptSubmit`, `Stop`, `Notificat
 
 Terminal buttons and game buttons are disjoint sets, with a 750 ms input guard on every mode flip — mashing fire can never accidentally accept a question.
 
+`vibesense play [game]` runs the game with no Claude session at all. Add `--auto-play` (works in either mode, off by default) to keep the game running non-stop — on macOS it also keeps the machine awake and resets the OS idle timer (`caffeinate -disu`), so no sleep and no Teams/Slack "Away".
+
 ## Games marketplace
 
 Five games ship built in; browse and install the rest from the catalog at [vibesense.dev/games](https://vibesense.dev/games). The official installable games live in [vibesense-games](https://github.com/stephenleo/vibesense-games), and [vibesense-game-template](https://github.com/stephenleo/vibesense-game-template) is the starting point for building your own.
