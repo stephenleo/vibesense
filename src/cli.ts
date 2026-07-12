@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // vibesense — wrap `claude` in a pty and drive it with a game controller.
 // Usage: vibesense [--no-game] [claude args...]   (unknown args pass through)
+//        vibesense play [game]                    (game only, no claude)
 //
 // First instance to bind the singleton port becomes the HOST: it owns the
 // controller, the game tab, and agent-state aggregation. Later instances run
@@ -27,6 +28,7 @@ import { ClaudePty } from './pty.js'
 import { InputRouter } from './router.js'
 import { SmoothScroller } from './scroll.js'
 import { HostServer, HOST_URL } from './server.js'
+import { PauseGate } from './state.js'
 import type { Aggregate } from './state.js'
 import type { ControllerEvent } from './types.js'
 
@@ -37,8 +39,11 @@ if ((SUBCOMMANDS as readonly string[]).includes(args[0] ?? '')) {
   await runSubcommand(args[0]!, args.slice(1))
 }
 
+// `vibesense play [game]`: run the game stack with no claude pty at all.
+const playMode = args[0] === 'play'
+const playGameArg = playMode && !args[1]?.startsWith('-') ? args[1] : undefined
 const noGame = args.includes('--no-game')
-const claudeArgs = args.filter((a) => a !== '--no-game')
+const claudeArgs = playMode ? [] : args.filter((a) => a !== '--no-game')
 
 installHooks()
 
@@ -84,6 +89,13 @@ function activateGame(id: string): boolean {
   return true
 }
 
+if (playGameArg && !activateGame(playGameArg)) {
+  console.error(
+    `vibesense play: game "${playGameArg}" is not installed or not playable (see: vibesense games)`,
+  )
+  process.exit(1)
+}
+
 const server = new HostServer(
   {
     resolveDir: (id) => games.get(id)?.dir ?? null,
@@ -107,20 +119,29 @@ const server = new HostServer(
 )
 const isHost = await server.listen()
 
-const claude = new ClaudePty(claudeArgs, (code) => {
-  shutdown()
-  process.exit(code)
-})
+if (playMode && !isHost) {
+  console.error(`another vibesense is already running — game is at ${HOST_URL}`)
+  process.exit(1)
+}
+
+// In play mode there is no claude: the listening server keeps the process
+// alive and stdin is untouched, so Ctrl+C quits by default.
+const claude = playMode
+  ? null
+  : new ClaudePty(claudeArgs, (code) => {
+      shutdown()
+      process.exit(code)
+    })
 
 function shutdown(): void {
-  claude.dispose()
+  claude?.dispose()
   if (isHost) server.close()
 }
 
 if (!isHost) {
   // ── Client: someone else owns the controller + game. ──────────────────
   if (await isVibesenseHost()) {
-    runAsClient((bytes) => claude.write(bytes)).catch((err) =>
+    runAsClient((bytes) => claude?.write(bytes)).catch((err) =>
       logger.warn('client stream failed', err),
     )
   } else {
@@ -135,15 +156,13 @@ if (!isHost) {
     activeGame?.manifest.kind === 'external' ? new ExternalGame(activeGame) : null
   const scroller = new SmoothScroller()
   let focusSessionId: string | null = null
-  // Manual pause (Menu button): while true the game stays frozen regardless of
-  // agent state; controller drives the terminal. lastPlaying remembers the
-  // agent's real state so "resume" hands back to it instead of guessing.
-  let userPaused = false
-  let lastPlaying = false
+  // Play/pause: agent-driven with a Menu-button override (see PauseGate).
+  // In play mode there's no agent, so the gate starts (and stays) manual.
+  const gate = new PauseGate(playMode)
 
-  /** Reconcile game/terminal mode from agent state + the manual pause flag. */
+  /** Reconcile game/terminal mode from the pause gate. */
   function applyMode(): void {
-    const shouldPlay = lastPlaying && !userPaused
+    const shouldPlay = gate.shouldPlay()
     const mode = shouldPlay ? 'game' : 'terminal'
     if (mode === router.currentMode()) return
     repeater.releaseAll()
@@ -151,14 +170,14 @@ if (!isHost) {
     router.setMode(mode)
     server.broadcastGameState(shouldPlay ? 'playing' : 'paused')
     externalGame?.setPlaying(shouldPlay)
-    logger.info(`mode → ${mode}`, { userPaused, lastPlaying })
+    logger.info(`mode → ${mode}`)
   }
 
   /** Terminal keystrokes go to the focused session's instance, else our own pty. */
   function writeTerminal(bytes: string): void {
     const instanceId = focusSessionId ? server.instanceForSession(focusSessionId) : null
     if (!instanceId || !server.sendKeysToInstance(instanceId, bytes)) {
-      claude.write(bytes)
+      claude?.write(bytes)
     }
   }
 
@@ -178,13 +197,15 @@ if (!isHost) {
     }
   }
 
-  server.on('aggregate', (agg: Aggregate) => {
-    // Sticky focus: when nobody is waiting, keep routing to the session that
-    // last needed the user instead of falling back to the host's own pty.
-    focusSessionId = agg.focusSessionId ?? focusSessionId
-    lastPlaying = agg.playing
-    applyMode() // a manual pause overrides this until the user resumes
-  })
+  if (!playMode) {
+    server.on('aggregate', (agg: Aggregate) => {
+      // Sticky focus: when nobody is waiting, keep routing to the session that
+      // last needed the user instead of falling back to the host's own pty.
+      focusSessionId = agg.focusSessionId ?? focusSessionId
+      gate.onAgent(agg.playing)
+      applyMode()
+    })
+  }
 
   process.on('exit', () => {
     externalGame?.stop()
@@ -241,13 +262,13 @@ if (!isHost) {
         return
       }
 
-      // Pause/resume: Menu/Options toggles a sticky manual pause. Paused freezes
-      // the game and puts the controller on the terminal until you resume, no
-      // matter what the agent does in between.
+      // Pause/resume: Menu/Options forces the opposite of the current state —
+      // including un-pausing while the agent is idle. The override holds until
+      // the agent's playing-state next changes, then auto behavior resumes.
       if (e.kind === 'button' && e.button === 'menu' && e.pressed) {
-        userPaused = !userPaused
+        gate.toggle()
         applyMode()
-        logger.info(userPaused ? 'game paused (manual)' : 'game resumed (manual)')
+        logger.info(gate.shouldPlay() ? 'game resumed (manual)' : 'game paused (manual)')
         return
       }
 
@@ -288,6 +309,7 @@ if (!isHost) {
 
   hid.start()
   scroller.start()
+  if (playMode) applyMode() // no agent will kick us — start playing now
 
   if (!noGame && process.platform === 'darwin' && activeGame?.manifest.kind === 'web') {
     // Give a tab left over from a previous session ~1.5s to reconnect (SSE
@@ -304,5 +326,7 @@ if (!isHost) {
 }
 
 logger.info(
-  `vibesense started (${isHost ? 'host' : 'client'}, claude args: ${JSON.stringify(claudeArgs)})`,
+  playMode
+    ? 'vibesense started (play mode, no claude)'
+    : `vibesense started (${isHost ? 'host' : 'client'}, claude args: ${JSON.stringify(claudeArgs)})`,
 )
