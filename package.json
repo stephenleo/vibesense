@@ -32,7 +32,7 @@
     "verify": "npm run typecheck && npm run lint && npm run format:check && npm run test"
   },
   "dependencies": {
-    "dualsense-ts": "^5.5.0",
+    "dualsense-ts": "^6.15.0",
     "node-hid": "^3.3.0",
     "node-pty": "^1.1.0",
     "zod": "^4.3.6"

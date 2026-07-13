@@ -81,6 +81,7 @@ export class DualSenseDriver extends EventEmitter implements ControllerHAL {
   }
 
   stop(): void {
+    this.controller?.dispose()
     this.controller = null
   }
 
