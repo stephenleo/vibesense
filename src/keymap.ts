@@ -4,11 +4,11 @@
 import type { ButtonId } from './types.js'
 
 // Terminal-mode byte sequences. Disjoint from game-mode buttons (left stick +
-// r2 fire) so game mashing can never leak an accidental accept into claude.
+// r2 fire) so game mashing can never leak an accidental accept into the agent.
 export const TERMINAL_KEYS: Partial<Record<ButtonId, string>> = {
   south: '\r', // accept / Enter
   east: '\x1b', // cancel / Esc
-  north: ' ', // Claude Code native voice dictation (tap mode)
+  north: ' ', // Claude voice dictation shortcut; a normal space in Codex
   dpad_up: '\x1b[A',
   dpad_down: '\x1b[B',
   dpad_left: '\x1b[D',

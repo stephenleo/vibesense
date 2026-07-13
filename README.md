@@ -2,12 +2,20 @@
 
 [![npm](https://img.shields.io/npm/v/%40vibesense%2Fcli)](https://www.npmjs.com/package/@vibesense/cli)
 
-Drive Claude Code with a game controller — and play retro games while the agent works.
+Drive Claude Code or Codex CLI with a game controller — and play retro games while the agent works.
 
-`vibesense` wraps the `claude` CLI in a pty and passes its TUI through to your terminal untouched. A game controller (Xbox / DualSense / generic HID) drives everything:
+`vibesense` wraps an agent CLI in a pty and passes its TUI through to your terminal untouched. Claude Code remains the default; select Codex explicitly:
 
-- **Agent waiting on you?** D-pad navigates AskUserQuestion options, A/✕ accepts, B/○ cancels, Y/△ triggers Claude Code's native voice input, right stick scrolls.
-- **Agent executing?** A retro Snake game auto-starts in a browser tab — left stick steers. The moment Claude stops or asks a question, the game pauses and the controller flips back to driving the terminal.
+```sh
+vibesense                         # Claude Code (unchanged)
+vibesense codex [codex args...]   # Codex CLI
+vibesense play [game]             # game only
+```
+
+A game controller (Xbox / DualSense / generic HID) drives everything:
+
+- **Agent waiting on you?** D-pad navigates options, A/✕ accepts, B/○ cancels, and the right stick scrolls. Y/△ triggers Claude Code's native voice input; in Codex it sends a normal space.
+- **Agent executing?** A retro Snake game auto-starts in a browser tab — left stick steers. The moment the agent stops or asks for approval, the game pauses and the controller flips back to driving the terminal.
 - **Want a break?** Menu/Options pauses the game and hands the controller to the terminal; press it again to resume. This manual pause sticks — the agent starting or stopping won't un-pause it.
 - **Games are plugins.** Anyone can publish a game as an npm package; official games are `@vibesense/game-<id>`, installed with `vibesense install <id>`.
 
@@ -16,18 +24,24 @@ Drive Claude Code with a game controller — and play retro games while the agen
 ```
 controller (node-hid)                                  ← one host per machine
    │
-input router ──(agent waiting/idle)──▶ keystrokes ──▶ node-pty ⇄ claude
+input router ──(agent waiting/idle)──▶ keystrokes ──▶ node-pty ⇄ claude/codex
    │
    └────────(agent executing)──▶ SSE ──▶ browser tab (game canvas)
 
-Claude Code hooks (curl POST) ──▶ http://127.0.0.1:48753 ──▶ agent-state FSM
+agent lifecycle hooks (curl POST) ──▶ http://127.0.0.1:48753 ──▶ agent-state FSM
 ```
 
-Agent state comes from Claude Code hooks (`UserPromptSubmit`, `Stop`, `Notification`, `PermissionRequest`, `PreToolUse:AskUserQuestion`) installed idempotently into `~/.claude/settings.json`. Multiple Claude sessions share one host, one controller, and one game — the game pauses whenever _any_ session needs your attention.
+Claude Code behavior and configuration are unchanged: its existing hooks (`UserPromptSubmit`, `Stop`, `Notification`, `PreToolUse:AskUserQuestion`, `PostToolUse`, and `SessionEnd`) are installed idempotently into `~/.claude/settings.json`.
+
+Codex uses four lifecycle hooks: `UserPromptSubmit` starts play, `PermissionRequest` pauses for approval, `PostToolUse` resumes play, and `Stop` pauses and focuses that terminal. VibeSense installs them into `$CODEX_HOME/hooks.json`, or `~/.codex/hooks.json` when `CODEX_HOME` is unset. On first install—and whenever the hook definition changes—open `/hooks` in Codex, inspect the commands, and trust them.
+
+Codex hooks must be enabled and permitted by local or administrator policy. VibeSense does not rewrite `config.toml` or bypass Codex's trust flow. Codex exposes no lifecycle event between approving a tool and that tool starting, so the game may remain paused while the approved tool runs; it resumes on `PostToolUse`.
+
+Multiple wrapped sessions share one host, one controller, and one game—the game pauses whenever any tracked session needs your attention. Globally installed hooks from unrelated Claude and Codex sessions are ignored.
 
 Terminal buttons and game buttons are disjoint sets, with a 750 ms input guard on every mode flip — mashing fire can never accidentally accept a question.
 
-`vibesense play [game]` runs the game with no Claude session at all. Add `--auto-play` (works in either mode, off by default) to keep the game running non-stop — on macOS it also keeps the machine awake and resets the OS idle timer (`caffeinate -disu`), so no sleep and no Teams/Slack "Away". `vibesense --version` (or `-v`) prints the installed version.
+`vibesense play [game]` runs the game with no agent session at all. Add `--auto-play` (works in either mode, off by default) to keep the game running non-stop — on macOS it also keeps the machine awake and resets the OS idle timer (`caffeinate -disu`), so no sleep and no Teams/Slack "Away". `vibesense --version` (or `-v`) prints the installed version.
 
 ## Games marketplace
 

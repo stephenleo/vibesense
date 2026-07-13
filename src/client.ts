@@ -20,11 +20,14 @@ export async function isVibesenseHost(): Promise<boolean> {
  * Register with the host and stream forwarded keystrokes into `write`.
  * Resolves when the host connection closes (host exited).
  */
-export async function runAsClient(write: (bytes: string) => void): Promise<void> {
+export async function runAsClient(
+  wrapperId: string,
+  write: (bytes: string) => void,
+): Promise<void> {
   const registration = await fetch(`${HOST_URL}/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cwd: process.cwd(), pid: process.pid }),
+    body: JSON.stringify({ cwd: process.cwd(), pid: process.pid, wrapperId }),
   })
   const { instanceId } = (await registration.json()) as { instanceId: string }
   logger.info('running as client instance', { instanceId })

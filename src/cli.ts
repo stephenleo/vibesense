@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// vibesense — wrap `claude` in a pty and drive it with a game controller.
-// Usage: vibesense [--no-game] [--auto-play] [claude args...]   (unknown args pass through)
-//        vibesense play [game] [--auto-play]                    (game only, no claude)
+// vibesense — wrap an agent CLI in a pty and drive it with a game controller.
+// Usage: vibesense [--no-game] [--auto-play] [claude args...]   (Claude is the default)
+//        vibesense codex [--no-game] [--auto-play] [codex args...]
+//        vibesense play [game] [--auto-play]                    (game only, no agent)
 //        vibesense --version | -v                               (print version, exit)
 //
 // First instance to bind the singleton port becomes the HOST: it owns the
@@ -10,11 +11,13 @@
 // the host forwards terminal keystrokes to them when they have focus.
 
 import { execFile, spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { isVibesenseHost, runAsClient } from './client.js'
 import { runSubcommand, SUBCOMMANDS } from './commands.js'
 import { HidManager } from './controller/hid-manager.js'
-import { installHooks } from './hooks-install.js'
+import { harnessFor } from './harness.js'
+import { parseInvocation } from './invocation.js'
 import { KeyRepeater, REPEATING_BUTTONS, TERMINAL_KEYS } from './keymap.js'
 import { logger } from './logger.js'
 import {
@@ -26,7 +29,7 @@ import {
   setActiveGameId,
 } from './plugins.js'
 import type { GamePlugin } from './plugins.js'
-import { ClaudePty } from './pty.js'
+import { AgentPty } from './pty.js'
 import { InputRouter } from './router.js'
 import { SmoothScroller } from './scroll.js'
 import { HostServer, HOST_URL } from './server.js'
@@ -49,16 +52,21 @@ if ((SUBCOMMANDS as readonly string[]).includes(args[0] ?? '')) {
   await runSubcommand(args[0]!, args.slice(1))
 }
 
-// `vibesense play [game]`: run the game stack with no claude pty at all.
-const playMode = args[0] === 'play'
-const playGameArg = playMode && !args[1]?.startsWith('-') ? args[1] : undefined
-const noGame = args.includes('--no-game')
-// Opt-in only (see TODO #1): forces the game to keep playing regardless of
-// agent state, and keeps the machine awake / non-AFK while vibesense runs.
-const autoPlay = args.includes('--auto-play')
-const claudeArgs = playMode ? [] : args.filter((a) => a !== '--no-game' && a !== '--auto-play')
+const invocation = parseInvocation(args)
+const playMode = invocation.mode === 'play'
+const playGameArg = invocation.game
+const { noGame, autoPlay, agentArgs, agentKind } = invocation
 
-installHooks()
+// Play mode preserves the historical Claude hook install. Agent modes select
+// all harness-specific policy once, here, while shared runtime code stays generic.
+const harness = agentKind ? harnessFor(agentKind) : null
+const hookHarness = harness ?? harnessFor('claude')
+const hookInstallResult = hookHarness.installHooks()
+if (hookInstallResult === 'changed' && hookHarness.trustNotice) {
+  console.error(hookHarness.trustNotice)
+}
+
+const wrapperId = randomUUID()
 
 const games = discoverGames()
 // Fire-and-forget: today's gate uses the cached entitlements (offline grace);
@@ -134,6 +142,7 @@ const server = new HostServer(
     },
   },
   process.cwd(),
+  wrapperId,
 )
 const isHost = await server.listen()
 
@@ -142,24 +151,24 @@ if (playMode && !isHost) {
   process.exit(1)
 }
 
-// In play mode there is no claude: the listening server keeps the process
+// In play mode there is no agent: the listening server keeps the process
 // alive and stdin is untouched, so Ctrl+C quits by default.
-const claude = playMode
+const agent = playMode
   ? null
-  : new ClaudePty(claudeArgs, (code) => {
+  : new AgentPty(harness!.command, agentArgs, harness!.childWrapperId(wrapperId), (code) => {
       shutdown()
       process.exit(code)
     })
 
 function shutdown(): void {
-  claude?.dispose()
+  agent?.dispose()
   if (isHost) server.close()
 }
 
 if (!isHost) {
   // ── Client: someone else owns the controller + game. ──────────────────
   if (await isVibesenseHost()) {
-    runAsClient((bytes) => claude?.write(bytes)).catch((err) =>
+    runAsClient(wrapperId, (bytes) => agent?.write(bytes)).catch((err) =>
       logger.warn('client stream failed', err),
     )
   } else {
@@ -197,7 +206,7 @@ if (!isHost) {
   function writeTerminal(bytes: string): void {
     const instanceId = focusSessionId ? server.instanceForSession(focusSessionId) : null
     if (!instanceId || !server.sendKeysToInstance(instanceId, bytes)) {
-      claude?.write(bytes)
+      agent?.write(bytes)
     }
   }
 
@@ -361,6 +370,6 @@ if (!isHost) {
 
 logger.info(
   playMode
-    ? 'vibesense started (play mode, no claude)'
-    : `vibesense started (${isHost ? 'host' : 'client'}, claude args: ${JSON.stringify(claudeArgs)})`,
+    ? 'vibesense started (play mode, no agent)'
+    : `vibesense started (${isHost ? 'host' : 'client'}, ${agentKind} args: ${JSON.stringify(agentArgs)})`,
 )

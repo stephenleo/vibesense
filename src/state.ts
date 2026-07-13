@@ -1,10 +1,10 @@
-// Agent state tracking. Each Claude session (keyed by hook session_id) has a
+// Agent state tracking. Each agent session (keyed by hook session_id) has a
 // tiny FSM fed by hook events; the aggregate across all sessions drives the
 // single game and controller routing. Pure — no I/O.
 
 export type AgentState = 'executing' | 'waiting' | 'idle'
 
-/** Map a Claude Code hook event name to the state it implies. */
+/** Map a supported lifecycle hook event name to the state it implies. */
 export function stateForHookEvent(event: string): AgentState | null {
   switch (event) {
     case 'UserPromptSubmit':
@@ -29,41 +29,53 @@ export interface Aggregate {
   focusSessionId: string | null
 }
 
+export interface SessionApplyOptions {
+  /** Allow Stop to focus this session when no session is waiting or executing. */
+  focusOnStop?: boolean
+}
+
 export class SessionTracker {
-  private sessions = new Map<string, { state: AgentState; waitingSince: number }>()
+  private sessions = new Map<
+    string,
+    { state: AgentState; transitionedAt: number; focusOnStop: boolean }
+  >()
   private clock = 0
 
   /** Apply a hook event for a session. Returns true if the aggregate may have changed. */
-  apply(sessionId: string, event: string): boolean {
+  apply(sessionId: string, event: string, options: SessionApplyOptions = {}): boolean {
     if (event === 'SessionEnd') {
       return this.sessions.delete(sessionId)
     }
     const state = stateForHookEvent(event)
     if (!state) return false
-    const existing = this.sessions.get(sessionId)
     this.sessions.set(sessionId, {
       state,
-      waitingSince: state === 'waiting' ? ++this.clock : (existing?.waitingSince ?? 0),
+      transitionedAt: ++this.clock,
+      focusOnStop: options.focusOnStop === true,
     })
     return true
   }
 
-  remove(sessionId: string): void {
-    this.sessions.delete(sessionId)
+  remove(sessionId: string): boolean {
+    return this.sessions.delete(sessionId)
   }
 
   aggregate(): Aggregate {
-    let focus: { id: string; since: number } | null = null
+    let waiting: { id: string; since: number } | null = null
+    let idle: { id: string; since: number } | null = null
     let anyExecuting = false
     for (const [id, s] of this.sessions) {
-      if (s.state === 'waiting' && (!focus || s.waitingSince > focus.since)) {
-        focus = { id, since: s.waitingSince }
+      if (s.state === 'waiting' && (!waiting || s.transitionedAt > waiting.since)) {
+        waiting = { id, since: s.transitionedAt }
+      }
+      if (s.state === 'idle' && s.focusOnStop && (!idle || s.transitionedAt > idle.since)) {
+        idle = { id, since: s.transitionedAt }
       }
       if (s.state === 'executing') anyExecuting = true
     }
     return {
-      playing: !focus && anyExecuting,
-      focusSessionId: focus?.id ?? null,
+      playing: !waiting && anyExecuting,
+      focusSessionId: waiting?.id ?? (anyExecuting ? null : idle?.id) ?? null,
     }
   }
 }

@@ -25,7 +25,7 @@ describe('SessionTracker.aggregate', () => {
     expect(t.aggregate()).toEqual({ playing: true, focusSessionId: null })
 
     t.apply('s1', 'Stop')
-    expect(t.aggregate().playing).toBe(false)
+    expect(t.aggregate()).toEqual({ playing: false, focusSessionId: null })
   })
 
   it('any waiting session pauses the game even if another is executing', () => {
@@ -43,6 +43,24 @@ describe('SessionTracker.aggregate', () => {
     expect(t.aggregate().focusSessionId).toBe('s2')
     t.apply('s1', 'Notification')
     expect(t.aggregate().focusSessionId).toBe('s1')
+  })
+
+  it('focuses the most recently stopped session when all sessions are idle', () => {
+    const t = new SessionTracker()
+    t.apply('s1', 'Stop', { focusOnStop: true })
+    t.apply('s2', 'Stop', { focusOnStop: true })
+    expect(t.aggregate()).toEqual({ playing: false, focusSessionId: 's2' })
+    t.apply('s1', 'Stop', { focusOnStop: true })
+    expect(t.aggregate()).toEqual({ playing: false, focusSessionId: 's1' })
+  })
+
+  it('waiting takes focus over idle and executing suppresses idle focus', () => {
+    const t = new SessionTracker()
+    t.apply('idle', 'Stop', { focusOnStop: true })
+    t.apply('running', 'UserPromptSubmit')
+    expect(t.aggregate()).toEqual({ playing: true, focusSessionId: null })
+    t.apply('waiting', 'PermissionRequest')
+    expect(t.aggregate()).toEqual({ playing: false, focusSessionId: 'waiting' })
   })
 
   it('question answered (PostToolUse) resumes the game', () => {
@@ -68,6 +86,13 @@ describe('SessionTracker.aggregate', () => {
     t.apply('s1', 'UserPromptSubmit')
     expect(t.apply('s1', 'WeirdNewEvent')).toBe(false)
     expect(t.aggregate().playing).toBe(true)
+  })
+
+  it('reports whether a removed session existed', () => {
+    const t = new SessionTracker()
+    t.apply('s1', 'Stop')
+    expect(t.remove('s1')).toBe(true)
+    expect(t.remove('s1')).toBe(false)
   })
 })
 

@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { fixSpawnHelperPermissions } from '../src/pty.js'
+import { fixSpawnHelperPermissions, spawnAgentProcess } from '../src/pty.js'
 
 const EXEC_BITS = 0o111
 
@@ -49,5 +49,46 @@ describe('fixSpawnHelperPermissions', () => {
 
   it('is a no-op when the prebuilds dir is missing', () => {
     expect(() => fixSpawnHelperPermissions('/nonexistent/prebuilds')).not.toThrow()
+  })
+})
+
+describe('spawnAgentProcess', () => {
+  it('spawns the selected harness and adds the wrapper id to the inherited environment', () => {
+    let call: { command: string; args: string[]; env: Record<string, string> } | undefined
+    const spawn = ((command: string, args: string[], options: { env: Record<string, string> }) => {
+      call = { command, args, env: options.env }
+      return {}
+    }) as Parameters<typeof spawnAgentProcess>[0]
+
+    spawnAgentProcess(spawn, 'codex', ['--model', 'gpt-5.4'], 'wrapper-123')
+
+    expect(call).toMatchObject({
+      command: 'codex',
+      args: ['--model', 'gpt-5.4'],
+      env: { VIBESENSE_INSTANCE_ID: 'wrapper-123' },
+    })
+    expect(call!.env.PATH).toBe(process.env.PATH)
+  })
+
+  it('leaves the inherited environment unchanged when no wrapper id is requested', () => {
+    const previous = process.env.VIBESENSE_INSTANCE_ID
+    process.env.VIBESENSE_INSTANCE_ID = 'existing-value'
+    let env: Record<string, string> | undefined
+    const spawn = ((
+      _command: string,
+      _args: string[],
+      options: { env: Record<string, string> },
+    ) => {
+      env = options.env
+      return {}
+    }) as Parameters<typeof spawnAgentProcess>[0]
+
+    try {
+      spawnAgentProcess(spawn, 'claude', [], undefined)
+      expect(env!.VIBESENSE_INSTANCE_ID).toBe('existing-value')
+    } finally {
+      if (previous === undefined) delete process.env.VIBESENSE_INSTANCE_ID
+      else process.env.VIBESENSE_INSTANCE_ID = previous
+    }
   })
 })
