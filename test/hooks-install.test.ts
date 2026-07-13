@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { installHooks } from '../src/hooks-install.js'
+import { installCodexHooks, installHooks } from '../src/hooks-install.js'
 
 let dir: string
 let settingsPath: string
@@ -13,6 +13,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  delete process.env.CODEX_HOME
   fs.rmSync(dir, { recursive: true, force: true })
 })
 
@@ -24,7 +25,7 @@ function read(): Record<string, unknown> & {
 
 describe('installHooks', () => {
   it('creates settings.json with all vibesense hook events', () => {
-    installHooks(settingsPath)
+    expect(installHooks(settingsPath)).toBe('changed')
     const settings = read()
     for (const event of [
       'UserPromptSubmit',
@@ -40,10 +41,17 @@ describe('installHooks', () => {
     expect(settings.hooks.PreToolUse![0]!.matcher).toBe('AskUserQuestion')
   })
 
+  it('keeps the established Claude hook command bytes unchanged', () => {
+    installHooks(settingsPath)
+    expect(read().hooks.Stop![0]!.hooks[0]!.command).toBe(
+      "curl -s --max-time 1 -X POST http://127.0.0.1:48753/hook/Stop -H 'Content-Type: application/json' -d @- >/dev/null 2>&1 || true",
+    )
+  })
+
   it('is idempotent — running twice yields an identical file', () => {
     installHooks(settingsPath)
     const first = fs.readFileSync(settingsPath, 'utf8')
-    installHooks(settingsPath)
+    expect(installHooks(settingsPath)).toBe('unchanged')
     expect(fs.readFileSync(settingsPath, 'utf8')).toBe(first)
   })
 
@@ -85,5 +93,91 @@ describe('installHooks', () => {
     fs.writeFileSync(settingsPath, '{not json')
     installHooks(settingsPath)
     expect(fs.readFileSync(settingsPath, 'utf8')).toBe('{not json')
+  })
+})
+
+describe('installCodexHooks', () => {
+  it('creates exactly the four Codex lifecycle hooks with safe command output', () => {
+    expect(installCodexHooks(settingsPath)).toBe('changed')
+    const settings = read()
+    expect(Object.keys(settings.hooks).sort()).toEqual(
+      ['PermissionRequest', 'PostToolUse', 'Stop', 'UserPromptSubmit'].sort(),
+    )
+    for (const [event, groups] of Object.entries(settings.hooks)) {
+      expect(groups).toHaveLength(1)
+      expect(groups[0]!.matcher, event).toBeUndefined()
+      const command = groups[0]!.hooks[0]!.command
+      expect(command).toContain(`/hook/${event}`)
+      expect(command).toContain('X-Vibesense-Instance-Id: $VIBESENSE_INSTANCE_ID')
+      expect(command).toContain("printf '{}'")
+    }
+  })
+
+  it('is byte-idempotent and reports unchanged on the second install', () => {
+    expect(installCodexHooks(settingsPath)).toBe('changed')
+    const first = fs.readFileSync(settingsPath, 'utf8')
+    expect(installCodexHooks(settingsPath)).toBe('unchanged')
+    expect(fs.readFileSync(settingsPath, 'utf8')).toBe(first)
+  })
+
+  it('uses CODEX_HOME and preserves foreign data and hooks', () => {
+    process.env.CODEX_HOME = dir
+    settingsPath = path.join(dir, 'hooks.json')
+    fs.writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        custom: true,
+        hooks: { Stop: [{ hooks: [{ type: 'command', command: '/other/stop-hook' }] }] },
+      }),
+    )
+    expect(installCodexHooks()).toBe('changed')
+    const settings = read()
+    expect(settings.custom).toBe(true)
+    expect(settings.hooks.Stop).toHaveLength(2)
+  })
+
+  it('replaces stale Vibesense entries but keeps arbitrary webhook commands', () => {
+    fs.writeFileSync(
+      settingsPath,
+      JSON.stringify({
+        hooks: {
+          Stop: [
+            {
+              hooks: [
+                {
+                  type: 'command',
+                  command: 'curl http://127.0.0.1:48753/hook/Stop >/dev/null',
+                },
+              ],
+            },
+            { hooks: [{ type: 'command', command: 'curl https://example.com/hook/Stop' }] },
+          ],
+          Notification: [
+            {
+              hooks: [
+                {
+                  type: 'command',
+                  command:
+                    'curl http://127.0.0.1:48753/hook/Notification -H "X-Vibesense-Instance-Id: $VIBESENSE_INSTANCE_ID"',
+                },
+              ],
+            },
+            null,
+            { futureExtension: true },
+          ],
+        },
+      }),
+    )
+    installCodexHooks(settingsPath)
+    const settings = read()
+    expect(settings.hooks.Stop).toHaveLength(2)
+    expect(settings.hooks.Stop![0]!.hooks[0]!.command).toBe('curl https://example.com/hook/Stop')
+    expect(settings.hooks.Notification).toEqual([null, { futureExtension: true }])
+  })
+
+  it('leaves invalid JSON untouched and reports failure', () => {
+    fs.writeFileSync(settingsPath, '{broken')
+    expect(installCodexHooks(settingsPath)).toBe('failed')
+    expect(fs.readFileSync(settingsPath, 'utf8')).toBe('{broken')
   })
 })

@@ -43,6 +43,19 @@ async function postHook(event: string, sessionId: string, extra: Record<string, 
   })
 }
 
+async function postOwnedHook(
+  event: string,
+  sessionId: string,
+  wrapperId: string,
+  extra: Record<string, unknown> = {},
+) {
+  await fetch(`${base}/hook/${event}`, {
+    method: 'POST',
+    headers: { 'X-Vibesense-Instance-Id': wrapperId },
+    body: JSON.stringify({ session_id: sessionId, ...extra }),
+  })
+}
+
 /** Read one SSE data frame from a streaming response. */
 async function nextFrame(body: ReadableStream<Uint8Array>): Promise<Record<string, unknown>> {
   const reader = body.getReader()
@@ -146,6 +159,86 @@ describe('HostServer', () => {
 
   it('sendKeysToInstance returns false for unknown instances', () => {
     expect(server.sendKeysToInstance('nope', 'x')).toBe(false)
+  })
+
+  it('accepts owned host hooks and ignores unknown wrapper IDs', async () => {
+    const owned = new HostServer(
+      { resolveDir: () => null, active: () => null, list: () => [], setActive: () => false },
+      '/tmp/shared',
+      'host-wrapper',
+    )
+    await owned.listen(0)
+    const ownedBase = `http://127.0.0.1:${owned.boundPort}`
+    const aggregates: Aggregate[] = []
+    owned.on('aggregate', (a: Aggregate) => aggregates.push(a))
+    const post = (wrapperId: string) =>
+      fetch(`${ownedBase}/hook/UserPromptSubmit`, {
+        method: 'POST',
+        headers: { 'X-Vibesense-Instance-Id': wrapperId },
+        body: JSON.stringify({ session_id: wrapperId, cwd: '/tmp/shared' }),
+      })
+    try {
+      await post('host-wrapper')
+      expect(aggregates).toHaveLength(1)
+      await fetch(`${ownedBase}/hook/Stop`, {
+        method: 'POST',
+        headers: { 'X-Vibesense-Instance-Id': 'host-wrapper' },
+        body: JSON.stringify({ session_id: 'host-wrapper', cwd: '/tmp/shared' }),
+      })
+      expect(aggregates.at(-1)).toEqual({ playing: false, focusSessionId: 'host-wrapper' })
+      await post('unknown-wrapper')
+      expect(aggregates).toHaveLength(2)
+      expect(owned.sessionOwners.get('host-wrapper')).toBe('host-wrapper')
+      expect(owned.sessionOwners.has('unknown-wrapper')).toBe(false)
+    } finally {
+      owned.close()
+    }
+  })
+
+  it('routes same-cwd clients by wrapper ownership', async () => {
+    const register = async (wrapperId: string) => {
+      const reg = await fetch(`${base}/register`, {
+        method: 'POST',
+        body: JSON.stringify({ cwd: '/tmp/shared', wrapperId }),
+      })
+      const { instanceId } = (await reg.json()) as { instanceId: string }
+      const stream = await fetch(`${base}/instance/${instanceId}`)
+      return { instanceId, stream }
+    }
+    const a = await register('wrapper-a')
+    const b = await register('wrapper-b')
+    await postOwnedHook('PermissionRequest', 'session-a', 'wrapper-a', { cwd: '/tmp/shared' })
+    await postOwnedHook('PermissionRequest', 'session-b', 'wrapper-b', { cwd: '/tmp/shared' })
+
+    expect(server.instanceForSession('session-a')).toBe(a.instanceId)
+    expect(server.instanceForSession('session-b')).toBe(b.instanceId)
+    await a.stream.body?.cancel()
+    await b.stream.body?.cancel()
+  })
+
+  it('removes only a disconnected client wrapper sessions', async () => {
+    const register = async (wrapperId: string) => {
+      const reg = await fetch(`${base}/register`, {
+        method: 'POST',
+        body: JSON.stringify({ cwd: '/tmp/shared', wrapperId }),
+      })
+      const { instanceId } = (await reg.json()) as { instanceId: string }
+      const controller = new AbortController()
+      await fetch(`${base}/instance/${instanceId}`, { signal: controller.signal })
+      return controller
+    }
+    const controllerA = await register('wrapper-a')
+    const controllerB = await register('wrapper-b')
+    await postOwnedHook('PermissionRequest', 'session-b', 'wrapper-b', { cwd: '/tmp/shared' })
+    await postOwnedHook('PermissionRequest', 'session-a', 'wrapper-a', { cwd: '/tmp/shared' })
+    expect(server.tracker.aggregate().focusSessionId).toBe('session-a')
+
+    controllerA.abort()
+    await expect.poll(() => server.tracker.aggregate().focusSessionId).toBe('session-b')
+    expect(server.sessionOwners.has('session-a')).toBe(false)
+    expect(server.sessionCwds.has('session-a')).toBe(false)
+    expect(server.sessionOwners.get('session-b')).toBe('wrapper-b')
+    controllerB.abort()
   })
 
   it('ignores hook events from sessions outside the wrapped cwds', async () => {

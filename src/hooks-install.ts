@@ -19,9 +19,51 @@ interface HookGroup {
   hooks: HookEntry[]
 }
 
-interface ClaudeSettings {
+interface HookSettings {
   hooks?: Record<string, HookGroup[] | undefined>
   [key: string]: unknown
+}
+
+export type InstallResult = 'changed' | 'unchanged' | 'failed'
+
+interface HookFileOptions {
+  target: string
+  temporaryPath: string
+  parseWarning: string
+  writeWarning: string
+  successMessage: string
+  merge(settings: HookSettings): boolean
+}
+
+/** Shared read/merge/atomic-write lifecycle for every harness hook file. */
+function updateHookFile(options: HookFileOptions): InstallResult {
+  let settings: HookSettings = {}
+  try {
+    settings = JSON.parse(fs.readFileSync(options.target, 'utf8')) as HookSettings
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      logger.warn(options.parseWarning, err)
+      return 'failed'
+    }
+  }
+
+  if (!options.merge(settings)) return 'unchanged'
+
+  try {
+    fs.mkdirSync(path.dirname(options.target), { recursive: true })
+    fs.writeFileSync(options.temporaryPath, JSON.stringify(settings, null, 2) + '\n', 'utf8')
+    fs.renameSync(options.temporaryPath, options.target)
+    logger.info(options.successMessage, { target: options.target })
+    return 'changed'
+  } catch (err) {
+    try {
+      fs.unlinkSync(options.temporaryPath)
+    } catch {
+      // Nothing to clean up.
+    }
+    logger.warn(options.writeWarning, err)
+    return 'failed'
+  }
 }
 
 // Marker string used both to build commands and to recognize ours on re-runs
@@ -54,48 +96,104 @@ function isOurs(group: HookGroup): boolean {
  * replacing any stale vibesense entries and preserving everything else.
  * Atomic write via tmp + rename. Never throws.
  */
-export function installHooks(settingsPath?: string): void {
+export function installHooks(settingsPath?: string): InstallResult {
   const target = settingsPath ?? path.join(os.homedir(), '.claude', 'settings.json')
 
-  let settings: ClaudeSettings = {}
-  try {
-    settings = JSON.parse(fs.readFileSync(target, 'utf8')) as ClaudeSettings
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-      logger.warn('hooks-install: could not parse settings.json — leaving it untouched', err)
-      return // don't clobber a file we can't read
-    }
-    // No settings file: claude not configured yet — still fine to create one.
-  }
+  return updateHookFile({
+    target,
+    temporaryPath: `${target}.vibesense-tmp`,
+    parseWarning: 'hooks-install: could not parse settings.json — leaving it untouched',
+    writeWarning: 'hooks-install: failed to write settings.json',
+    successMessage: 'hooks-install: Claude Code hooks registered',
+    merge(settings) {
+      if (!settings.hooks || typeof settings.hooks !== 'object') settings.hooks = {}
 
-  if (!settings.hooks || typeof settings.hooks !== 'object') settings.hooks = {}
+      let changed = false
+      for (const [event, matcher] of Object.entries(HOOK_EVENTS)) {
+        const groups = (settings.hooks[event] ?? []).filter((g) => g && Array.isArray(g.hooks))
+        const foreign = groups.filter((g) => !isOurs(g))
+        const desired: HookGroup = {
+          ...(matcher !== undefined ? { matcher } : {}),
+          hooks: [{ type: 'command', command: hookCommand(event) }],
+        }
+        const existingOurs = groups.filter(isOurs)
+        const upToDate =
+          existingOurs.length === 1 && JSON.stringify(existingOurs[0]) === JSON.stringify(desired)
+        if (!upToDate) {
+          settings.hooks[event] = [...foreign, desired]
+          changed = true
+        }
+      }
+      return changed
+    },
+  })
+}
 
-  let changed = false
-  for (const [event, matcher] of Object.entries(HOOK_EVENTS)) {
-    const groups = (settings.hooks[event] ?? []).filter((g) => g && Array.isArray(g.hooks))
-    const foreign = groups.filter((g) => !isOurs(g))
-    const desired: HookGroup = {
-      ...(matcher !== undefined ? { matcher } : {}),
-      hooks: [{ type: 'command', command: hookCommand(event) }],
-    }
-    const existingOurs = groups.filter(isOurs)
-    const upToDate =
-      existingOurs.length === 1 && JSON.stringify(existingOurs[0]) === JSON.stringify(desired)
-    if (!upToDate) {
-      settings.hooks[event] = [...foreign, desired]
-      changed = true
-    }
-  }
+/** Explicit name for harness-neutral callers; the original export remains compatible. */
+export const installClaudeHooks = installHooks
 
-  if (!changed) return
+const CODEX_HOOK_EVENTS = ['UserPromptSubmit', 'PermissionRequest', 'PostToolUse', 'Stop'] as const
+const VIBESENSE_HEADER = 'X-Vibesense-Instance-Id'
+const LEGACY_VIBESENSE_URL = `http://127.0.0.1:${HOST_PORT}/hook/`
 
-  try {
-    fs.mkdirSync(path.dirname(target), { recursive: true })
-    const tmp = `${target}.vibesense-tmp`
-    fs.writeFileSync(tmp, JSON.stringify(settings, null, 2) + '\n', 'utf8')
-    fs.renameSync(tmp, target)
-    logger.info('hooks-install: Claude Code hooks registered', { target })
-  } catch (err) {
-    logger.warn('hooks-install: failed to write settings.json', err)
-  }
+function codexHookCommand(event: string): string {
+  return `curl -s --max-time 1 -X POST ${LEGACY_VIBESENSE_URL}${event} -H 'Content-Type: application/json' -H "${VIBESENSE_HEADER}: $VIBESENSE_INSTANCE_ID" -d @- >/dev/null 2>&1 || true; printf '{}'`
+}
+
+function isCodexVibesenseHook(group: unknown): boolean {
+  if (!group || typeof group !== 'object') return false
+  const hooks = (group as { hooks?: unknown }).hooks
+  if (!Array.isArray(hooks)) return false
+  return hooks.some((hook: unknown) => {
+    if (!hook || typeof hook !== 'object') return false
+    const command = (hook as { command?: unknown }).command
+    return (
+      typeof command === 'string' &&
+      (command.includes(VIBESENSE_HEADER) || command.includes(LEGACY_VIBESENSE_URL))
+    )
+  })
+}
+
+/**
+ * Register Codex hooks without changing the established Claude installer or
+ * its command bytes. Codex trust is definition-hash based, so unchanged input
+ * must produce no write at all.
+ */
+export function installCodexHooks(hooksPath?: string): InstallResult {
+  const codexHome = process.env.CODEX_HOME ?? path.join(os.homedir(), '.codex')
+  const target = hooksPath ?? path.join(codexHome, 'hooks.json')
+
+  return updateHookFile({
+    target,
+    temporaryPath: `${target}.${process.pid}.vibesense-tmp`,
+    parseWarning: 'hooks-install: could not parse Codex hooks.json — leaving it untouched',
+    writeWarning: 'hooks-install: failed to write Codex hooks.json',
+    successMessage: 'hooks-install: Codex hooks registered',
+    merge(settings) {
+      if (!settings.hooks || typeof settings.hooks !== 'object') settings.hooks = {}
+      const before = JSON.stringify(settings)
+
+      // Purge only positively identified Vibesense entries. Preserve every
+      // foreign array element verbatim, including extension shapes we do not know.
+      for (const [event, value] of Object.entries(settings.hooks)) {
+        if (!Array.isArray(value)) continue
+        const foreign = value.filter((group) => !isCodexVibesenseHook(group))
+        if (foreign.length > 0) {
+          settings.hooks[event] = foreign as HookGroup[]
+        } else {
+          delete settings.hooks[event]
+        }
+      }
+
+      for (const event of CODEX_HOOK_EVENTS) {
+        const groups = Array.isArray(settings.hooks[event]) ? settings.hooks[event] : []
+        settings.hooks[event] = [
+          ...groups,
+          { hooks: [{ type: 'command', command: codexHookCommand(event) }] },
+        ]
+      }
+
+      return JSON.stringify(settings) !== before
+    },
+  })
 }

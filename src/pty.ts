@@ -1,4 +1,4 @@
-// Spawns `claude` under a pty and passes the TUI through untouched: user
+// Spawns the selected agent under a pty and passes its TUI through untouched: user
 // keyboard → pty, pty output → stdout, window resizes forwarded. Controller
 // keystrokes are just extra writes into the same pty.
 
@@ -31,18 +31,37 @@ export function fixSpawnHelperPermissions(prebuildsDir?: string): void {
   }
 }
 
-export class ClaudePty {
+type PtySpawner = typeof pty.spawn
+
+export function spawnAgentProcess(
+  spawnPty: PtySpawner,
+  command: string,
+  args: string[],
+  wrapperId: string | undefined,
+): pty.IPty {
+  return spawnPty(command, args, {
+    name: process.env.TERM ?? 'xterm-256color',
+    cols: process.stdout.columns,
+    rows: process.stdout.rows,
+    cwd: process.cwd(),
+    env: (wrapperId ? { ...process.env, VIBESENSE_INSTANCE_ID: wrapperId } : process.env) as Record<
+      string,
+      string
+    >,
+  })
+}
+
+export class AgentPty {
   private proc: pty.IPty
 
-  constructor(args: string[], onExit: (code: number) => void) {
+  constructor(
+    command: string,
+    args: string[],
+    wrapperId: string | undefined,
+    onExit: (code: number) => void,
+  ) {
     fixSpawnHelperPermissions()
-    this.proc = pty.spawn('claude', args, {
-      name: process.env.TERM ?? 'xterm-256color',
-      cols: process.stdout.columns,
-      rows: process.stdout.rows,
-      cwd: process.cwd(),
-      env: process.env as Record<string, string>,
-    })
+    this.proc = spawnAgentProcess(pty.spawn, command, args, wrapperId)
 
     this.proc.onData((data) => process.stdout.write(data))
     this.proc.onExit(({ exitCode }) => onExit(exitCode))

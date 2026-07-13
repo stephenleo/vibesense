@@ -1,4 +1,4 @@
-// Host HTTP server on the singleton port. Receives Claude Code hook POSTs,
+// Host HTTP server on the singleton port. Receives agent lifecycle hook POSTs,
 // streams state + controller input to the game tab over SSE, forwards
 // keystrokes to client instances, and serves game plugin static files.
 
@@ -158,6 +158,8 @@ export class HostServer extends EventEmitter {
   readonly tracker = new SessionTracker()
   /** session_id → cwd, learned from hook payloads, used to route keystrokes to instances. */
   readonly sessionCwds = new Map<string, string>()
+  /** session_id → opaque wrapper id for harnesses that provide exact ownership. */
+  readonly sessionOwners = new Map<string, string>()
   /** Cwds of every client instance that ever registered. Append-only: a live
    * session must keep driving the FSM (and deliver its SessionEnd) even if its
    * instance's SSE connection drops. */
@@ -165,7 +167,10 @@ export class HostServer extends EventEmitter {
 
   private server: http.Server | null = null
   private gameStreams = new Set<http.ServerResponse>()
-  private instances = new Map<string, { res: http.ServerResponse; cwd: string }>()
+  private instances = new Map<
+    string,
+    { res: http.ServerResponse; cwd: string; wrapperId: string | null }
+  >()
   private nextInstanceId = 1
   private lastGameState: 'playing' | 'paused' = 'paused'
 
@@ -180,6 +185,7 @@ export class HostServer extends EventEmitter {
   constructor(
     private readonly games: GameProvider,
     private readonly hostCwd?: string,
+    private readonly hostWrapperId?: string,
   ) {
     super()
   }
@@ -258,14 +264,40 @@ export class HostServer extends EventEmitter {
     return cwd === this.hostCwd || this.knownCwds.has(cwd)
   }
 
+  private isActiveOwner(wrapperId: string): boolean {
+    if (wrapperId === this.hostWrapperId) return true
+    for (const instance of this.instances.values()) {
+      if (instance.wrapperId === wrapperId) return true
+    }
+    return false
+  }
+
   /** Find the client instance whose cwd matches the given session's cwd. */
   instanceForSession(sessionId: string): string | null {
+    const owner = this.sessionOwners.get(sessionId)
+    if (owner) {
+      for (const [id, instance] of this.instances) {
+        if (instance.wrapperId === owner) return id
+      }
+      return null
+    }
     const cwd = this.sessionCwds.get(sessionId)
     if (!cwd) return null
     for (const [id, instance] of this.instances) {
       if (instance.cwd === cwd) return id
     }
     return null
+  }
+
+  removeSessionsForOwner(wrapperId: string): boolean {
+    let removed = false
+    for (const [sessionId, owner] of this.sessionOwners) {
+      if (owner !== wrapperId) continue
+      removed = this.tracker.remove(sessionId) || removed
+      this.sessionOwners.delete(sessionId)
+      this.sessionCwds.delete(sessionId)
+    }
+    return removed
   }
 
   private async handle(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
@@ -282,14 +314,32 @@ export class HostServer extends EventEmitter {
       const event = pathname.slice('/hook/'.length)
       const body = await readBody(req)
       let sessionId = 'unknown'
+      let cwd: string | undefined
       try {
         const payload = JSON.parse(body) as { session_id?: string; cwd?: string }
         sessionId = payload.session_id ?? 'unknown'
-        if (payload.cwd) this.sessionCwds.set(sessionId, payload.cwd)
+        cwd = payload.cwd
       } catch {
         // Payload shape is claude's internal contract — event name alone still works.
       }
-      if (this.isTrustedSession(sessionId) && this.tracker.apply(sessionId, event)) {
+
+      const header = req.headers['x-vibesense-instance-id']
+      const wrapperId = Array.isArray(header) ? header[0] : header
+      let trusted = false
+      if (wrapperId) {
+        trusted = this.isActiveOwner(wrapperId)
+        if (trusted) {
+          this.sessionOwners.set(sessionId, wrapperId)
+          if (cwd) this.sessionCwds.set(sessionId, cwd)
+        }
+      } else {
+        // Claude's established hook command has no ownership header. Preserve
+        // its cwd trust/routing behavior as the compatibility fallback.
+        if (cwd) this.sessionCwds.set(sessionId, cwd)
+        trusted = this.isTrustedSession(sessionId)
+      }
+
+      if (trusted && this.tracker.apply(sessionId, event, { focusOnStop: Boolean(wrapperId) })) {
         this.emit('aggregate', this.tracker.aggregate())
       }
       res.writeHead(200)
@@ -300,27 +350,38 @@ export class HostServer extends EventEmitter {
     if (req.method === 'POST' && pathname === '/register') {
       const body = await readBody(req)
       let cwd = ''
+      let wrapperId: string | null = null
       try {
-        cwd = (JSON.parse(body) as { cwd?: string }).cwd ?? ''
+        const registration = JSON.parse(body) as { cwd?: string; wrapperId?: string }
+        cwd = registration.cwd ?? ''
+        wrapperId = registration.wrapperId ?? null
       } catch {
         // cwd stays unmatched; keystrokes just won't route to this instance
       }
       if (cwd) this.knownCwds.add(cwd)
       const id = String(this.nextInstanceId++)
       res.writeHead(200, { 'Content-Type': 'application/json' })
-      res.end(JSON.stringify({ instanceId: id, cwd }))
-      logger.info('client instance registered', { id, cwd })
+      res.end(JSON.stringify({ instanceId: id, cwd, wrapperId }))
+      logger.info('client instance registered', { id, cwd, wrapperId })
       // The SSE connection on /instance/<id> completes registration.
-      this.pendingCwds.set(id, cwd)
+      this.pendingInstances.set(id, { cwd, wrapperId })
       return
     }
 
     if (pathname.startsWith('/instance/')) {
       const id = pathname.slice('/instance/'.length)
       sse(res)
-      this.instances.set(id, { res, cwd: this.pendingCwds.get(id) ?? '' })
-      this.pendingCwds.delete(id)
-      req.on('close', () => this.instances.delete(id))
+      const pending = this.pendingInstances.get(id) ?? { cwd: '', wrapperId: null }
+      this.instances.set(id, { res, ...pending })
+      this.pendingInstances.delete(id)
+      req.on('close', () => {
+        const instance = this.instances.get(id)
+        if (!instance) return
+        this.instances.delete(id)
+        if (instance.wrapperId && this.removeSessionsForOwner(instance.wrapperId)) {
+          this.emit('aggregate', this.tracker.aggregate())
+        }
+      })
       return
     }
 
@@ -368,7 +429,7 @@ export class HostServer extends EventEmitter {
     res.end()
   }
 
-  private pendingCwds = new Map<string, string>()
+  private pendingInstances = new Map<string, { cwd: string; wrapperId: string | null }>()
 
   private serveStatic(gameId: string, relPath: string, res: http.ServerResponse): void {
     const dir = this.games.resolveDir(gameId)
