@@ -40,48 +40,12 @@ const esc = (s: string): string =>
   )
 
 /**
- * The game picker page. Cards are clickable (mouse) and controller-navigable:
- * the host tracks the highlighted index and pushes {type:'highlight'} over SSE;
- * pressing A makes the host push {type:'reload'} to the chosen game.
- */
-function renderPicker(games: { id: string; name: string }[], activeId: string | undefined): string {
-  const cards = games
-    .map((g, i) => {
-      const cur = g.id === activeId
-      // id is schema-constrained to /^[a-z0-9][a-z0-9-]*$/; name is free-text → escape it.
-      return `<a class="card${cur ? ' sel' : ''}" data-i="${i}" href="/switch/${g.id}">${esc(g.name)}</a>`
-    })
-    .join('')
-  return `<!doctype html><meta charset="utf-8"><title>Change game — VibeSense</title><style>
-html,body{margin:0;height:100%;background:#050510;color:#7cff7c;font-family:'Courier New',monospace}
-#wrap{display:flex;flex-direction:column;align-items:center;min-height:100%;gap:14px;padding:32px 24px;box-sizing:border-box}
-h1{font-size:18px;letter-spacing:3px;text-transform:uppercase;color:#567;margin:0 0 8px}
-.card{display:block;min-width:260px;text-align:center;padding:16px 24px;border:2px solid #234;border-radius:8px;color:#7cff7c;text-decoration:none;letter-spacing:2px}
-.card:hover{border-color:#567}
-.card.sel{border-color:#7cff7c;background:#02120a;box-shadow:0 0 24px rgba(124,255,124,.15)}
-#hint{margin-top:8px;font-size:13px;letter-spacing:2px;color:#567}
-</style><div id="wrap"><h1>Change game</h1>${cards || '<p>no web games installed</p>'}
-<div id="hint">↕ move &nbsp;·&nbsp; Ⓐ select</div></div>
-<script>
-const cards = [...document.querySelectorAll('.card')]
-const es = new EventSource('/events')
-es.onmessage = (e) => {
-  let m; try { m = JSON.parse(e.data) } catch { return }
-  if (m.type === 'highlight') {
-    cards.forEach((c, i) => c.classList.toggle('sel', i === m.index))
-    cards[m.index]?.scrollIntoView({ block: 'nearest' })
-  } else if (m.type === 'reload') {
-    location.href = m.url
-  }
-}
-</script>`
-}
-
-/**
- * Sidebar spliced into every served game page: a collapsed "☰ games" tab that
- * expands into Free/Paid link groups, plus a "? how to play" tab with the
- * served game's manifest steps. Zero JS — native <details> is both the tab
- * and the dropdowns; links reuse the existing /switch/<id> flow.
+ * Panels spliced into every served game page: a persistent games list on the
+ * left (mouse: /switch links; controller: View focuses it, the host pushes
+ * {type:'highlight'} over SSE and A commits via {type:'reload'}) and a
+ * persistent how-to-play panel on the right. The badge above the games list
+ * shows where controller input currently goes (game vs terminal), driven by
+ * the same {type:'state'} messages that pause/resume the game.
  */
 function renderSidebar(
   games: { id: string; name: string; entitlement: 'free' | 'paid' }[],
@@ -90,31 +54,36 @@ function renderSidebar(
 ): string {
   const group = (label: string, items: typeof games): string =>
     items.length
-      ? `<details class="vs-group" open><summary>${label}</summary>${items
+      ? `<div class="vs-group"><h2>${label}</h2>${items
           .map(
+            // data-i indexes the full list — the same order the controller's
+            // picker cycles through — so SSE highlight lands on the right card.
             // id is schema-constrained, but esc() costs nothing — belt and braces.
             (g) =>
-              `<a class="vs-game${g.id === activeId ? ' vs-active' : ''}" href="/switch/${esc(g.id)}">${esc(g.name)}</a>`,
+              `<a class="vs-game${g.id === activeId ? ' vs-active' : ''}" data-i="${games.indexOf(g)}" href="/switch/${esc(g.id)}">${esc(g.name)}</a>`,
           )
-          .join('')}</details>`
+          .join('')}</div>`
       : ''
   // Menu pause/resume is engine behavior (PauseGate), true for every game —
   // rendered once here instead of repeated in each game's manifest.
-  const howTo = `<details><summary>? how to play</summary><ol>${(howToPlay ?? [])
+  const howTo = `<div class="vs-panel" id="vs-help"><h2>? how to play</h2><ol>${(howToPlay ?? [])
     .map((s) => `<li>${esc(s)}</li>`)
-    .join('')}<li>Menu — pause / resume</li></ol></details>`
+    .join('')}<li>Menu — pause / resume</li><li>View — change game</li></ol></div>`
   return `<aside id="vs-sidebar"><style>
-#vs-sidebar{position:fixed;top:8px;left:8px;z-index:9999;font-family:'Courier New',monospace;font-size:13px;display:flex;flex-direction:column;gap:4px}
-#vs-sidebar ol{margin:0;padding:4px 12px 8px 26px}
+#vs-sidebar{font-family:'Courier New',monospace;font-size:13px}
+#vs-sidebar .vs-panel{position:fixed;top:8px;z-index:9999;border:1px solid #234;border-radius:6px;background:rgba(5,5,16,.92);color:#7cff7c;min-width:150px;max-width:220px;padding-bottom:6px}
+#vs-games{left:8px}
+#vs-help{right:8px}
+#vs-sidebar h2{font-size:13px;font-weight:normal;letter-spacing:2px;color:#567;margin:0;padding:6px 10px}
+#vs-sidebar ol{margin:0;padding:0 12px 2px 28px}
 #vs-sidebar li{padding:2px 0}
-#vs-sidebar>details{border:1px solid #234;border-radius:6px;background:rgba(5,5,16,.92);color:#7cff7c;min-width:150px}
-#vs-sidebar summary{cursor:pointer;padding:6px 10px;letter-spacing:2px;color:#567}
-#vs-sidebar summary:hover{color:#7cff7c}
-#vs-sidebar .vs-group{border:0;margin:0 0 4px;min-width:0}
-#vs-sidebar .vs-game{display:block;padding:3px 18px;color:#7cff7c;text-decoration:none;letter-spacing:1px}
+#vs-target{padding:6px 10px;border-bottom:1px solid #234;letter-spacing:1px;color:#7cff7c}
+#vs-sidebar .vs-group h2{padding:4px 10px 2px}
+#vs-sidebar .vs-game{display:block;padding:3px 18px;color:#7cff7c;text-decoration:none;letter-spacing:1px;border:1px solid transparent;border-radius:4px}
 #vs-sidebar .vs-game:hover{color:#fff}
 #vs-sidebar .vs-active::after{content:' ◂'}
-</style><details><summary>☰ games</summary>${
+#vs-sidebar .vs-sel{border-color:#7cff7c;background:#02120a}
+</style><div class="vs-panel" id="vs-games"><div id="vs-target">⌨ → terminal</div><h2>☰ games</h2>${
     group(
       'Free',
       games.filter((g) => g.entitlement === 'free'),
@@ -123,7 +92,25 @@ function renderSidebar(
       'Paid',
       games.filter((g) => g.entitlement === 'paid'),
     )
-  }</details>${howTo}</aside>`
+  }</div>${howTo}<script>
+(() => {
+  const cards = [...document.querySelectorAll('#vs-games .vs-game')]
+  const target = document.getElementById('vs-target')
+  const es = new EventSource('/events')
+  es.onmessage = (e) => {
+    let m; try { m = JSON.parse(e.data) } catch { return }
+    if (m.type === 'state') {
+      target.textContent = m.state === 'playing' ? '🎮 → game' : '⌨ → terminal'
+    } else if (m.type === 'highlight') {
+      cards.forEach((c) => c.classList.toggle('vs-sel', Number(c.dataset.i) === m.index))
+    } else if (m.type === 'reload') {
+      // Fallback for games that don't handle reload themselves — switching now
+      // happens from inside a game page, not a dedicated picker page.
+      location.href = m.url
+    }
+  }
+})()
+</script></aside>`
 }
 
 function sse(res: http.ServerResponse): void {
@@ -233,12 +220,12 @@ export class HostServer extends EventEmitter {
     for (const res of this.gameStreams) send(res, { type: 'input', ...input })
   }
 
-  /** Tell open game tabs to navigate somewhere (the picker, or a chosen game). */
+  /** Tell open game tabs to navigate somewhere (a newly chosen game). */
   broadcastReload(url: string): void {
     for (const res of this.gameStreams) send(res, { type: 'reload', url })
   }
 
-  /** Move the highlighted card in the open picker page. */
+  /** Move the picker highlight in the games panel; -1 clears it. */
   broadcastHighlight(index: number): void {
     for (const res of this.gameStreams) send(res, { type: 'highlight', index })
   }
@@ -406,8 +393,10 @@ export class HostServer extends EventEmitter {
     }
 
     if (pathname === '/games') {
-      res.writeHead(200, { 'Content-Type': 'text/html' })
-      res.end(renderPicker(this.games.list(), this.games.active()?.id))
+      // The popup picker page is gone — games are switched from the persistent
+      // panel on every game page. Old bookmarks land in the active game.
+      res.writeHead(302, { Location: '/' })
+      res.end()
       return
     }
 

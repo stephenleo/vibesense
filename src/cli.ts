@@ -85,6 +85,8 @@ if (activeGame) {
 // Game-picker state, shared between the mouse route (/switch) and the controller.
 let pickerOpen = false
 let pickerIndex = 0
+// Host wires this to applyMode so a mouse /switch mid-pick also unpauses.
+let onPickerClose: () => void = () => {}
 
 /** Web games in a stable order — what the picker lists and cycles through. */
 function webGames(): GamePlugin[] {
@@ -107,6 +109,7 @@ function activateGame(id: string): boolean {
   activeGame = game
   setActiveGameId(id)
   pickerOpen = false
+  onPickerClose()
   return true
 }
 
@@ -191,7 +194,9 @@ if (!isHost) {
 
   /** Reconcile game/terminal mode from the pause gate. */
   function applyMode(): void {
-    const shouldPlay = gate.shouldPlay()
+    // Picker focus force-pauses: an agent flipping to 'playing' mid-pick must
+    // not resume the game (or steal the d-pad) under the user's fingers.
+    const shouldPlay = gate.shouldPlay() && !pickerOpen
     const mode = shouldPlay ? 'game' : 'terminal'
     if (mode === router.currentMode()) return
     repeater.releaseAll()
@@ -201,6 +206,7 @@ if (!isHost) {
     externalGame?.setPlaying(shouldPlay)
     logger.info(`mode → ${mode}`)
   }
+  onPickerClose = applyMode
 
   /** Terminal keystrokes go to the focused session's instance, else our own pty. */
   function writeTerminal(bytes: string): void {
@@ -213,17 +219,18 @@ if (!isHost) {
   /** Commit the highlighted game: activate it and navigate the tab into it. */
   function selectGame(next: GamePlugin): void {
     if (activateGame(next.manifest.id)) {
+      // activateGame closed the picker (and re-applied mode via onPickerClose);
+      // navigating re-renders the panels in the tab.
       server.broadcastReload(`/games/${next.manifest.id}/${next.manifest.entry}`)
       logger.info(`game → ${next.manifest.name}`)
     }
   }
 
-  /** Cancel the picker: drop back into the current game unchanged. */
+  /** Cancel the picker: clear the highlight, hand control back by mode. */
   function closePicker(): void {
     pickerOpen = false
-    if (activeGame?.manifest.kind === 'web') {
-      server.broadcastReload(`/games/${activeGame.manifest.id}/${activeGame.manifest.entry}`)
-    }
+    server.broadcastHighlight(-1)
+    applyMode()
   }
 
   if (!playMode) {
@@ -254,9 +261,10 @@ if (!isHost) {
       }
 
       // ── Game picker ──────────────────────────────────────────────────
-      // While the picker is open it owns all input: d-pad/stick moves the
-      // highlight (host-tracked, pushed over SSE), A commits, B/View cancels.
-      // We navigate the tab only once, on commit — no reload-per-press.
+      // While the picker is focused it owns all input: d-pad moves the
+      // highlight in the persistent games panel (pushed over SSE), A commits,
+      // B/View cancels. The tab only navigates on commit — no page swaps, so
+      // what's on screen can never disagree with who owns the controller.
       if (pickerOpen) {
         if (e.kind === 'button' && e.pressed) {
           const web = webGames()
@@ -275,7 +283,7 @@ if (!isHost) {
         return
       }
 
-      // View/Share opens the picker (only worth it with more than one game).
+      // View/Share focuses the picker (only worth it with more than one game).
       if (e.kind === 'button' && e.button === 'view' && e.pressed) {
         const web = webGames()
         if (web.length > 1) {
@@ -286,7 +294,8 @@ if (!isHost) {
           pickerOpen = true
           repeater.releaseAll() // don't let a held key auto-fire while we're picking
           scroller.setValue(0)
-          server.broadcastReload('/games') // tab loads the picker, highlighting the active game
+          server.broadcastHighlight(pickerIndex) // light up the panel on the active game
+          applyMode() // force-pause while picking (see applyMode)
         }
         return
       }
@@ -365,7 +374,7 @@ if (!isHost) {
     }, 1500)
   }
 
-  if (games.size > 1) logger.info(`change games at ${HOST_URL}/games`)
+  if (games.size > 1) logger.info('change games from the in-game panel (or press View)')
 }
 
 logger.info(
