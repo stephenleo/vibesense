@@ -98,13 +98,17 @@ describe('HostServer', () => {
     expect(await page.text()).toContain('Snake')
   })
 
-  it('injects the Free/Paid sidebar into served game HTML only', async () => {
+  it('injects the persistent panels into served game HTML only', async () => {
     const page = await (await fetch(`${base}/games/snake/index.html`)).text()
-    // Sidebar present, grouped, with switch links; spliced inside the body.
+    // Games panel present, grouped, with switch links and controller-highlight
+    // indices; spliced inside the body.
     expect(page).toContain('id="vs-sidebar"')
-    expect(page).toContain('<summary>Free</summary>')
-    expect(page).toContain('<summary>Paid</summary>')
+    expect(page).toContain('<h2>Free</h2>')
+    expect(page).toContain('<h2>Paid</h2>')
     expect(page).toContain('href="/switch/cascade"')
+    expect(page).toContain('data-i="0"')
+    // Controller-target badge, updated by {type:'state'} SSE messages.
+    expect(page).toContain('id="vs-target"')
 
     // Non-HTML assets pass through untouched.
     const js = await (await fetch(`${base}/games/snake/game.js`)).text()
@@ -113,15 +117,16 @@ describe('HostServer', () => {
 
   it('shows how-to-play steps for the served game plus the universal Menu line', async () => {
     const page = await (await fetch(`${base}/games/snake/index.html`)).text()
-    expect(page).toContain('<summary>? how to play</summary>')
+    expect(page).toContain('<h2>? how to play</h2>')
     expect(page).toContain('<li>Left stick steers the snake</li>')
     // Menu pause/resume is engine behavior — present even without manifest steps.
     expect(page).toContain('<li>Menu — pause / resume</li>')
   })
 
-  it('lists games on /games and switches via /switch/<id>', async () => {
-    const picker = await fetch(`${base}/games`)
-    expect(await picker.text()).toContain('Snake')
+  it('redirects the old /games picker URL into the active game and switches via /switch/<id>', async () => {
+    const picker = await fetch(`${base}/games`, { redirect: 'manual' })
+    expect(picker.status).toBe(302)
+    expect(picker.headers.get('location')).toBe('/')
 
     const res = await fetch(`${base}/switch/snake`, { redirect: 'manual' })
     expect(res.status).toBe(302)
