@@ -18,8 +18,11 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
-      # Trusted publishing needs npm >= 11.5.1; Node 22 bundles 10.x.
-      - run: npm install -g npm@latest
+      # Trusted publishing needs npm >= 11.5.1; Node 22 bundles 10.x. Pinned to
+      # 11.x: npm 12 blocks dependency install scripts unless allowlisted, which
+      # breaks node-pty/node-hid native builds — revisit via allowScripts when
+      # upgrading deliberately.
+      - run: npm install -g npm@11
       - run: npm ci
       - run: npm run verify
       - run: npm publish --access public
