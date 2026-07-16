@@ -19,6 +19,11 @@
   "engines": {
     "node": ">=22"
   },
+  "allowScripts": {
+    "node-pty": true,
+    "node-hid": true,
+    "esbuild": true
+  },
   "scripts": {
     "postinstall": "chmod +x node_modules/node-pty/prebuilds/*/spawn-helper ../node-pty/prebuilds/*/spawn-helper 2>/dev/null || true",
     "prepublishOnly": "npm run build",
