@@ -66,6 +66,14 @@ npm install -g @vibesense/cli    # or: npx @vibesense/cli
 
 Requires **Node ≥22**, and is **macOS-first**. The native deps `node-hid` / `node-pty` compile on install, so you'll need build tools (Xcode Command Line Tools on macOS).
 
+> **npm 12+**: dependency install scripts are blocked by default, which silently skips the native builds and breaks vibesense at startup. Approve them at install time:
+>
+> ```sh
+> npm install -g @vibesense/cli --allow-scripts=@vibesense/cli,node-pty,node-hid
+> ```
+>
+> Already installed and hitting a native-module error? Re-run the command above. On npm ≤11 the plain install works as-is.
+
 ## Development
 
 ```sh

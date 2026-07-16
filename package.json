@@ -10,7 +10,7 @@
   },
   "type": "module",
   "bin": {
-    "vibesense": "dist/cli.js"
+    "vibesense": "dist/bin.js"
   },
   "files": [
     "dist",
