@@ -193,7 +193,10 @@ describe('HostServer', () => {
 
   it('injects a favicon and the autopilot toggle into served game HTML', async () => {
     const page = await (await fetch(`${base}/games/snake/index.html`)).text()
-    expect(page).toContain('<link rel="icon" href="data:image/svg+xml,')
+    // Browsers ignore favicons declared outside <head>, so position matters.
+    const link = page.indexOf('<link rel="icon" href="data:image/svg+xml,')
+    expect(link).toBeGreaterThan(-1)
+    expect(link).toBeLessThan(page.indexOf('</head>'))
     expect(page).toContain('id="vs-auto"')
   })
 

@@ -577,9 +577,15 @@ export class HostServer extends EventEmitter {
             games.find((g) => g.id === gameId)?.howToPlay,
           )
           // Don't clobber a game that declares its own icon.
-          const extra = (/rel=["']?(shortcut )?icon/i.test(html) ? '' : FAVICON) + sidebar
+          const icon = /rel=["']?(shortcut )?icon/i.test(html) ? '' : FAVICON
+          // Browsers only register favicons declared in <head>; the sidebar
+          // still goes at the end of <body>. No </head> → fall back to the
+          // body splice so the icon is at least present.
+          const hasHead = html.includes('</head>')
+          const page = hasHead ? html.replace('</head>', `${icon}</head>`) : html
+          const extra = (hasHead ? '' : icon) + sidebar
           res.end(
-            html.includes('</body>') ? html.replace('</body>', `${extra}</body>`) : html + extra,
+            page.includes('</body>') ? page.replace('</body>', `${extra}</body>`) : page + extra,
           )
         } else {
           res.end(fs.readFileSync(full))
