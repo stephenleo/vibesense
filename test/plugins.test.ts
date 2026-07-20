@@ -135,13 +135,13 @@ describe('checkEntitlement', () => {
     expect(() => checkEntitlement({ ...manifest, entitlement: 'free' })).not.toThrow()
   })
 
-  it('blocks paid games without a cached entitlement', () => {
-    expect(() => checkEntitlement({ ...manifest, entitlement: 'paid' })).toThrow(/paid/)
+  it('blocks premium games without a cached entitlement', () => {
+    expect(() => checkEntitlement({ ...manifest, entitlement: 'premium' })).toThrow(/premium/)
   })
 
-  it('allows paid games listed in the cached entitlements', () => {
+  it('allows premium games listed in the cached entitlements', () => {
     fs.writeFileSync(configPath, JSON.stringify({ entitlements: ['g'] }))
-    expect(() => checkEntitlement({ ...manifest, entitlement: 'paid' })).not.toThrow()
+    expect(() => checkEntitlement({ ...manifest, entitlement: 'premium' })).not.toThrow()
   })
 })
 

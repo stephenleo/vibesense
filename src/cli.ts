@@ -230,6 +230,19 @@ if (!isHost) {
     }
   }
 
+  /**
+   * Pause/resume: force the opposite of the current state — including un-pausing
+   * while the agent is idle. The override holds until the agent's playing-state
+   * next changes, then auto behavior resumes. Shared by the controller's Menu
+   * button and the page's pause control (POST /pause → 'pause' event).
+   */
+  function togglePause(): void {
+    gate.toggle()
+    applyMode()
+    logger.info(gate.shouldPlay() ? 'game resumed (manual)' : 'game paused (manual)')
+  }
+  server.on('pause', togglePause)
+
   /** Cancel the picker: clear the highlight, hand control back by mode. */
   function closePicker(): void {
     pickerOpen = false
@@ -305,13 +318,9 @@ if (!isHost) {
         return
       }
 
-      // Pause/resume: Menu/Options forces the opposite of the current state —
-      // including un-pausing while the agent is idle. The override holds until
-      // the agent's playing-state next changes, then auto behavior resumes.
+      // Pause/resume: Menu/Options — same gate as the page's pause control.
       if (e.kind === 'button' && e.button === 'menu' && e.pressed) {
-        gate.toggle()
-        applyMode()
-        logger.info(gate.shouldPlay() ? 'game resumed (manual)' : 'game paused (manual)')
+        togglePause()
         return
       }
 

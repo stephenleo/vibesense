@@ -41,7 +41,7 @@ export const manifestSchema = z
         stop: z.string().optional(),
       })
       .optional(),
-    entitlement: z.enum(['free', 'paid']).default('free'),
+    entitlement: z.enum(['free', 'premium']).default('free'),
     /** Short how-to-play steps shown in the in-game sidebar. */
     howToPlay: z.array(z.string()).optional(),
   })
@@ -98,15 +98,15 @@ export function discoverGames(
 
 /**
  * Entitlement gate, called before a game activates (startup restore, `use`,
- * and the in-app picker all route through here). Paid games pass when the id
- * is in the locally cached entitlement list, which `refreshEntitlements()`
+ * and the in-app picker all route through here). Premium games pass when the
+ * id is in the locally cached entitlement list, which `refreshEntitlements()`
  * keeps in sync with the marketplace — the cache doubles as offline grace.
  */
 export function checkEntitlement(manifest: GameManifest): void {
-  if (manifest.entitlement !== 'paid') return
+  if (manifest.entitlement !== 'premium') return
   if (readConfig().entitlements?.includes(manifest.id)) return
   throw new Error(
-    `"${manifest.name}" is a paid game — buy it at https://vibesense.dev/games/${manifest.id}, then run: vibesense login <token>`,
+    `"${manifest.name}" is a premium game — buy it at https://vibesense.dev/games/${manifest.id}, then run: vibesense login <token>`,
   )
 }
 

@@ -2,7 +2,7 @@
 // the aggregate, SSE streams deliver game state and forwarded keystrokes.
 
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BUNDLED_GAMES_DIR } from '../src/plugins.js'
 import { HostServer } from '../src/server.js'
 import type { Aggregate } from '../src/state.js'
@@ -23,7 +23,7 @@ beforeEach(async () => {
         entitlement: 'free' as const,
         howToPlay: ['Left stick steers the snake'],
       },
-      { id: 'cascade', name: 'Cascade', entitlement: 'paid' as const },
+      { id: 'cascade', name: 'Cascade', entitlement: 'premium' as const },
     ],
     setActive: (id) => {
       switched.push(id)
@@ -78,6 +78,20 @@ async function nextFrame(
 }
 
 describe('HostServer', () => {
+  it('takes the host port from VIBESENSE_PORT, defaulting to 48753', async () => {
+    const { HOST_PORT, HOST_URL } = await import('../src/server.js')
+    expect(HOST_PORT).toBe(48753)
+    expect(HOST_URL).toBe('http://127.0.0.1:48753')
+
+    vi.stubEnv('VIBESENSE_PORT', '48754')
+    vi.resetModules()
+    const overridden = await import('../src/server.js')
+    expect(overridden.HOST_PORT).toBe(48754)
+    expect(overridden.HOST_URL).toBe('http://127.0.0.1:48754')
+    vi.unstubAllEnvs()
+    vi.resetModules()
+  })
+
   it('identifies itself on /health', async () => {
     const res = await fetch(`${base}/health`)
     expect(await res.json()).toEqual({ app: 'vibesense' })
@@ -108,8 +122,8 @@ describe('HostServer', () => {
     // Games panel present, grouped, with switch links and controller-highlight
     // indices; spliced inside the body.
     expect(page).toContain('id="vs-sidebar"')
-    expect(page).toContain('<h2>Free</h2>')
-    expect(page).toContain('<h2>Paid</h2>')
+    expect(page).toContain('<h3>Free</h3>')
+    expect(page).toContain('<h3>Premium</h3>')
     expect(page).toContain('href="/switch/cascade"')
     expect(page).toContain('data-i="0"')
     // Controller-target badge, updated by {type:'state'} SSE messages.
@@ -120,12 +134,23 @@ describe('HostServer', () => {
     expect(js).not.toContain('vs-sidebar')
   })
 
-  it('shows how-to-play steps for the served game plus the universal Menu line', async () => {
+  it('shows how-to-play steps for the served game plus the universal system rows', async () => {
     const page = await (await fetch(`${base}/games/snake/index.html`)).text()
-    expect(page).toContain('<h2>? how to play</h2>')
+    expect(page).toContain('how to play</h2>')
     expect(page).toContain('<li>Left stick steers the snake</li>')
-    // Menu pause/resume is engine behavior — present even without manifest steps.
-    expect(page).toContain('<li>Menu — pause / resume</li>')
+    // Pause / change game are engine behavior — rendered as key/action rows with
+    // both the controller and keyboard bindings, for every game.
+    expect(page).toContain('<kbd>P</kbd><kbd>Menu</kbd>')
+    expect(page).toContain('<kbd>Esc</kbd><kbd>View</kbd>')
+    expect(page).toContain('id="vs-pause"')
+  })
+
+  it('relays POST /pause as a pause event (the CLI toggles the same PauseGate)', async () => {
+    const paused: number[] = []
+    server.on('pause', () => paused.push(1))
+    const res = await fetch(`${base}/pause`, { method: 'POST' })
+    expect(await res.json()).toEqual({ ok: true })
+    expect(paused).toHaveLength(1)
   })
 
   it('redirects the old /games picker URL into the active game and switches via /switch/<id>', async () => {

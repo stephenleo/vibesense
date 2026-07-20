@@ -30,7 +30,7 @@ Every plugin has a `vibesense-game.json` at its root:
 | `kind`            | `"web"` or `"external"`.                                                                                                                                              |
 | `entry`           | `web` only: the HTML file to open, served at `/games/<id>/<entry>`.                                                                                                   |
 | `commands`        | `external` only: `{ "start", "pause", "resume", "stop" }` — shell commands run in the plugin dir on state transitions. All optional; omitted transitions are skipped. |
-| `entitlement`     | `"free"` or `"paid"`. Paid is a reserved stub: activation is blocked until licensing ships, so the field can be used today without a payment system.                  |
+| `entitlement`     | `"free"` or `"premium"`. Premium is a reserved stub: activation is blocked until licensing ships, so the field can be used today without a payment system.            |
 
 ## Runtime contract — `web` games
 
