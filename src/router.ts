@@ -3,7 +3,7 @@
 // flip opens a guard window that drops input and ignores buttons that were
 // already held — game mashing can never accept a question that just appeared.
 
-import type { ControllerEvent, ButtonId } from './types.js'
+import type { ButtonId, ControllerEvent } from 'openmicro/controller'
 
 export type InputMode = 'terminal' | 'game'
 

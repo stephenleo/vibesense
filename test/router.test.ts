@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import type { ButtonId, ControllerEvent } from 'openmicro/controller'
 import { GUARD_WINDOW_MS, InputRouter } from '../src/router.js'
-import type { ControllerEvent } from '../src/types.js'
-
-import type { ButtonId } from '../src/types.js'
 
 function press(button: ButtonId): ControllerEvent {
   return { kind: 'button', button, pressed: true }

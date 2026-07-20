@@ -15,7 +15,7 @@ import { randomUUID } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { isVibesenseHost, runAsClient } from './client.js'
 import { runSubcommand, SUBCOMMANDS } from './commands.js'
-import { HidManager } from './controller/hid-manager.js'
+import { startController } from './controller.js'
 import { harnessFor } from './harness.js'
 import { parseInvocation } from './invocation.js'
 import { KeyRepeater, REPEATING_BUTTONS, TERMINAL_KEYS } from './keymap.js'
@@ -35,7 +35,6 @@ import { SmoothScroller } from './scroll.js'
 import { HostServer, HOST_URL } from './server.js'
 import { PauseGate } from './state.js'
 import type { Aggregate } from './state.js'
-import type { ControllerEvent } from './types.js'
 
 const args = process.argv.slice(2)
 
@@ -163,7 +162,11 @@ const agent = playMode
       process.exit(code)
     })
 
+let stopController: () => void = () => {}
+
 function shutdown(): void {
+  stopController()
+  stopController = () => {}
   agent?.dispose()
   if (isHost) server.close()
 }
@@ -179,7 +182,6 @@ if (!isHost) {
   }
 } else {
   // ── Host: controller + game + state aggregation. ──────────────────────
-  const hid = new HidManager()
   const router = new InputRouter()
   const repeater = new KeyRepeater()
   const externalGame =
@@ -244,11 +246,12 @@ if (!isHost) {
   }
 
   process.on('exit', () => {
+    stopController()
     externalGame?.stop()
     scroller.stop()
   })
 
-  hid.on('data', (e: ControllerEvent) => {
+  stopController = startController((e) => {
     try {
       if (e.kind === 'connected') {
         logger.info(`Controller connected: ${e.controllerType}`)
@@ -344,8 +347,6 @@ if (!isHost) {
       logger.error('controller event handling failed', err)
     }
   })
-
-  hid.start()
   scroller.start()
   if (playMode || autoPlay) applyMode() // no agent will kick us — start playing now
 
