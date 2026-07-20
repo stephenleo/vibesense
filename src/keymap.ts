@@ -1,7 +1,7 @@
 // Pure input logic: button → pty byte sequences, key repeat, and stick →
 // scroll direction. No I/O here — everything is unit-testable.
 
-import type { ButtonId } from './types.js'
+import type { ButtonId } from 'openmicro/controller'
 
 // Terminal-mode byte sequences. Disjoint from game-mode buttons (left stick +
 // r2 fire) so game mashing can never leak an accidental accept into the agent.

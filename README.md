@@ -22,7 +22,7 @@ A game controller (Xbox / DualSense / generic HID) drives everything:
 ## How it works
 
 ```
-controller (node-hid)                                  ← one host per machine
+controller → OpenMicro                                  ← one host per machine
    │
 input router ──(agent waiting/idle)──▶ keystrokes ──▶ node-pty ⇄ claude/codex
    │
@@ -64,7 +64,7 @@ A game is an npm package `@vibesense/game-<id>` with a `vibesense-game.json` man
 npm install -g @vibesense/cli    # or: npx @vibesense/cli
 ```
 
-Requires **Node ≥22**, and is **macOS-first**. The native deps `node-hid` / `node-pty` compile on install, so you'll need build tools (Xcode Command Line Tools on macOS).
+Requires **Node ≥22**, and is **macOS-first**. OpenMicro handles controller discovery, verification, normalized input, and reconnection. Run `npx openmicro@1.3.0 doctor` to verify a controller. The native deps `node-hid` (through OpenMicro) / `node-pty` compile on install, so you'll need build tools (Xcode Command Line Tools on macOS).
 
 > **npm 12+**: dependency install scripts are blocked by default, which silently skips the native builds and breaks vibesense at startup. Approve them at install time:
 >

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Entry wrapper: npm 12+ blocks dependency install scripts by default, which
-// silently skips node-pty / node-hid native builds — the CLI then dies at
+// silently skips node-pty / OpenMicro's node-hid native builds — the CLI then dies at
 // import time. npm runs no package code during install (by design), so the
 // earliest we can catch it is first run: turn the module-load error into the
 // exact reinstall command instead of a stack trace.
