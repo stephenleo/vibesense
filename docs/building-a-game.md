@@ -43,7 +43,7 @@ my-game/
 }
 ```
 
-Rules: `id` is `[a-z0-9-]` and must match the npm package suffix; `entry` is the HTML file the host serves at `/games/<id>/<entry>`; `protocolVersion` is always `1`. Declare `entitlement: "free"` — `"paid"` is reserved for the upcoming marketplace and won't activate yet.
+Rules: `id` is `[a-z0-9-]` and must match the npm package suffix; `entry` is the HTML file the host serves at `/games/<id>/<entry>`; `protocolVersion` is always `1`. Declare `entitlement: "free"` — `"premium"` is reserved for the upcoming marketplace and won't activate yet.
 
 ## 2. The runtime contract
 

@@ -9,7 +9,9 @@ import path from 'node:path'
 import { logger } from './logger.js'
 import { SessionTracker } from './state.js'
 
-export const HOST_PORT = 48753
+// Singleton port. VIBESENSE_PORT lets a second instance (dev/test) run beside a
+// live session instead of losing the race for the default port.
+export const HOST_PORT = Number(process.env.VIBESENSE_PORT) || 48753
 export const HOST_URL = `http://127.0.0.1:${HOST_PORT}`
 
 const CONTENT_TYPES: Record<string, string> = {
@@ -28,10 +30,16 @@ export interface GameProvider {
   /** The active web game (id + entry file), or null if none. */
   active(): { id: string; entry: string } | null
   /** All switchable web games, for the picker and the in-game sidebar. */
-  list(): { id: string; name: string; entitlement: 'free' | 'paid'; howToPlay?: string[] }[]
+  list(): { id: string; name: string; entitlement: 'free' | 'premium'; howToPlay?: string[] }[]
   /** Make `id` the active game (persisted). Returns false if not a switchable web game. */
   setActive(id: string): boolean
 }
+
+// Injected into every served game page (bundled or npm marketplace) so tabs get
+// an icon without shipping an asset file or adding a route.
+const FAVICON = `<link rel="icon" href="data:image/svg+xml,${encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><text y="14" font-size="14">🕹️</text></svg>`,
+)}">`
 
 const esc = (s: string): string =>
   s.replace(
@@ -48,13 +56,13 @@ const esc = (s: string): string =>
  * the same {type:'state'} messages that pause/resume the game.
  */
 function renderSidebar(
-  games: { id: string; name: string; entitlement: 'free' | 'paid' }[],
+  games: { id: string; name: string; entitlement: 'free' | 'premium' }[],
   activeId: string | undefined,
   howToPlay?: string[],
 ): string {
   const group = (label: string, items: typeof games): string =>
     items.length
-      ? `<div class="vs-group"><h2>${label}</h2>${items
+      ? `<div class="vs-group"><h3>${label}</h3>${items
           .map(
             // data-i indexes the full list — the same order the controller's
             // picker cycles through — so SSE highlight lands on the right card.
@@ -64,45 +72,132 @@ function renderSidebar(
           )
           .join('')}</div>`
       : ''
-  // Menu pause/resume is engine behavior (PauseGate), true for every game —
-  // rendered once here instead of repeated in each game's manifest.
-  const howTo = `<div class="vs-panel" id="vs-help"><h2>? how to play</h2><ol>${(howToPlay ?? [])
-    .map((s) => `<li>${esc(s)}</li>`)
-    .join('')}<li>Menu — pause / resume</li><li>View — change game</li></ol></div>`
+  // Game controls come from the manifest (prose, one hint per line). System
+  // controls are engine behavior (PauseGate, picker, autopilot) — true for every
+  // game, so they're rendered once here as key/action rows instead of being
+  // appended to each manifest's list.
+  const tips = (howToPlay ?? []).map((s) => `<li>${esc(s)}</li>`).join('')
+  const help = `<section class="vs-panel" id="vs-help"><h2 class="vs-head">how to play</h2><ul class="vs-tips">${tips}</ul><h2 class="vs-head">system</h2><div class="vs-rows"><button class="vs-row" id="vs-pause" type="button"><span class="vs-keys"><kbd>P</kbd><kbd>Menu</kbd></span><span>pause / resume</span></button><button class="vs-row" id="vs-pick" type="button"><span class="vs-keys"><kbd>Esc</kbd><kbd>View</kbd></span><span>change game</span></button><label class="vs-row" id="vs-auto"><input type="checkbox"><span class="vs-sw"></span><span>autopilot</span></label></div></section>`
   return `<aside id="vs-sidebar"><style>
-#vs-sidebar{font-family:'Courier New',monospace;font-size:13px}
-#vs-sidebar .vs-panel{position:fixed;top:8px;z-index:9999;border:1px solid #234;border-radius:6px;background:rgba(5,5,16,.92);color:#7cff7c;min-width:150px;max-width:220px;padding-bottom:6px}
-#vs-games{left:8px}
-#vs-help{right:8px}
-#vs-sidebar h2{font-size:13px;font-weight:normal;letter-spacing:2px;color:#567;margin:0;padding:6px 10px}
-#vs-sidebar ol{margin:0;padding:0 12px 2px 28px}
-#vs-sidebar li{padding:2px 0}
-#vs-target{padding:6px 10px;border-bottom:1px solid #234;letter-spacing:1px;color:#7cff7c}
-#vs-sidebar .vs-group h2{padding:4px 10px 2px}
-#vs-sidebar .vs-game{display:block;padding:3px 18px;color:#7cff7c;text-decoration:none;letter-spacing:1px;border:1px solid transparent;border-radius:4px}
-#vs-sidebar .vs-game:hover{color:#fff}
-#vs-sidebar .vs-active::after{content:' ◂'}
-#vs-sidebar .vs-sel{border-color:#7cff7c;background:#02120a}
-</style><div class="vs-panel" id="vs-games"><div id="vs-target">⌨ → terminal</div><h2>☰ games</h2>${
+#vs-sidebar{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:12px;line-height:1.45}
+#vs-sidebar .vs-panel{position:fixed;top:14px;z-index:9999;padding-bottom:10px;border:1px solid rgba(140,170,255,.14);border-radius:12px;background:rgba(8,10,22,.92);color:#eaf2ff;box-shadow:0 0 0 1px rgba(0,0,0,.6),0 18px 50px rgba(0,0,0,.5)}
+@supports (backdrop-filter:blur(1px)){#vs-sidebar .vs-panel{backdrop-filter:blur(8px)}}
+#vs-games{left:14px;width:196px}
+#vs-help{right:14px;width:238px}
+#vs-sidebar .vs-head{display:flex;align-items:center;gap:8px;margin:0;padding:12px 14px 8px;font-size:9px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#8fa3c0}
+#vs-sidebar .vs-head::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(140,170,255,.22),transparent)}
+#vs-sidebar h3{margin:0;padding:8px 14px 3px;font-size:9px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:#5d6e88}
+#vs-target{display:flex;align-items:center;gap:8px;margin:12px 12px 2px;padding:6px 10px;border:1px solid rgba(140,170,255,.14);border-radius:999px;background:rgba(10,14,30,.7);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8fa3c0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#vs-target::before{content:'';flex:none;width:6px;height:6px;border-radius:50%;background:#f5b942;box-shadow:0 0 8px #f5b942}
+#vs-target.vs-on{color:#d6ffe4}
+#vs-target.vs-on::before{background:#7cff7c;box-shadow:0 0 8px #7cff7c}
+#vs-sidebar .vs-game{position:relative;display:block;margin:1px 8px;padding:5px 10px;border-radius:7px;color:#c3d2e8;text-decoration:none;letter-spacing:.04em;border:1px solid transparent}
+#vs-sidebar .vs-game:hover{background:rgba(140,170,255,.07);color:#eaf2ff}
+#vs-sidebar .vs-active{color:#7cff7c;background:rgba(124,255,124,.06)}
+#vs-sidebar .vs-active::before{content:'';position:absolute;left:-4px;top:7px;bottom:7px;width:2px;border-radius:2px;background:#7cff7c;box-shadow:0 0 8px rgba(124,255,124,.8)}
+#vs-sidebar .vs-sel{border-color:rgba(124,255,124,.6);background:rgba(124,255,124,.12);color:#eaf2ff}
+#vs-games.vs-picking{border-color:rgba(124,255,124,.45);box-shadow:0 0 0 1px rgba(124,255,124,.35),0 0 32px rgba(124,255,124,.18),0 18px 50px rgba(0,0,0,.5)}
+#vs-sidebar .vs-tips{margin:0;padding:0 14px;list-style:none}
+#vs-sidebar .vs-tips li{display:grid;grid-template-columns:9px 1fr;gap:6px;padding:2px 0;color:#a9bad3;font-size:11px}
+#vs-sidebar .vs-tips li::before{content:'›';color:#4f6182}
+#vs-sidebar .vs-rows{padding:0 8px}
+#vs-sidebar .vs-row{display:grid;grid-template-columns:74px 1fr;gap:10px;align-items:center;width:100%;position:relative;margin:1px 0;padding:6px;border:1px solid transparent;border-radius:7px;background:none;font:inherit;color:#a9bad3;text-align:left;cursor:pointer}
+#vs-sidebar .vs-row:hover{background:rgba(140,170,255,.07);color:#eaf2ff}
+#vs-sidebar .vs-row:focus-visible{outline:none;border-color:rgba(124,255,124,.6)}
+#vs-sidebar .vs-row.vs-armed{border-color:rgba(124,255,124,.6);background:rgba(124,255,124,.1);color:#eaf2ff}
+#vs-sidebar .vs-keys{display:flex;gap:4px}
+#vs-sidebar kbd{padding:1px 5px;border:1px solid rgba(140,170,255,.22);border-bottom-color:rgba(140,170,255,.34);border-radius:4px;background:rgba(140,170,255,.07);font:inherit;font-size:9px;letter-spacing:.06em;color:#8fa3c0}
+#vs-auto input{position:absolute;opacity:0;width:0;height:0}
+#vs-sidebar .vs-sw{position:relative;width:28px;height:15px;border:1px solid rgba(140,170,255,.22);border-radius:999px;background:rgba(140,170,255,.07)}
+#vs-sidebar .vs-sw::after{content:'';position:absolute;top:2px;left:2px;width:9px;height:9px;border-radius:50%;background:#8fa3c0}
+#vs-auto input:checked+.vs-sw{border-color:rgba(124,255,124,.55);background:rgba(124,255,124,.16)}
+#vs-auto input:checked+.vs-sw::after{left:15px;background:#7cff7c;box-shadow:0 0 7px #7cff7c}
+#vs-auto input:focus-visible+.vs-sw{box-shadow:0 0 0 2px rgba(124,255,124,.4)}
+@media (prefers-reduced-motion:no-preference){
+#vs-sidebar .vs-game,#vs-sidebar .vs-row,#vs-sidebar .vs-panel{transition:background-color .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease}
+#vs-sidebar .vs-sw,#vs-sidebar .vs-sw::after{transition:left .16s ease,background-color .16s ease,border-color .16s ease}
+}
+@media (max-height:520px){#vs-sidebar .vs-panel{font-size:11px}}
+</style><section class="vs-panel" id="vs-games"><div id="vs-target">terminal</div><h2 class="vs-head">games</h2>${
+    // Premium first (display order only). data-i keeps indexing the unsorted
+    // host list, so the controller's picker order and SSE highlight stay aligned.
+    group(
+      'Premium',
+      games.filter((g) => g.entitlement === 'premium'),
+    ) +
     group(
       'Free',
       games.filter((g) => g.entitlement === 'free'),
-    ) +
-    group(
-      'Paid',
-      games.filter((g) => g.entitlement === 'paid'),
     )
-  }</div>${howTo}<script>
+  }</section>${help}<script>
 (() => {
   const cards = [...document.querySelectorAll('#vs-games .vs-game')]
   const target = document.getElementById('vs-target')
+  const panel = document.getElementById('vs-games')
+  const auto = document.querySelector('#vs-auto input')
+  const pickRow = document.getElementById('vs-pick')
+  auto.onchange = () => fetch('/autopilot', { method: 'POST', body: JSON.stringify({ enabled: auto.checked }) })
+
+  // Page-local game selection (Esc + arrows). Deliberately not routed through
+  // the host: it drives the same .vs-sel/.vs-picking affordance the controller
+  // picker paints, but navigation is a plain link follow, so no pickerOpen.
+  // sel is the host-list index (data-i) so it means the same thing as an SSE
+  // highlight; movement walks DOM order so arrows follow what's on screen.
+  let sel = -1
+  let picking = false
+  const at = () => cards.findIndex((c) => Number(c.dataset.i) === sel)
+  const paint = () => {
+    cards.forEach((c) => c.classList.toggle('vs-sel', Number(c.dataset.i) === sel))
+    panel.classList.toggle('vs-picking', picking || sel >= 0)
+    pickRow.classList.toggle('vs-armed', sel >= 0)
+  }
+  const move = (d) => {
+    const n = (at() + d + cards.length) % cards.length
+    sel = Number(cards[n].dataset.i)
+    paint()
+  }
+  const openSel = () => {
+    if (!cards.length) return
+    const active = cards.find((c) => c.classList.contains('vs-active')) || cards[0]
+    sel = Number(active.dataset.i)
+    paint()
+  }
+  const closeSel = () => { sel = -1; paint() }
+  const togglePick = () => (sel >= 0 ? closeSel() : openSel())
+  pickRow.onclick = togglePick
+  const pause = () => fetch('/pause', { method: 'POST' })
+  document.getElementById('vs-pause').onclick = pause
+
+  // Capture phase + stopPropagation: while selecting, arrows/Enter must not
+  // reach the game's own window keydown listener. P/Esc are unused by games.
+  addEventListener('keydown', (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return
+    if (e.key === 'p' || e.key === 'P') { pause(); e.preventDefault(); return }
+    if (e.key === 'Escape') { togglePick(); e.preventDefault(); return }
+    if (sel < 0) return
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') move(1)
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') move(-1)
+    else if (e.key === 'Enter') location.href = cards[at()].getAttribute('href')
+    else return
+    e.preventDefault()
+    e.stopPropagation()
+  }, true)
+
   const es = new EventSource('/events')
   es.onmessage = (e) => {
     let m; try { m = JSON.parse(e.data) } catch { return }
     if (m.type === 'state') {
-      target.textContent = m.state === 'playing' ? '🎮 → game' : '⌨ → terminal'
+      picking = m.state === 'picking'
+      target.classList.toggle('vs-on', m.state === 'playing')
+      target.textContent = picking
+        ? 'pick · d-pad · A ok'
+        : m.state === 'playing' ? 'game' : 'terminal'
+      paint()
+    } else if (m.type === 'autopilot') {
+      auto.checked = m.enabled
     } else if (m.type === 'highlight') {
-      cards.forEach((c) => c.classList.toggle('vs-sel', Number(c.dataset.i) === m.index))
+      sel = m.index
+      paint()
     } else if (m.type === 'reload') {
       // Fallback for games that don't handle reload themselves — switching now
       // happens from inside a game page, not a dedicated picker page.
@@ -139,7 +234,8 @@ function readBody(req: http.IncomingMessage): Promise<string> {
 
 /**
  * Emits 'aggregate' (Aggregate) whenever hook events may have changed the
- * combined agent state across sessions.
+ * combined agent state across sessions, and 'pause' when a game page asks to
+ * toggle the pause gate (POST /pause).
  */
 export class HostServer extends EventEmitter {
   readonly tracker = new SessionTracker()
@@ -159,7 +255,9 @@ export class HostServer extends EventEmitter {
     { res: http.ServerResponse; cwd: string; wrapperId: string | null }
   >()
   private nextInstanceId = 1
-  private lastGameState: 'playing' | 'paused' = 'paused'
+  private lastGameState: 'playing' | 'paused' | 'picking' = 'paused'
+  /** Off by default: the demo autopilot only runs when the user opts in. */
+  private autopilot = false
 
   /**
    * hostCwd is the directory of the claude session this host wraps. When set,
@@ -209,10 +307,21 @@ export class HostServer extends EventEmitter {
     this.server?.close()
   }
 
-  /** Push a game-state change to all connected game tabs. */
-  broadcastGameState(state: 'playing' | 'paused'): void {
+  /**
+   * Push a game-state change to all connected game tabs. 'picking' is a paused
+   * variant: games see anything != 'playing' as paused, while the sidebar shows
+   * picker instructions instead of the generic pause hint.
+   */
+  broadcastGameState(state: 'playing' | 'paused' | 'picking'): void {
+    if (state === this.lastGameState) return
     this.lastGameState = state
     for (const res of this.gameStreams) send(res, { type: 'state', state })
+  }
+
+  /** Enable/disable the games' idle autopilot everywhere. */
+  setAutopilot(enabled: boolean): void {
+    this.autopilot = enabled
+    for (const res of this.gameStreams) send(res, { type: 'autopilot', enabled })
   }
 
   /** Forward a controller input event to the game. */
@@ -334,6 +443,29 @@ export class HostServer extends EventEmitter {
       return
     }
 
+    // Page-side pause: same PauseGate the Menu button drives — the CLI owns the
+    // gate, so this just relays the intent.
+    if (req.method === 'POST' && pathname === '/pause') {
+      this.emit('pause')
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ ok: true }))
+      return
+    }
+
+    if (req.method === 'POST' && pathname === '/autopilot') {
+      const body = await readBody(req)
+      let enabled = !this.autopilot // no/!bad body → plain toggle
+      try {
+        enabled = Boolean((JSON.parse(body) as { enabled?: boolean }).enabled)
+      } catch {
+        // toggle
+      }
+      this.setAutopilot(enabled)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ enabled }))
+      return
+    }
+
     if (req.method === 'POST' && pathname === '/register') {
       const body = await readBody(req)
       let cwd = ''
@@ -376,6 +508,7 @@ export class HostServer extends EventEmitter {
       sse(res)
       this.gameStreams.add(res)
       send(res, { type: 'state', state: this.lastGameState })
+      send(res, { type: 'autopilot', enabled: this.autopilot })
       req.on('close', () => this.gameStreams.delete(res))
       return
     }
@@ -443,10 +576,10 @@ export class HostServer extends EventEmitter {
             this.games.active()?.id,
             games.find((g) => g.id === gameId)?.howToPlay,
           )
+          // Don't clobber a game that declares its own icon.
+          const extra = (/rel=["']?(shortcut )?icon/i.test(html) ? '' : FAVICON) + sidebar
           res.end(
-            html.includes('</body>')
-              ? html.replace('</body>', `${sidebar}</body>`)
-              : html + sidebar,
+            html.includes('</body>') ? html.replace('</body>', `${extra}</body>`) : html + extra,
           )
         } else {
           res.end(fs.readFileSync(full))

@@ -54,7 +54,7 @@ vibesense use <id>         # switch the active game
 vibesense uninstall <id>
 ```
 
-A game is an npm package `@vibesense/game-<id>` with a `vibesense-game.json` manifest — either a `web` game (canvas page served to the game tab) or an `external` adapter (shell commands on state transitions, e.g. launching/pausing a Steam game). See [docs/plugin-contract.md](docs/plugin-contract.md) to build one. Paid games are a reserved manifest field (`entitlement`) with the activation gate already in place — licensing bolts on later without changing the contract.
+A game is an npm package `@vibesense/game-<id>` with a `vibesense-game.json` manifest — either a `web` game (canvas page served to the game tab) or an `external` adapter (shell commands on state transitions, e.g. launching/pausing a Steam game). See [docs/plugin-contract.md](docs/plugin-contract.md) to build one. Premium games are a reserved manifest field (`entitlement: "premium"`) with the activation gate already in place — licensing bolts on later without changing the contract.
 
 > **Trust model**: installing a game is installing an npm package, and `external` games run shell commands by design. Only install games from authors you trust — same judgement as adding any dependency.
 
@@ -80,4 +80,11 @@ Requires **Node ≥22**, and is **macOS-first**. OpenMicro handles controller di
 npm install
 npm run dev        # run from source (tsx)
 npm run verify     # typecheck + lint + format-check + tests
+```
+
+Only one vibesense can own the singleton port (48753). Set `VIBESENSE_PORT` to
+run a second instance beside a live session:
+
+```sh
+VIBESENSE_PORT=48754 npm run dev -- play snake   # game at http://127.0.0.1:48754
 ```

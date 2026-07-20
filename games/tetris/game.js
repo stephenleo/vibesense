@@ -164,6 +164,7 @@
   let banner = { text: '', t: 0 }
   let particles = []
   let lastHumanInput = 0
+  let autopilotEnabled = false // opt-in: toggled from the sidebar via {type:"autopilot"}
   let softDrop = false
   let moveDir = 0 // -1/0/1 from stick or keys
   let moveHeld = 0 // seconds current direction has been held
@@ -255,6 +256,8 @@
     }
     if (msg.type === 'state') {
       setPlaying(msg.state === 'playing')
+    } else if (msg.type === 'autopilot') {
+      autopilotEnabled = msg.enabled
     } else if (msg.type === 'input') {
       if (msg.kind === 'axis') {
         if (msg.axis === 'left_x') {
@@ -286,7 +289,11 @@
   // Keyboard fallback for development.
   addEventListener('keydown', (e) => {
     if (e.repeat) return
-    if (gameOver && (e.key === ' ' || e.key === 'Shift')) return reset()
+    if (gameOver && (e.key === ' ' || e.key === 'Shift')) {
+      e.preventDefault()
+      lastHumanInput = performance.now()
+      return reset()
+    }
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       moveDir = e.key === 'ArrowLeft' ? -1 : 1
       moveHeld = 0
@@ -295,6 +302,7 @@
     else if (e.key === ' ') tryRotate()
     else if (e.key === 'Shift') hardDrop()
     else return
+    e.preventDefault() // arrows/space would scroll the page
     lastHumanInput = performance.now()
   })
   addEventListener('keyup', (e) => {
@@ -393,7 +401,7 @@
     }
     if (!cur) return
 
-    const idle = now - lastHumanInput > AUTOPILOT_IDLE_MS
+    const idle = autopilotEnabled && now - lastHumanInput > AUTOPILOT_IDLE_MS
     if (idle) {
       autopilotStep(dt)
       if (!cur || clearing) return // autopilot may have locked the piece

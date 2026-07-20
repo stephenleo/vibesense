@@ -200,11 +200,13 @@ if (!isHost) {
     // not resume the game (or steal the d-pad) under the user's fingers.
     const shouldPlay = gate.shouldPlay() && !pickerOpen
     const mode = shouldPlay ? 'game' : 'terminal'
+    // Broadcast before the mode guard: opening the picker while already paused
+    // doesn't change the mode, but the tab still has to show picker mode.
+    server.broadcastGameState(shouldPlay ? 'playing' : pickerOpen ? 'picking' : 'paused')
     if (mode === router.currentMode()) return
     repeater.releaseAll()
     scroller.setValue(0)
     router.setMode(mode)
-    server.broadcastGameState(shouldPlay ? 'playing' : 'paused')
     externalGame?.setPlaying(shouldPlay)
     logger.info(`mode → ${mode}`)
   }
@@ -227,6 +229,19 @@ if (!isHost) {
       logger.info(`game → ${next.manifest.name}`)
     }
   }
+
+  /**
+   * Pause/resume: force the opposite of the current state — including un-pausing
+   * while the agent is idle. The override holds until the agent's playing-state
+   * next changes, then auto behavior resumes. Shared by the controller's Menu
+   * button and the page's pause control (POST /pause → 'pause' event).
+   */
+  function togglePause(): void {
+    gate.toggle()
+    applyMode()
+    logger.info(gate.shouldPlay() ? 'game resumed (manual)' : 'game paused (manual)')
+  }
+  server.on('pause', togglePause)
 
   /** Cancel the picker: clear the highlight, hand control back by mode. */
   function closePicker(): void {
@@ -303,13 +318,9 @@ if (!isHost) {
         return
       }
 
-      // Pause/resume: Menu/Options forces the opposite of the current state —
-      // including un-pausing while the agent is idle. The override holds until
-      // the agent's playing-state next changes, then auto behavior resumes.
+      // Pause/resume: Menu/Options — same gate as the page's pause control.
       if (e.kind === 'button' && e.button === 'menu' && e.pressed) {
-        gate.toggle()
-        applyMode()
-        logger.info(gate.shouldPlay() ? 'game resumed (manual)' : 'game paused (manual)')
+        togglePause()
         return
       }
 

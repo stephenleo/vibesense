@@ -124,6 +124,7 @@
   let gameOver = false
   let gameOverAt = 0
   let lastHumanInput = 0
+  let autopilotEnabled = false // opt-in: toggled from the sidebar via {type:"autopilot"}
   let shake = { t: 0, mag: 0 }
   let banner = { text: '', t: 0 }
   let particles = [] // {x, y, vx, vy, life, max, color}
@@ -206,6 +207,8 @@
     }
     if (msg.type === 'state') {
       setPlaying(msg.state === 'playing')
+    } else if (msg.type === 'autopilot') {
+      autopilotEnabled = msg.enabled
     } else if (msg.type === 'input') {
       if (msg.kind === 'axis' && msg.axis === 'left_x') {
         stick = Math.abs(msg.value) > 0.15 ? msg.value : 0
@@ -225,6 +228,7 @@
     else if (e.key === 'ArrowRight') keyDir = 1
     else if (e.key === ' ') pressFire()
     else return
+    e.preventDefault() // arrows/space would scroll the page
     lastHumanInput = performance.now()
   })
   addEventListener('keyup', (e) => {
@@ -268,7 +272,7 @@
 
   // ── Simulation ────────────────────────────────────────────────────────
   function movePaddle(dt, now) {
-    const idle = now - lastHumanInput > AUTOPILOT_IDLE_MS
+    const idle = autopilotEnabled && now - lastHumanInput > AUTOPILOT_IDLE_MS
     let vx
     if (idle) {
       // Autopilot: chase the predicted landing point (or shadow a rising ball),

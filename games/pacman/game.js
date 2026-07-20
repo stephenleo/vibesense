@@ -158,6 +158,7 @@
   let banner = { text: '', t: 0 }
   let floats = [] // {x, y, text, life, max}
   let lastHumanInput = 0
+  let autopilotEnabled = false // opt-in: toggled from the sidebar via {type:"autopilot"}
 
   const px = (tx) => OX + tx * CELL + CELL / 2
   const py = (ty) => OY + ty * CELL + CELL / 2
@@ -221,6 +222,8 @@
     }
     if (msg.type === 'state') {
       setPlaying(msg.state === 'playing')
+    } else if (msg.type === 'autopilot') {
+      autopilotEnabled = msg.enabled
     } else if (msg.type === 'input') {
       if (msg.kind === 'axis') {
         if (msg.axis === 'left_x' && Math.abs(msg.value) > 0.45) {
@@ -242,7 +245,11 @@
   addEventListener('keydown', (e) => {
     const map = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' }
     if (map[e.key]) steer(map[e.key])
-    if (e.key === ' ' && gameOver) reset()
+    else if (e.key === ' ') {
+      lastHumanInput = performance.now()
+      if (gameOver) reset()
+    } else return
+    e.preventDefault() // arrows/space would scroll the page
   })
 
   function setPlaying(next) {
@@ -365,7 +372,7 @@
 
   function movePac(dt, now) {
     const t = tileOf(pac)
-    if (now - lastHumanInput > AUTOPILOT_IDLE_MS && atCenter(pac, t)) autopilotSteer(t)
+    if (autopilotEnabled && now - lastHumanInput > AUTOPILOT_IDLE_MS && atCenter(pac, t)) autopilotSteer(t)
 
     if (atCenter(pac, t)) {
       const w = DIRS[pac.want]

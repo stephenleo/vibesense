@@ -38,7 +38,7 @@ function packageName(idOrPackage: string): string {
 }
 
 /**
- * Resolve a bare game id to an installable npm spec. Paid games download from
+ * Resolve a bare game id to an installable npm spec. Premium games download from
  * the marketplace (Bearer PAT) to a temp tarball; 404 or network trouble falls
  * through to the public npm package, which npm errors on if it doesn't exist.
  */

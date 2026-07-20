@@ -7,8 +7,9 @@
   "entry": "index.html",
   "entitlement": "free",
   "howToPlay": [
-    "Left stick steers — turns apply at the next junction",
+    "Left stick or arrow keys steer",
+    "Turns apply at the next junction",
     "Eat all the pellets, dodge the ghosts",
-    "R2 or L2 restarts after game over"
+    "R2, L2 or space restarts after game over"
   ]
 }
