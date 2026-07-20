@@ -56,18 +56,23 @@ async function postOwnedHook(
   })
 }
 
-/** Read one SSE data frame from a streaming response. */
-async function nextFrame(body: ReadableStream<Uint8Array>): Promise<Record<string, unknown>> {
+/** Read one SSE data frame from a streaming response (optionally of a given type). */
+async function nextFrame(
+  body: ReadableStream<Uint8Array>,
+  type?: string,
+): Promise<Record<string, unknown>> {
   const reader = body.getReader()
   let buffer = ''
   for (;;) {
     const { value, done } = await reader.read()
     if (done) throw new Error('stream ended')
     buffer += new TextDecoder().decode(value)
-    const match = buffer.match(/data: (.*)\n\n/)
-    if (match) {
-      reader.releaseLock()
-      return JSON.parse(match[1]!)
+    for (const match of buffer.matchAll(/data: (.*)\n\n/g)) {
+      const frame = JSON.parse(match[1]!) as Record<string, unknown>
+      if (!type || frame.type === type) {
+        reader.releaseLock()
+        return frame
+      }
     }
   }
 }
@@ -142,6 +147,29 @@ describe('HostServer', () => {
   it('streams game state on /events, starting with the current state', async () => {
     const stream = await fetch(`${base}/events`)
     expect(await nextFrame(stream.body!)).toEqual({ type: 'state', state: 'paused' })
+  })
+
+  it('starts with autopilot off, toggles it over POST /autopilot, and replays it on connect', async () => {
+    const first = await fetch(`${base}/events`)
+    expect(await nextFrame(first.body!, 'autopilot')).toEqual({ type: 'autopilot', enabled: false })
+
+    const res = await fetch(`${base}/autopilot`, {
+      method: 'POST',
+      body: JSON.stringify({ enabled: true }),
+    })
+    expect(await res.json()).toEqual({ enabled: true })
+
+    // A page loaded (or reloaded) after the toggle gets the current value.
+    const second = await fetch(`${base}/events`)
+    expect(await nextFrame(second.body!, 'autopilot')).toEqual({ type: 'autopilot', enabled: true })
+    await first.body?.cancel()
+    await second.body?.cancel()
+  })
+
+  it('injects a favicon and the autopilot toggle into served game HTML', async () => {
+    const page = await (await fetch(`${base}/games/snake/index.html`)).text()
+    expect(page).toContain('<link rel="icon" href="data:image/svg+xml,')
+    expect(page).toContain('id="vs-auto"')
   })
 
   it('forwards keystrokes to a registered instance by session cwd', async () => {

@@ -73,6 +73,7 @@
   let gameOverAt = 0
   let banner = { text: '', t: 0 }
   let lastHumanInput = 0
+  let autopilotEnabled = false // opt-in: toggled from the sidebar via {type:"autopilot"}
   let stickX = 0
   let stickY = 0
   let keyRot = 0
@@ -173,6 +174,8 @@
     }
     if (msg.type === 'state') {
       setPlaying(msg.state === 'playing')
+    } else if (msg.type === 'autopilot') {
+      autopilotEnabled = msg.enabled
     } else if (msg.type === 'input') {
       if (msg.kind === 'axis') {
         if (msg.axis === 'left_x') {
@@ -344,7 +347,7 @@
     hyperTimer = Math.max(0, hyperTimer - dt)
     banner.t = Math.max(0, banner.t - dt)
 
-    const idle = now - lastHumanInput > AUTOPILOT_IDLE_MS
+    const idle = autopilotEnabled && now - lastHumanInput > AUTOPILOT_IDLE_MS
     thrusting = false
 
     if (ship && ship.deadUntil && now >= ship.deadUntil) {

@@ -164,6 +164,7 @@
   let banner = { text: '', t: 0 }
   let particles = []
   let lastHumanInput = 0
+  let autopilotEnabled = false // opt-in: toggled from the sidebar via {type:"autopilot"}
   let softDrop = false
   let moveDir = 0 // -1/0/1 from stick or keys
   let moveHeld = 0 // seconds current direction has been held
@@ -255,6 +256,8 @@
     }
     if (msg.type === 'state') {
       setPlaying(msg.state === 'playing')
+    } else if (msg.type === 'autopilot') {
+      autopilotEnabled = msg.enabled
     } else if (msg.type === 'input') {
       if (msg.kind === 'axis') {
         if (msg.axis === 'left_x') {
@@ -393,7 +396,7 @@
     }
     if (!cur) return
 
-    const idle = now - lastHumanInput > AUTOPILOT_IDLE_MS
+    const idle = autopilotEnabled && now - lastHumanInput > AUTOPILOT_IDLE_MS
     if (idle) {
       autopilotStep(dt)
       if (!cur || clearing) return // autopilot may have locked the piece

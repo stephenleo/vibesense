@@ -200,11 +200,13 @@ if (!isHost) {
     // not resume the game (or steal the d-pad) under the user's fingers.
     const shouldPlay = gate.shouldPlay() && !pickerOpen
     const mode = shouldPlay ? 'game' : 'terminal'
+    // Broadcast before the mode guard: opening the picker while already paused
+    // doesn't change the mode, but the tab still has to show picker mode.
+    server.broadcastGameState(shouldPlay ? 'playing' : pickerOpen ? 'picking' : 'paused')
     if (mode === router.currentMode()) return
     repeater.releaseAll()
     scroller.setValue(0)
     router.setMode(mode)
-    server.broadcastGameState(shouldPlay ? 'playing' : 'paused')
     externalGame?.setPlaying(shouldPlay)
     logger.info(`mode → ${mode}`)
   }

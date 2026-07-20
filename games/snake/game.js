@@ -75,6 +75,7 @@
   let gameOverAt = 0
   let boost = false
   let lastHumanInput = 0
+  let autopilotEnabled = false // opt-in: toggled from the sidebar via {type:"autopilot"}
   let acc = 0 // seconds accumulated toward the next grid step
   let particles = [] // {x, y, vx, vy, life, max, color}
 
@@ -125,6 +126,8 @@
     }
     if (msg.type === 'state') {
       setPlaying(msg.state === 'playing')
+    } else if (msg.type === 'autopilot') {
+      autopilotEnabled = msg.enabled
     } else if (msg.type === 'input') {
       if (msg.kind === 'axis') {
         // Left stick → dominant-axis direction, past a deadzone.
@@ -189,7 +192,7 @@
     if (gameOver) return
 
     // Untouched for a while → let the autopilot drive so the demo survives.
-    const idle = performance.now() - lastHumanInput > AUTOPILOT_IDLE_MS
+    const idle = autopilotEnabled && performance.now() - lastHumanInput > AUTOPILOT_IDLE_MS
     const chosen = idle ? autoDir(snake, food, dir) : pendingDir
     dir = chosen === OPP[dir] ? dir : chosen
 

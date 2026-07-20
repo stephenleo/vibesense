@@ -40,9 +40,11 @@ Your page is served by the vibesense host and receives everything over one SSE s
 const events = new EventSource('/events')
 events.onmessage = (e) => {
   const msg = JSON.parse(e.data)
-  // { type: 'state', state: 'playing' | 'paused' }
+  // { type: 'state', state: 'playing' | 'paused' | 'picking' }
   //   playing → the agent is executing; run your game loop.
   //   paused  → Claude needs the user; freeze and show why.
+  //   picking → also paused, but the user is choosing a game in the sidebar.
+  // { type: 'autopilot', enabled: boolean }
   // { type: 'input', kind: 'button', button: 'r2'|'l2', pressed: boolean }
   // { type: 'input', kind: 'axis', axis: 'left_x'|'left_y', value: -1..1 }
 }
@@ -50,7 +52,8 @@ events.onmessage = (e) => {
 
 Rules:
 
-- **Respect `paused` immediately** — the user's controller has flipped back to driving the terminal; your game must visibly freeze.
+- **Respect `paused` immediately** — the user's controller has flipped back to driving the terminal; your game must visibly freeze. Treat any state other than `playing` as paused.
+- **If your game has a demo autopilot, honour `{ type: 'autopilot' }`** — it is off until the user ticks the sidebar toggle, and the current value is sent when your page connects. Never drive the game on its own without it.
 - Game-mode input is only the left stick and R2/L2. Face buttons, D-pad, and the right stick belong to the terminal and will never be forwarded.
 - No build step is required or expected: plain HTML + JS served as-is. Everything must be local (the host serves only your plugin directory).
 

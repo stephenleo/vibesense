@@ -33,6 +33,12 @@ export interface GameProvider {
   setActive(id: string): boolean
 }
 
+// Injected into every served game page (bundled or npm marketplace) so tabs get
+// an icon without shipping an asset file or adding a route.
+const FAVICON = `<link rel="icon" href="data:image/svg+xml,${encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><text y="14" font-size="14">🕹️</text></svg>`,
+)}">`
+
 const esc = (s: string): string =>
   s.replace(
     /[&<>"']/g,
@@ -83,6 +89,9 @@ function renderSidebar(
 #vs-sidebar .vs-game:hover{color:#fff}
 #vs-sidebar .vs-active::after{content:' ◂'}
 #vs-sidebar .vs-sel{border-color:#7cff7c;background:#02120a}
+#vs-games.vs-picking{border-color:#7cff7c;box-shadow:0 0 0 2px #7cff7c,0 0 26px rgba(124,255,124,.45)}
+#vs-auto{display:flex;align-items:center;gap:6px;padding:5px 10px;border-top:1px solid #234;color:#567;letter-spacing:1px;cursor:pointer}
+#vs-auto input{accent-color:#7cff7c;margin:0}
 </style><div class="vs-panel" id="vs-games"><div id="vs-target">⌨ → terminal</div><h2>☰ games</h2>${
     group(
       'Free',
@@ -92,15 +101,24 @@ function renderSidebar(
       'Paid',
       games.filter((g) => g.entitlement === 'paid'),
     )
-  }</div>${howTo}<script>
+  }<label id="vs-auto"><input type="checkbox"> autopilot</label></div>${howTo}<script>
 (() => {
   const cards = [...document.querySelectorAll('#vs-games .vs-game')]
   const target = document.getElementById('vs-target')
+  const panel = document.getElementById('vs-games')
+  const auto = document.querySelector('#vs-auto input')
+  auto.onchange = () => fetch('/autopilot', { method: 'POST', body: JSON.stringify({ enabled: auto.checked }) })
   const es = new EventSource('/events')
   es.onmessage = (e) => {
     let m; try { m = JSON.parse(e.data) } catch { return }
     if (m.type === 'state') {
-      target.textContent = m.state === 'playing' ? '🎮 → game' : '⌨ → terminal'
+      const picking = m.state === 'picking'
+      panel.classList.toggle('vs-picking', picking)
+      target.textContent = picking
+        ? '🕹 pick — d-pad · A ok · B back'
+        : m.state === 'playing' ? '🎮 → game' : '⌨ → terminal'
+    } else if (m.type === 'autopilot') {
+      auto.checked = m.enabled
     } else if (m.type === 'highlight') {
       cards.forEach((c) => c.classList.toggle('vs-sel', Number(c.dataset.i) === m.index))
     } else if (m.type === 'reload') {
@@ -159,7 +177,9 @@ export class HostServer extends EventEmitter {
     { res: http.ServerResponse; cwd: string; wrapperId: string | null }
   >()
   private nextInstanceId = 1
-  private lastGameState: 'playing' | 'paused' = 'paused'
+  private lastGameState: 'playing' | 'paused' | 'picking' = 'paused'
+  /** Off by default: the demo autopilot only runs when the user opts in. */
+  private autopilot = false
 
   /**
    * hostCwd is the directory of the claude session this host wraps. When set,
@@ -209,10 +229,21 @@ export class HostServer extends EventEmitter {
     this.server?.close()
   }
 
-  /** Push a game-state change to all connected game tabs. */
-  broadcastGameState(state: 'playing' | 'paused'): void {
+  /**
+   * Push a game-state change to all connected game tabs. 'picking' is a paused
+   * variant: games see anything != 'playing' as paused, while the sidebar shows
+   * picker instructions instead of the generic pause hint.
+   */
+  broadcastGameState(state: 'playing' | 'paused' | 'picking'): void {
+    if (state === this.lastGameState) return
     this.lastGameState = state
     for (const res of this.gameStreams) send(res, { type: 'state', state })
+  }
+
+  /** Enable/disable the games' idle autopilot everywhere. */
+  setAutopilot(enabled: boolean): void {
+    this.autopilot = enabled
+    for (const res of this.gameStreams) send(res, { type: 'autopilot', enabled })
   }
 
   /** Forward a controller input event to the game. */
@@ -334,6 +365,20 @@ export class HostServer extends EventEmitter {
       return
     }
 
+    if (req.method === 'POST' && pathname === '/autopilot') {
+      const body = await readBody(req)
+      let enabled = !this.autopilot // no/!bad body → plain toggle
+      try {
+        enabled = Boolean((JSON.parse(body) as { enabled?: boolean }).enabled)
+      } catch {
+        // toggle
+      }
+      this.setAutopilot(enabled)
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ enabled }))
+      return
+    }
+
     if (req.method === 'POST' && pathname === '/register') {
       const body = await readBody(req)
       let cwd = ''
@@ -376,6 +421,7 @@ export class HostServer extends EventEmitter {
       sse(res)
       this.gameStreams.add(res)
       send(res, { type: 'state', state: this.lastGameState })
+      send(res, { type: 'autopilot', enabled: this.autopilot })
       req.on('close', () => this.gameStreams.delete(res))
       return
     }
@@ -443,10 +489,10 @@ export class HostServer extends EventEmitter {
             this.games.active()?.id,
             games.find((g) => g.id === gameId)?.howToPlay,
           )
+          // Don't clobber a game that declares its own icon.
+          const extra = (/rel=["']?(shortcut )?icon/i.test(html) ? '' : FAVICON) + sidebar
           res.end(
-            html.includes('</body>')
-              ? html.replace('</body>', `${sidebar}</body>`)
-              : html + sidebar,
+            html.includes('</body>') ? html.replace('</body>', `${extra}</body>`) : html + extra,
           )
         } else {
           res.end(fs.readFileSync(full))
