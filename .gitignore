@@ -2,5 +2,8 @@ node_modules/
 dist/
 .DS_Store
 *.log
-.claude/settings.local.json
+.claude/
+.agents/
+skills-lock.json
+AGENTS.md
 TODO.md
