@@ -228,6 +228,7 @@
     else if (e.key === 'ArrowRight') keyDir = 1
     else if (e.key === ' ') pressFire()
     else return
+    e.preventDefault() // arrows/space would scroll the page
     lastHumanInput = performance.now()
   })
   addEventListener('keyup', (e) => {

@@ -206,6 +206,7 @@
     else if (e.key === ' ') pressFire(true)
     else if (e.key === 'Shift') hyperspace()
     else return
+    e.preventDefault() // arrows/space would scroll the page
     lastHumanInput = performance.now()
   })
   addEventListener('keyup', (e) => {

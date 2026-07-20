@@ -289,7 +289,11 @@
   // Keyboard fallback for development.
   addEventListener('keydown', (e) => {
     if (e.repeat) return
-    if (gameOver && (e.key === ' ' || e.key === 'Shift')) return reset()
+    if (gameOver && (e.key === ' ' || e.key === 'Shift')) {
+      e.preventDefault()
+      lastHumanInput = performance.now()
+      return reset()
+    }
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       moveDir = e.key === 'ArrowLeft' ? -1 : 1
       moveHeld = 0
@@ -298,6 +302,7 @@
     else if (e.key === ' ') tryRotate()
     else if (e.key === 'Shift') hardDrop()
     else return
+    e.preventDefault() // arrows/space would scroll the page
     lastHumanInput = performance.now()
   })
   addEventListener('keyup', (e) => {

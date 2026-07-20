@@ -7,8 +7,10 @@
   "entry": "index.html",
   "entitlement": "free",
   "howToPlay": [
-    "Left stick rotates the ship — up thrusts",
-    "R2 fires (hold for autofire)",
-    "L2 hyperspace-jumps out of trouble"
+    "Left stick or ←/→ rotates the ship",
+    "Stick up or ↑ thrusts",
+    "R2 or space fires (hold for autofire)",
+    "L2 or shift hyperspace-jumps out of trouble",
+    "Fire restarts after game over"
   ]
 }

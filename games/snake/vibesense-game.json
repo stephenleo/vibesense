@@ -7,8 +7,10 @@
   "entry": "index.html",
   "entitlement": "free",
   "howToPlay": [
-    "Left stick steers the snake",
-    "R2 boosts speed",
-    "Eat food to grow — don't hit walls or yourself"
+    "Left stick or arrow keys steer",
+    "R2 or space boosts",
+    "Eat food to grow",
+    "Don't hit walls or yourself",
+    "Space or R2 restarts after game over"
   ]
 }

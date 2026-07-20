@@ -7,8 +7,10 @@
   "entry": "index.html",
   "entitlement": "free",
   "howToPlay": [
-    "Left stick moves the piece — down soft-drops",
-    "R2 rotates, L2 hard-drops",
+    "Left stick or ←/→ moves the piece",
+    "Stick down or ↓ soft-drops",
+    "R2 or space rotates",
+    "L2 or shift hard-drops",
     "Clear full rows to score"
   ]
 }

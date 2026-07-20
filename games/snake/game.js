@@ -150,10 +150,12 @@
   addEventListener('keydown', (e) => {
     const map = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' }
     if (map[e.key]) steer(map[e.key])
-    if (e.key === ' ') {
+    else if (e.key === ' ') {
       boost = true
+      lastHumanInput = performance.now()
       if (gameOver) reset()
-    }
+    } else return
+    e.preventDefault() // arrows/space would scroll the page
   })
   addEventListener('keyup', (e) => {
     if (e.key === ' ') boost = false
