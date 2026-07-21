@@ -70,12 +70,12 @@ Arguments after `vibesense` are forwarded to Claude Code. Arguments after `vibes
 | ----------------------------------- | ---------------------------------------------------------------------------- |
 | `vibesense [claude args...]`        | Wrap Claude Code.                                                            |
 | `vibesense codex [codex args...]`   | Wrap Codex CLI.                                                              |
-| `vibesense play [game]`             | Run the active or named game without an agent.                               |
+| `vibesense play [game]`             | Play without an agent; named selection supports installed web games.         |
 | `vibesense games`                   | List installed games; `*` marks the active game.                             |
 | `vibesense install <id-or-package>` | Install an official game ID, npm package, tarball, URL, or local path.       |
 | `vibesense use <id>`                | Make an installed game active.                                               |
 | `vibesense uninstall <id>`          | Uninstall a game.                                                            |
-| `vibesense login <token>`           | Store and validate a marketplace token for owned games.                      |
+| `vibesense login <token>`           | Store a marketplace token and attempt validation; defer it if unreachable.   |
 | `vibesense logout`                  | Remove the marketplace token and cached entitlements.                        |
 | `--no-game`                         | Do not automatically open the browser game tab.                              |
 | `--auto-play`                       | Keep the game running independently of agent state; Menu can still pause it. |
@@ -116,6 +116,8 @@ Games use a versioned `vibesense-game.json` manifest:
 
 - `web` games are local HTML and JavaScript served by VibeSense and controlled over Server-Sent Events.
 - `external` games provide optional start, pause, resume, and stop shell commands; they handle controller input themselves.
+
+Named `vibesense play <game>` selection is limited to installed web games. To run an external adapter without an agent, make it active with `vibesense use <id>`, then run bare `vibesense play`.
 
 Installed games live under `~/.vibesense/games`, and the active game plus marketplace credentials are stored in `~/.vibesense/config.json`. Marketplace tokens are written with user-only file permissions, and cached entitlements provide offline grace for previously validated purchases.
 
