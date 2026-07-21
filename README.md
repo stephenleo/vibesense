@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="assets/vibesense-mark.svg" alt="VibeSense" width="320">
-</p>
+<p align="center"><img src="assets/vibesense-banner.svg" alt="VibeSense controller and play logo" width="100%"></p>
 
 # VibeSense
 
