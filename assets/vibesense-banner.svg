@@ -1,17 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 640" role="img" aria-labelledby="title description">
   <title id="title">VibeSense</title>
-  <desc id="description">An open game controller outline with a play symbol, D-pad, and four buttons.</desc>
+  <desc id="description">VibeSense. Play retro arcade games while your agent works—then jump back the moment it needs you. An open game controller outline with a play symbol, D-pad, and four buttons.</desc>
   <style>
     .background { fill: #f6f8f5; }
+    .foreground { fill: #07111f; }
     .outline { fill: none; stroke: #07111f; stroke-linecap: round; stroke-linejoin: round; }
     .controls { fill: #26be83; }
+    .copy { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; }
+    .mobile-subtitle { display: none; }
     @media (prefers-color-scheme: dark) {
       .background { fill: #08120e; }
+      .foreground { fill: #f6f8f5; }
       .outline { stroke: #f6f8f5; }
+    }
+    @media (max-width: 480px) {
+      .desktop-subtitle { display: none; }
+      .mobile-subtitle { display: inline; }
     }
   </style>
   <rect class="background" width="1600" height="640"/>
-  <g transform="translate(256 -2) scale(.68)">
+  <g transform="translate(112 32) scale(.37)">
     <g class="outline" stroke-width="52">
       <path d="M700 110H430C305 110 245 169 210 290L82 614C46 708 83 799 171 838C264 880 353 846 407 758L459 675C486 633 526 620 592 620"/>
       <path d="M900 110H1170C1295 110 1355 169 1390 290L1518 614C1554 708 1517 799 1429 838C1336 880 1247 846 1193 758L1141 675C1114 633 1074 620 1008 620"/>
@@ -25,5 +33,13 @@
       <circle cx="1265" cy="397" r="41"/>
       <circle cx="1177" cy="488" r="41"/>
     </g>
+  </g>
+  <g class="copy foreground" aria-hidden="true">
+    <text x="730" y="276" font-size="132" font-weight="700" letter-spacing="-5">VibeSense</text>
+    <text class="desktop-subtitle" x="800" y="500" font-size="32" font-weight="500" text-anchor="middle">Play retro arcade games while your agent works—then jump back the moment it needs you.</text>
+    <text class="mobile-subtitle" x="800" y="485" font-size="48" font-weight="500" text-anchor="middle">
+      <tspan x="800">Play retro arcade games while your agent works—</tspan>
+      <tspan x="800" dy="56">then jump back the moment it needs you.</tspan>
+    </text>
   </g>
 </svg>
