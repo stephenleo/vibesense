@@ -1,6 +1,8 @@
 // Integration test: real HostServer on an ephemeral port — hook POSTs drive
 // the aggregate, SSE streams deliver game state and forwarded keystrokes.
 
+import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BUNDLED_GAMES_DIR } from '../src/plugins.js'
@@ -200,6 +202,32 @@ describe('HostServer', () => {
     expect(page).toContain('%2326be83')
     expect(page).toContain('prefers-color-scheme%3A%20dark')
     expect(page).toContain('id="vs-auto"')
+  })
+
+  it('preserves a game favicon instead of injecting the fallback', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vibesense-favicon-'))
+    fs.writeFileSync(
+      path.join(dir, 'index.html'),
+      '<html><head><link rel="icon" href="/game.ico"></head><body></body></html>',
+    )
+    const custom = new HostServer({
+      resolveDir: () => dir,
+      active: () => ({ id: 'custom', entry: 'index.html' }),
+      list: () => [],
+      setActive: () => false,
+    })
+    await custom.listen(0)
+
+    try {
+      const page = await (
+        await fetch(`http://127.0.0.1:${custom.boundPort}/games/custom/index.html`)
+      ).text()
+      expect(page).toContain('<link rel="icon" href="/game.ico">')
+      expect(page).not.toContain('<link rel="icon" href="data:image/svg+xml,')
+    } finally {
+      custom.close()
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
   })
 
   it('forwards keystrokes to a registered instance by session cwd', async () => {
