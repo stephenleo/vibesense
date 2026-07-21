@@ -1,4 +1,6 @@
-![VibeSense — play while your agent works](assets/vibesense-github-banner.png)
+<p align="center">
+  <img src="assets/vibesense-mark.svg" alt="VibeSense" width="320">
+</p>
 
 # VibeSense
 
