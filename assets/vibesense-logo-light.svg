@@ -8,11 +8,6 @@
     .controls { fill: #26be83; }
     .copy { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; }
     .mobile-subtitle { display: none; }
-    @media (prefers-color-scheme: dark) {
-      .background { fill: #08120e; }
-      .foreground { fill: #f6f8f5; }
-      .outline { stroke: #f6f8f5; }
-    }
     @media (max-width: 480px) {
       .desktop-subtitle { display: none; }
       .mobile-subtitle { display: inline; }

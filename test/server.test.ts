@@ -201,6 +201,9 @@ describe('HostServer', () => {
     expect(link).toBeLessThan(page.indexOf('</head>'))
     expect(page).toContain('%2326be83')
     expect(page).toContain('prefers-color-scheme%3A%20dark')
+    const encodedFavicon = page.match(/href="data:image\/svg\+xml,([^"]+)"/)?.[1]
+    expect(encodedFavicon).toBeDefined()
+    expect(decodeURIComponent(encodedFavicon!)).not.toContain('class="background"')
     expect(page).toContain('id="vs-auto"')
   })
 

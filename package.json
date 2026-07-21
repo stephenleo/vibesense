@@ -14,7 +14,8 @@
   },
   "files": [
     "dist",
-    "assets/vibesense-banner.svg",
+    "assets/vibesense-logo-dark.svg",
+    "assets/vibesense-logo-light.svg",
     "assets/vibesense-mark.svg",
     "games/snake",
     "games/tetris",
