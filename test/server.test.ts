@@ -197,6 +197,7 @@ describe('HostServer', () => {
     const link = page.indexOf('<link rel="icon" href="data:image/svg+xml,')
     expect(link).toBeGreaterThan(-1)
     expect(link).toBeLessThan(page.indexOf('</head>'))
+    expect(page).toContain('%234dff88')
     expect(page).toContain('id="vs-auto"')
   })
 

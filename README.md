@@ -1,3 +1,5 @@
+![VibeSense — play while your agent works](assets/vibesense-github-banner.png)
+
 # VibeSense
 
 [![npm](https://img.shields.io/npm/v/%40vibesense%2Fcli)](https://www.npmjs.com/package/@vibesense/cli)

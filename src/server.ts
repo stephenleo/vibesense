@@ -35,10 +35,10 @@ export interface GameProvider {
   setActive(id: string): boolean
 }
 
-// Injected into every served game page (bundled or npm marketplace) so tabs get
-// an icon without shipping an asset file or adding a route.
+// Inject the shared brand mark into every served game page (bundled or npm
+// marketplace) without adding an asset route.
 const FAVICON = `<link rel="icon" href="data:image/svg+xml,${encodeURIComponent(
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><text y="14" font-size="14">🕹️</text></svg>`,
+  fs.readFileSync(new URL('../assets/vibesense-mark.svg', import.meta.url), 'utf8'),
 )}">`
 
 const esc = (s: string): string =>
