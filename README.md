@@ -1,92 +1,153 @@
-<p align="center"><img src="assets/vibesense-banner.svg" alt="VibeSense controller and play logo" width="100%"></p>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/vibesense-logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/vibesense-logo-light.svg">
+    <img src="assets/vibesense-logo-light.svg" alt="VibeSense — play retro arcade games while your agent works" width="100%">
+  </picture>
+</p>
 
 # VibeSense
 
 [![npm](https://img.shields.io/npm/v/%40vibesense%2Fcli)](https://www.npmjs.com/package/@vibesense/cli)
 
-Drive Claude Code or Codex CLI with a game controller — and play retro games while the agent works.
+Play retro arcade games while your agent works—then jump back the moment it needs you.
 
-`vibesense` wraps an agent CLI in a pty and passes its TUI through to your terminal untouched. Claude Code remains the default; select Codex explicitly:
+VibeSense wraps Claude Code or Codex CLI in a terminal, tracks the agent lifecycle through hooks, and switches one game controller between a browser game and the agent. Your terminal remains the agent's native TUI; VibeSense supplies the game, controller routing, and handoff.
 
-```sh
-vibesense                         # Claude Code (unchanged)
-vibesense codex [codex args...]   # Codex CLI
-vibesense play [game]             # game only
-```
+## What VibeSense does
 
-A game controller (Xbox / DualSense / generic HID) drives everything:
+- Starts the active game when the wrapped agent begins working, then pauses it when the agent stops or needs approval.
+- Routes controller input to the terminal while the agent needs you and to the game while it is running.
+- Ships five browser games and supports installable web games and external game adapters.
+- Wraps Claude Code by default and supports Codex CLI explicitly.
+- Shares one controller, game, and local host across multiple wrapped sessions.
+- Provides standalone play and optional continuous-play modes when no agent-driven handoff is wanted.
 
-- **Agent waiting on you?** D-pad navigates options, A/✕ accepts, B/○ cancels, and the right stick scrolls. Y/△ triggers Claude Code's native voice input; in Codex it sends a normal space.
-- **Agent executing?** A retro Snake game auto-starts in a browser tab — left stick steers. The moment the agent stops or asks for approval, the game pauses and the controller flips back to driving the terminal.
-- **Want a break?** Menu/Options pauses the game and hands the controller to the terminal; press it again to resume. This manual pause sticks — the agent starting or stopping won't un-pause it.
-- **Games are plugins.** Anyone can publish a game as an npm package; official games are `@vibesense/game-<id>`, installed with `vibesense install <id>`.
+## Requirements
 
-## How it works
+- Node.js 22 or newer.
+- macOS is the primary supported platform. Automatic browser opening and keep-awake behavior are macOS-specific.
+- A controller supported by the installed OpenMicro version. Compatibility depends on the device and connection; generic HID support is best-effort.
+- Native build tools for `node-pty` and OpenMicro's `node-hid` dependency, such as Xcode Command Line Tools on macOS.
 
-```
-controller → OpenMicro                                  ← one host per machine
-   │
-input router ──(agent waiting/idle)──▶ keystrokes ──▶ node-pty ⇄ claude/codex
-   │
-   └────────(agent executing)──▶ SSE ──▶ browser tab (game canvas)
-
-agent lifecycle hooks (curl POST) ──▶ http://127.0.0.1:48753 ──▶ agent-state FSM
-```
-
-Claude Code behavior and configuration are unchanged: its existing hooks (`UserPromptSubmit`, `Stop`, `Notification`, `PreToolUse:AskUserQuestion`, `PostToolUse`, and `SessionEnd`) are installed idempotently into `~/.claude/settings.json`.
-
-Codex uses four lifecycle hooks: `UserPromptSubmit` starts play, `PermissionRequest` pauses for approval, `PostToolUse` resumes play, and `Stop` pauses and focuses that terminal. VibeSense installs them into `$CODEX_HOME/hooks.json`, or `~/.codex/hooks.json` when `CODEX_HOME` is unset. On first install—and whenever the hook definition changes—open `/hooks` in Codex, inspect the commands, and trust them.
-
-Codex hooks must be enabled and permitted by local or administrator policy. VibeSense does not rewrite `config.toml` or bypass Codex's trust flow. Codex exposes no lifecycle event between approving a tool and that tool starting, so the game may remain paused while the approved tool runs; it resumes on `PostToolUse`.
-
-Multiple wrapped sessions share one host, one controller, and one game—the game pauses whenever any tracked session needs your attention. Globally installed hooks from unrelated Claude and Codex sessions are ignored.
-
-Terminal buttons and game buttons are disjoint sets, with a 750 ms input guard on every mode flip — mashing fire can never accidentally accept a question.
-
-`vibesense play [game]` runs the game with no agent session at all. Add `--auto-play` (works in either mode, off by default) to keep the game running non-stop — on macOS it also keeps the machine awake and resets the OS idle timer (`caffeinate -disu`), so no sleep and no Teams/Slack "Away". `vibesense --version` (or `-v`) prints the installed version.
-
-## Games marketplace
-
-Five games ship built in; browse and install the rest from the catalog at [vibesense.dev/games](https://vibesense.dev/games). The official installable games live in [vibesense-games](https://github.com/stephenleo/vibesense-games), and [vibesense-game-template](https://github.com/stephenleo/vibesense-game-template) is the starting point for building your own.
+Verify the controller before starting:
 
 ```sh
-vibesense games            # list installed games (* = active)
-vibesense install <id>     # install @vibesense/game-<id> from npm (tarballs/paths work too)
-vibesense use <id>         # switch the active game
-vibesense uninstall <id>
+npx openmicro@1.3.0 doctor
 ```
-
-A game is an npm package `@vibesense/game-<id>` with a `vibesense-game.json` manifest — either a `web` game (canvas page served to the game tab) or an `external` adapter (shell commands on state transitions, e.g. launching/pausing a Steam game). See [docs/plugin-contract.md](docs/plugin-contract.md) to build one. Premium games are a reserved manifest field (`entitlement: "premium"`) with the activation gate already in place — licensing bolts on later without changing the contract.
-
-> **Trust model**: installing a game is installing an npm package, and `external` games run shell commands by design. Only install games from authors you trust — same judgement as adding any dependency.
 
 ## Install
 
 ```sh
-npm install -g @vibesense/cli    # or: npx @vibesense/cli
+npm install -g @vibesense/cli
 ```
 
-Requires **Node ≥22**, and is **macOS-first**. OpenMicro handles controller discovery, verification, normalized input, and reconnection. Run `npx openmicro@1.3.0 doctor` to verify a controller. The native deps `node-hid` (through OpenMicro) / `node-pty` compile on install, so you'll need build tools (Xcode Command Line Tools on macOS).
+On npm 12 and newer, approve the required native install scripts explicitly:
 
-> **npm 12+**: dependency install scripts are blocked by default, which silently skips the native builds and breaks vibesense at startup. Approve them at install time:
->
-> ```sh
-> npm install -g @vibesense/cli --allow-scripts=@vibesense/cli,node-pty,node-hid
-> ```
->
-> Already installed and hitting a native-module error? Re-run the command above. On npm ≤11 the plain install works as-is.
+```sh
+npm install -g @vibesense/cli --allow-scripts=@vibesense/cli,node-pty,node-hid
+```
+
+You can also run VibeSense without a global install:
+
+```sh
+npx @vibesense/cli
+```
+
+## Quick start
+
+```sh
+vibesense                         # wrap Claude Code
+vibesense codex                   # wrap Codex CLI
+vibesense play snake              # play without an agent
+```
+
+Arguments after `vibesense` are forwarded to Claude Code. Arguments after `vibesense codex` are forwarded to Codex CLI.
+
+## Commands and options
+
+| Command                             | Behavior                                                                     |
+| ----------------------------------- | ---------------------------------------------------------------------------- |
+| `vibesense [claude args...]`        | Wrap Claude Code.                                                            |
+| `vibesense codex [codex args...]`   | Wrap Codex CLI.                                                              |
+| `vibesense play [game]`             | Run the active or named game without an agent.                               |
+| `vibesense games`                   | List installed games; `*` marks the active game.                             |
+| `vibesense install <id-or-package>` | Install an official game ID, npm package, tarball, URL, or local path.       |
+| `vibesense use <id>`                | Make an installed game active.                                               |
+| `vibesense uninstall <id>`          | Uninstall a game.                                                            |
+| `vibesense login <token>`           | Store and validate a marketplace token for owned games.                      |
+| `vibesense logout`                  | Remove the marketplace token and cached entitlements.                        |
+| `--no-game`                         | Do not automatically open the browser game tab.                              |
+| `--auto-play`                       | Keep the game running independently of agent state; Menu can still pause it. |
+| `--version`, `-v`                   | Print the installed VibeSense version.                                       |
+
+`--auto-play` also starts `caffeinate -disu` on macOS for the lifetime of VibeSense, preventing system idle sleep and resetting the OS idle timer. Other platforms still keep the game running but do not receive this keep-awake integration.
+
+## Agents and handoff
+
+### Claude Code
+
+VibeSense installs its lifecycle hooks idempotently into `~/.claude/settings.json`, preserving unrelated settings and hooks. Claude Code remains the default agent, so existing arguments continue to work after the `vibesense` command.
+
+### Codex CLI
+
+Run Codex with `vibesense codex`. VibeSense installs hooks into `$CODEX_HOME/hooks.json`, or `~/.codex/hooks.json` when `CODEX_HOME` is unset. After the first install or a hook-definition change, open `/hooks` in Codex, inspect the commands, and trust the VibeSense hooks.
+
+Codex must permit hooks through its local or administrator policy. VibeSense does not edit `config.toml`, bypass trust, or override policy. Codex exposes no lifecycle event between approving a tool and that tool starting, so the game can remain paused until the following `PostToolUse` event.
+
+## Controller behavior
+
+OpenMicro owns controller discovery, verification, normalized input, reconnection, and hardware lifecycle. VibeSense consumes those normalized events and decides whether they belong to the agent terminal, game, or game picker.
+
+| Context        | Controls                                                                                                                                                                                                                       |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Agent terminal | D-pad sends arrow keys; south button accepts; east button cancels; right stick scrolls; north button sends space. In Claude Code, that space invokes its native voice shortcut when configured; Codex receives a normal space. |
+| Browser game   | Left stick and R2/L2 are forwarded to the game. Each game shows its exact controls in the sidebar.                                                                                                                             |
+| Game picker    | View/Share opens the picker; D-pad selects; south confirms; east or View/Share cancels.                                                                                                                                        |
+| Any mode       | Menu/Options manually pauses or resumes the game.                                                                                                                                                                              |
+
+Every terminal/game transition applies a 750 ms guard and ignores buttons held across the mode change, preventing game input from accidentally accepting an agent prompt.
+
+## Games
+
+VibeSense includes five web games: Snake, Stax, Chompers, Brickfall, and Rockfield. Browse more at [vibesense.dev/games](https://vibesense.dev/games), or use the official [vibesense-games](https://github.com/stephenleo/vibesense-games) packages.
+
+Games use a versioned `vibesense-game.json` manifest:
+
+- `web` games are local HTML and JavaScript served by VibeSense and controlled over Server-Sent Events.
+- `external` games provide optional start, pause, resume, and stop shell commands; they handle controller input themselves.
+
+Installed games live under `~/.vibesense/games`, and the active game plus marketplace credentials are stored in `~/.vibesense/config.json`. Marketplace tokens are written with user-only file permissions, and cached entitlements provide offline grace for previously validated purchases.
+
+Start with the [game-building guide](docs/building-a-game.md), read the [protocol v1 contract](docs/plugin-contract.md), or use [vibesense-game-template](https://github.com/stephenleo/vibesense-game-template).
+
+> Installing a game installs an npm package. External games also execute their declared shell commands by design. Install games only from authors you trust.
+
+## Architecture
+
+```text
+controller → OpenMicro → VibeSense input router
+                              ├─ agent waiting → keystrokes → node-pty ↔ Claude/Codex
+                              └─ agent working → SSE input/state → browser game
+
+agent lifecycle hooks → http://127.0.0.1:48753 → shared agent-state host
+```
+
+The first VibeSense process to bind the local port becomes the host and owns the controller and game. Later wrapped processes register as clients. The shared game pauses whenever any tracked session needs attention, while hook events from unrelated Claude Code and Codex CLI sessions are ignored.
+
+Only one host can use the default port `48753`. For a second development instance, choose another port:
+
+```sh
+VIBESENSE_PORT=48754 npm run dev -- play snake
+```
 
 ## Development
 
 ```sh
 npm install
-npm run dev        # run from source (tsx)
-npm run verify     # typecheck + lint + format-check + tests
+npm run dev
+npm run verify
+npm run build
 ```
 
-Only one vibesense can own the singleton port (48753). Set `VIBESENSE_PORT` to
-run a second instance beside a live session:
-
-```sh
-VIBESENSE_PORT=48754 npm run dev -- play snake   # game at http://127.0.0.1:48754
-```
+`npm run verify` runs typechecking, lint, formatting checks, and the complete test suite.
