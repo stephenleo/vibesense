@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/vibesense-mark.svg" alt="VibeSense" width="320">
+</p>
+
 # VibeSense
 
 [![npm](https://img.shields.io/npm/v/%40vibesense%2Fcli)](https://www.npmjs.com/package/@vibesense/cli)

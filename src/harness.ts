@@ -19,7 +19,7 @@ const HARNESSES: Record<AgentKind, AgentHarness> = {
   codex: {
     command: 'codex',
     installHooks: installCodexHooks,
-    trustNotice: 'vibesense: Codex hooks changed; open /hooks and trust the Vibesense hooks',
+    trustNotice: 'vibesense: Codex hooks changed; open /hooks and trust the VibeSense hooks',
     childWrapperId: (wrapperId) => wrapperId,
   },
 }
