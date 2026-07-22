@@ -22,7 +22,10 @@ export class InputRouter {
   private held = new Set<ButtonId>()
   private ignoredHeld = new Set<ButtonId>()
 
-  constructor(private readonly now: () => number = Date.now) {}
+  constructor(
+    private readonly now: () => number = Date.now,
+    private readonly releaseInput: () => void = () => {},
+  ) {}
 
   currentMode(): InputMode {
     return this.mode
@@ -31,6 +34,7 @@ export class InputRouter {
   /** Flip modes (from agent state or the manual toggle button). Opens the guard window. */
   setMode(mode: InputMode): void {
     if (mode === this.mode) return
+    this.releaseInput()
     this.mode = mode
     this.guardUntil = this.now() + GUARD_WINDOW_MS
     // Buttons held across the flip stay dead until a fresh press.

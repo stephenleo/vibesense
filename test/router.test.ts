@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { ButtonId, ControllerEvent } from 'openmicro/controller'
+import { KeyRepeater, REPEAT_DELAY_MS, REPEAT_INTERVAL_MS } from '../src/keymap.js'
 import { GUARD_WINDOW_MS, InputRouter } from '../src/router.js'
 
 function press(button: ButtonId): ControllerEvent {
@@ -72,5 +73,28 @@ describe('InputRouter', () => {
 
     expect(router.route(release('south'))).toBeNull()
     expect(router.route(press('south'))?.target).toBe('terminal') // fresh press is intentional
+  })
+
+  it('mode changes clear active controller repeat before opening the guard', () => {
+    vi.useFakeTimers()
+    try {
+      let now = GUARD_WINDOW_MS + 1
+      const repeater = new KeyRepeater()
+      const fire = vi.fn()
+      const router = new InputRouter(
+        () => now,
+        () => repeater.releaseAll(),
+      )
+      repeater.press('dpad_right', fire)
+
+      router.setMode('game')
+      now += GUARD_WINDOW_MS + 1
+      vi.advanceTimersByTime(REPEAT_DELAY_MS + REPEAT_INTERVAL_MS * 3)
+
+      expect(fire).toHaveBeenCalledTimes(1)
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
