@@ -14,6 +14,7 @@
 import { execFile, spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { createRequire } from 'node:module'
+import type { ControllerEvent } from 'openmicro/controller'
 import { isVibesenseHost, runAsClient } from './client.js'
 import { runSubcommand, SUBCOMMANDS } from './commands.js'
 import { startController } from './controller.js'
@@ -179,6 +180,7 @@ const agent =
           process.exit(code)
         },
       )
+const repeater = new KeyRepeater()
 const gui =
   harness?.usesPty === false
     ? launchGuiHarness(harness, agentArgs, undefined, (error) => {
@@ -209,8 +211,7 @@ if (!isHost) {
   }
 } else {
   // ── Host: controller + game + state aggregation. ──────────────────────
-  const router = new InputRouter()
-  const repeater = new KeyRepeater()
+  const router = new InputRouter(Date.now, () => repeater.releaseAll())
   const externalGame =
     activeGame?.manifest.kind === 'external' ? new ExternalGame(activeGame) : null
   const scroller = new SmoothScroller()
@@ -232,7 +233,6 @@ if (!isHost) {
     server.broadcastGameState(shouldPlay ? 'playing' : pickerOpen ? 'picking' : 'paused')
     if (mode === router.currentMode()) return
     gui?.releasePushToTalk()
-    repeater.releaseAll()
     scroller.setValue(0)
     router.setMode(mode)
     externalGame?.setPlaying(shouldPlay)
@@ -295,18 +295,21 @@ if (!isHost) {
     gui?.dispose()
   })
 
-  stopController = startController((e) => {
+  const handleControllerEvent = (e: ControllerEvent): void => {
     try {
       if (e.kind === 'connected') {
         logger.info(`Controller connected: ${e.controllerType}`)
         return
       }
       if (e.kind === 'disconnected') {
-        repeater.releaseAll()
         gui?.releasePushToTalk()
         scroller.setValue(0)
         return
       }
+
+      // Release is a hardware-lifecycle edge, not a routing decision. Cancel
+      // repeat before the mode guard / ignored-held policy can swallow it.
+      repeater.releasePhysical(e)
 
       // ── Game picker ──────────────────────────────────────────────────
       // While the picker is focused it owns all input: d-pad moves the
@@ -399,7 +402,8 @@ if (!isHost) {
     } catch (err) {
       logger.error('controller event handling failed', err)
     }
-  })
+  }
+  stopController = startController(handleControllerEvent, () => repeater.releaseAll())
   if (!gui) scroller.start()
   if (playMode || autoPlay) applyMode() // no agent will kick us — start playing now
 

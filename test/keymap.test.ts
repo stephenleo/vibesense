@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   KeyRepeater,
+  MAX_REPEAT_DURATION_MS,
   REPEAT_DELAY_MS,
   REPEAT_INTERVAL_MS,
   REPEATING_BUTTONS,
   TERMINAL_KEYS,
 } from '../src/keymap.js'
+import { GUARD_WINDOW_MS, InputRouter } from '../src/router.js'
 
 describe('TERMINAL_KEYS', () => {
   it('maps accept/cancel/voice/dpad to the right byte sequences', () => {
@@ -73,7 +75,7 @@ describe('KeyRepeater', () => {
     expect(fire).toHaveBeenCalledTimes(2)
   })
 
-  it('releaseAll stops every key', () => {
+  it('releaseAll stops every key without orphan timers', () => {
     const repeater = new KeyRepeater()
     const a = vi.fn()
     const b = vi.fn()
@@ -83,5 +85,58 @@ describe('KeyRepeater', () => {
     vi.advanceTimersByTime(REPEAT_DELAY_MS + REPEAT_INTERVAL_MS * 5)
     expect(a).toHaveBeenCalledTimes(1)
     expect(b).toHaveBeenCalledTimes(1)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('stops repeating when the action fails', () => {
+    const repeater = new KeyRepeater()
+    const fire = vi.fn(() => {
+      if (fire.mock.calls.length === 2) throw new Error('automation failed')
+    })
+    repeater.press('dpad_down', fire)
+
+    expect(() => vi.advanceTimersByTime(REPEAT_DELAY_MS + REPEAT_INTERVAL_MS)).toThrow(
+      'automation failed',
+    )
+    vi.advanceTimersByTime(REPEAT_INTERVAL_MS * 5)
+    expect(fire).toHaveBeenCalledTimes(2)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('bounds unobservable asynchronous automation failure with a deadman', () => {
+    const repeater = new KeyRepeater()
+    const fire = vi.fn()
+    repeater.press('dpad_down', fire)
+
+    vi.advanceTimersByTime(MAX_REPEAT_DURATION_MS)
+    const callsAtDeadline = fire.mock.calls.length
+    expect(callsAtDeadline).toBeGreaterThan(1)
+    vi.advanceTimersByTime(MAX_REPEAT_DURATION_MS)
+    expect(fire).toHaveBeenCalledTimes(callsAtDeadline)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('does not strand repeat when a physical release is swallowed across a mode guard', () => {
+    let now = GUARD_WINDOW_MS + 1
+    const router = new InputRouter(() => now)
+    const repeater = new KeyRepeater()
+    const fire = vi.fn()
+
+    const physicalPress = { kind: 'button', button: 'dpad_right', pressed: true } as const
+    repeater.releasePhysical(physicalPress)
+    const press = router.route(physicalPress)
+    expect(press?.target).toBe('terminal')
+    repeater.press('dpad_right', fire)
+
+    router.setMode('game')
+    now += 1
+    const physicalRelease = { kind: 'button', button: 'dpad_right', pressed: false } as const
+    repeater.releasePhysical(physicalRelease)
+    const release = router.route(physicalRelease)
+    expect(release).toBeNull()
+
+    vi.advanceTimersByTime(REPEAT_DELAY_MS + REPEAT_INTERVAL_MS * 3)
+    expect(fire).toHaveBeenCalledTimes(1)
+    expect(vi.getTimerCount()).toBe(0)
   })
 })

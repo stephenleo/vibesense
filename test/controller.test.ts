@@ -34,14 +34,18 @@ describe('OpenMicro controller integration', () => {
 
   it('starts input, forwards events, and stops on cleanup', () => {
     const events: ControllerEvent[] = []
-    const stop = startController((event) => events.push(event))
+    const releaseInput = vi.fn()
+    const stop = startController((event) => events.push(event), releaseInput)
     const event: ControllerEvent = { kind: 'button', button: 'south', pressed: true }
+    const disconnected: ControllerEvent = { kind: 'disconnected' }
 
     controller.listener!(event)
+    controller.listener!(disconnected)
     stop()
 
     expect(controller.start).toHaveBeenCalledOnce()
-    expect(events).toEqual([event])
+    expect(events).toEqual([event, disconnected])
+    expect(releaseInput).toHaveBeenCalledTimes(2)
     expect(controller.stop).toHaveBeenCalledOnce()
   })
 })
