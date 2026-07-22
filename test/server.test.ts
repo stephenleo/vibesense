@@ -6,6 +6,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BUNDLED_GAMES_DIR } from '../src/plugins.js'
+import { harnessFor } from '../src/harness.js'
 import { HostServer } from '../src/server.js'
 import type { Aggregate } from '../src/state.js'
 
@@ -286,6 +287,62 @@ describe('HostServer', () => {
       expect(owned.sessionOwners.has('unknown-wrapper')).toBe(false)
     } finally {
       owned.close()
+    }
+  })
+
+  it('shares Codex app state across sessions and projects', async () => {
+    const app = new HostServer(
+      { resolveDir: () => null, active: () => null, list: () => [], setActive: () => false },
+      '/tmp/shared',
+      'gui-wrapper',
+      harnessFor('codex-app'),
+    )
+    await app.listen(0)
+    const appBase = `http://127.0.0.1:${app.boundPort}`
+    const aggregates: Aggregate[] = []
+    app.on('aggregate', (a: Aggregate) => aggregates.push(a))
+    const post = (event: string, sessionId: string) =>
+      fetch(`${appBase}/hook/${event}`, {
+        method: 'POST',
+        body: JSON.stringify({ session_id: sessionId, cwd: '/tmp/shared' }),
+      })
+
+    try {
+      await post('UserPromptSubmit', 'app-session')
+      expect(aggregates.at(-1)).toEqual({ playing: true, focusSessionId: null })
+
+      await fetch(`${appBase}/hook/PermissionRequest`, {
+        method: 'POST',
+        body: JSON.stringify({ session_id: 'other-project', cwd: '/tmp/other' }),
+      })
+      expect(aggregates.at(-1)).toEqual({ playing: false, focusSessionId: 'other-project' })
+      expect(app.sessionOwners.get('other-project')).toBe('gui-wrapper')
+
+      await post('PostToolUse', 'other-project')
+      expect(aggregates.at(-1)).toEqual({ playing: true, focusSessionId: null })
+
+      // Desktop and an unwrapped Codex CLI are indistinguishable at the hook
+      // boundary; both intentionally participate in the shared Codex host.
+      await post('PermissionRequest', 'unwrapped-codex-cli')
+      expect(aggregates.at(-1)).toEqual({
+        playing: false,
+        focusSessionId: 'unwrapped-codex-cli',
+      })
+      await post('PostToolUse', 'unwrapped-codex-cli')
+      expect(aggregates.at(-1)).toEqual({ playing: true, focusSessionId: null })
+
+      await fetch(`${appBase}/hook/PermissionRequest`, {
+        method: 'POST',
+        body: JSON.stringify({
+          session_id: 'claude-session',
+          cwd: '/tmp/shared',
+          transcript_path: '/Users/test/.claude/projects/transcript.jsonl',
+        }),
+      })
+      expect(aggregates.at(-1)).toEqual({ playing: true, focusSessionId: null })
+      expect(app.sessionOwners.has('claude-session')).toBe(false)
+    } finally {
+      app.close()
     }
   })
 

@@ -2,6 +2,7 @@
 // vibesense — wrap an agent CLI in a pty and drive it with a game controller.
 // Usage: vibesense [--no-game] [--auto-play] [claude args...]   (Claude is the default)
 //        vibesense codex [--no-game] [--auto-play] [codex args...]
+//        vibesense codex-app [--no-game] [--auto-play]          (Codex desktop app)
 //        vibesense play [game] [--auto-play]                    (game only, no agent)
 //        vibesense --version | -v                               (print version, exit)
 //
@@ -16,8 +17,9 @@ import { createRequire } from 'node:module'
 import { isVibesenseHost, runAsClient } from './client.js'
 import { runSubcommand, SUBCOMMANDS } from './commands.js'
 import { startController } from './controller.js'
+import { actionForButton, launchGuiHarness } from './gui.js'
 import { harnessFor } from './harness.js'
-import { parseInvocation } from './invocation.js'
+import { parseInvocation, USAGE } from './invocation.js'
 import { KeyRepeater, REPEATING_BUTTONS, TERMINAL_KEYS } from './keymap.js'
 import { logger } from './logger.js'
 import {
@@ -37,6 +39,15 @@ import { PauseGate } from './state.js'
 import type { Aggregate } from './state.js'
 
 const args = process.argv.slice(2)
+
+if (
+  args[0] === '--help' ||
+  args[0] === '-h' ||
+  (args[0] === 'codex-app' && (args[1] === '--help' || args[1] === '-h'))
+) {
+  console.log(USAGE)
+  process.exit(0)
+}
 
 // --version/-v must not fall through to claude (which has its own --version).
 if (args[0] === '--version' || args[0] === '-v') {
@@ -61,8 +72,8 @@ const { noGame, autoPlay, agentArgs, agentKind } = invocation
 const harness = agentKind ? harnessFor(agentKind) : null
 const hookHarness = harness ?? harnessFor('claude')
 const hookInstallResult = hookHarness.installHooks()
-if (hookInstallResult === 'changed' && hookHarness.trustNotice) {
-  console.error(hookHarness.trustNotice)
+if (hookInstallResult.changed && hookInstallResult.trustNotice) {
+  console.error(hookInstallResult.trustNotice)
 }
 
 const wrapperId = randomUUID()
@@ -145,22 +156,37 @@ const server = new HostServer(
   },
   process.cwd(),
   wrapperId,
+  harness?.usesPty === false ? harness : undefined,
 )
 const isHost = await server.listen()
 
-if (playMode && !isHost) {
+if ((playMode || harness?.usesPty === false) && !isHost) {
   console.error(`another vibesense is already running — game is at ${HOST_URL}`)
   process.exit(1)
 }
 
 // In play mode there is no agent: the listening server keeps the process
 // alive and stdin is untouched, so Ctrl+C quits by default.
-const agent = playMode
-  ? null
-  : new AgentPty(harness!.command, agentArgs, harness!.childWrapperId(wrapperId), (code) => {
-      shutdown()
-      process.exit(code)
-    })
+const agent =
+  playMode || harness?.usesPty === false
+    ? null
+    : new AgentPty(
+        harness!.command,
+        harness!.buildArgs(agentArgs),
+        harness!.childWrapperId(wrapperId),
+        (code) => {
+          shutdown()
+          process.exit(code)
+        },
+      )
+const gui =
+  harness?.usesPty === false
+    ? launchGuiHarness(harness, agentArgs, undefined, (error) => {
+        logger.error('Codex app failed to launch', error)
+        shutdown()
+        process.exitCode = 1
+      })
+    : null
 
 let stopController: () => void = () => {}
 
@@ -168,6 +194,7 @@ function shutdown(): void {
   stopController()
   stopController = () => {}
   agent?.dispose()
+  gui?.dispose()
   if (isHost) server.close()
 }
 
@@ -204,6 +231,7 @@ if (!isHost) {
     // doesn't change the mode, but the tab still has to show picker mode.
     server.broadcastGameState(shouldPlay ? 'playing' : pickerOpen ? 'picking' : 'paused')
     if (mode === router.currentMode()) return
+    gui?.releasePushToTalk()
     repeater.releaseAll()
     scroller.setValue(0)
     router.setMode(mode)
@@ -264,6 +292,7 @@ if (!isHost) {
     stopController()
     externalGame?.stop()
     scroller.stop()
+    gui?.dispose()
   })
 
   stopController = startController((e) => {
@@ -274,6 +303,7 @@ if (!isHost) {
       }
       if (e.kind === 'disconnected') {
         repeater.releaseAll()
+        gui?.releasePushToTalk()
         scroller.setValue(0)
         return
       }
@@ -309,6 +339,7 @@ if (!isHost) {
             0,
             web.findIndex((g) => g.manifest.id === activeGame?.manifest.id),
           )
+          gui?.releasePushToTalk()
           pickerOpen = true
           repeater.releaseAll() // don't let a held key auto-fire while we're picking
           scroller.setValue(0)
@@ -340,6 +371,17 @@ if (!isHost) {
       // Terminal target — same handling as M1, but writes go to the focused session.
       if (routed.event.kind === 'button') {
         const { button, pressed } = routed.event
+        if (gui) {
+          const action = actionForButton(button, pressed)
+          if (!action) return
+          if (REPEATING_BUTTONS.has(button)) {
+            if (pressed) repeater.press(button, () => gui.perform(action))
+            else repeater.release(button)
+          } else {
+            gui.perform(action)
+          }
+          return
+        }
         const bytes = TERMINAL_KEYS[button]
         if (!bytes) return
         if (REPEATING_BUTTONS.has(button)) {
@@ -351,14 +393,14 @@ if (!isHost) {
         return
       }
 
-      if (routed.event.kind === 'axis' && routed.event.axis === 'right_y') {
+      if (!gui && routed.event.kind === 'axis' && routed.event.axis === 'right_y') {
         scroller.setValue(routed.event.value)
       }
     } catch (err) {
       logger.error('controller event handling failed', err)
     }
   })
-  scroller.start()
+  if (!gui) scroller.start()
   if (playMode || autoPlay) applyMode() // no agent will kick us — start playing now
 
   if (autoPlay) {
