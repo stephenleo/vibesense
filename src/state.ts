@@ -48,6 +48,11 @@ export class SessionTracker {
     }
     const state = stateForHookEvent(event)
     if (!state) return false
+    return this.applyState(sessionId, state, options)
+  }
+
+  /** Apply a state already classified by a shared harness. */
+  applyState(sessionId: string, state: AgentState, options: SessionApplyOptions = {}): boolean {
     this.sessions.set(sessionId, {
       state,
       transitionedAt: ++this.clock,

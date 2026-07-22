@@ -6,8 +6,10 @@ import { EventEmitter } from 'node:events'
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
+import type { AgentHarness } from './harness.js'
 import { logger } from './logger.js'
 import { SessionTracker } from './state.js'
+import type { AgentState } from './state.js'
 
 // Singleton port. VIBESENSE_PORT lets a second instance (dev/test) run beside a
 // live session instead of losing the race for the default port.
@@ -258,7 +260,6 @@ export class HostServer extends EventEmitter {
   private lastGameState: 'playing' | 'paused' | 'picking' = 'paused'
   /** Off by default: the demo autopilot only runs when the user opts in. */
   private autopilot = false
-
   /**
    * hostCwd is the directory of the claude session this host wraps. When set,
    * hook events only reach the tracker from sessions whose cwd is ours or a
@@ -271,6 +272,7 @@ export class HostServer extends EventEmitter {
     private readonly games: GameProvider,
     private readonly hostCwd?: string,
     private readonly hostWrapperId?: string,
+    private readonly hookHarness?: AgentHarness,
   ) {
     super()
   }
@@ -411,18 +413,37 @@ export class HostServer extends EventEmitter {
       const body = await readBody(req)
       let sessionId = 'unknown'
       let cwd: string | undefined
+      let payload: unknown
       try {
-        const payload = JSON.parse(body) as { session_id?: string; cwd?: string }
-        sessionId = payload.session_id ?? 'unknown'
-        cwd = payload.cwd
+        const parsed = JSON.parse(body) as { session_id?: string; cwd?: string }
+        payload = parsed
+        sessionId = parsed.session_id ?? 'unknown'
+        cwd = parsed.cwd
       } catch {
         // Payload shape is claude's internal contract — event name alone still works.
       }
 
+      const harnessState = this.hookHarness?.stateForHookEvent(event, payload)
+      const normalizedState: AgentState | null | undefined =
+        harnessState === 'executing' || harnessState === 'waiting'
+          ? harnessState
+          : harnessState
+            ? 'idle'
+            : harnessState
+
       const header = req.headers['x-vibesense-instance-id']
       const wrapperId = Array.isArray(header) ? header[0] : header
       let trusted = false
-      if (wrapperId) {
+      if (!wrapperId && this.hookHarness?.usesPty === false) {
+        const transcriptPath = (payload as { transcript_path?: unknown } | undefined)
+          ?.transcript_path
+        const claudeOrigin =
+          typeof transcriptPath === 'string' &&
+          (transcriptPath.includes('/.claude/') || transcriptPath.includes('/.config/claude/'))
+        trusted = !claudeOrigin
+        if (trusted && this.hostWrapperId) this.sessionOwners.set(sessionId, this.hostWrapperId)
+        if (trusted && cwd) this.sessionCwds.set(sessionId, cwd)
+      } else if (wrapperId) {
         trusted = this.isActiveOwner(wrapperId)
         if (trusted) {
           this.sessionOwners.set(sessionId, wrapperId)
@@ -435,8 +456,15 @@ export class HostServer extends EventEmitter {
         trusted = this.isTrustedSession(sessionId)
       }
 
-      if (trusted && this.tracker.apply(sessionId, event, { focusOnStop: Boolean(wrapperId) })) {
-        this.emit('aggregate', this.tracker.aggregate())
+      if (trusted) {
+        const changed = this.hookHarness
+          ? normalizedState
+            ? this.tracker.applyState(sessionId, normalizedState, {
+                focusOnStop: Boolean(wrapperId || this.hookHarness.usesPty === false),
+              })
+            : false
+          : this.tracker.apply(sessionId, event, { focusOnStop: Boolean(wrapperId) })
+        if (changed) this.emit('aggregate', this.tracker.aggregate())
       }
       res.writeHead(200)
       res.end()
