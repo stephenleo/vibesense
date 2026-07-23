@@ -37,7 +37,7 @@ const HARNESSES: Record<AgentKind, AgentHarness> = {
     installHooks: () =>
       localInstall(
         installCodexHooks(),
-        'vibesense: Codex hooks changed; open /hooks and trust the VibeSense hooks',
+        'vibesense: Codex hooks changed; run codex, then /hooks, and trust the VibeSense hooks',
       ),
     childWrapperId: (wrapperId) => wrapperId,
   },
@@ -51,7 +51,7 @@ const HARNESSES: Record<AgentKind, AgentHarness> = {
       return {
         changed,
         trustNotice: changed
-          ? 'vibesense: Codex hooks changed; open /hooks and trust the VibeSense and OpenMicro hooks'
+          ? 'vibesense: Codex hooks changed; trust the VibeSense and OpenMicro hooks in Codex Desktop Settings → Hooks (or run codex, then /hooks)'
           : null,
       }
     },

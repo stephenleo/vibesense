@@ -1,6 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
+import type { ButtonId, ControllerEvent } from 'openmicro/controller'
 import type { Action, Harness } from 'openmicro/harness'
-import { actionForButton, launchGuiHarness } from '../src/gui.js'
+import {
+  actionForButton,
+  guiActionStatus,
+  guiControllerStatus,
+  launchGuiHarness,
+} from '../src/gui.js'
+import { GUARD_WINDOW_MS, InputRouter } from '../src/router.js'
 
 function harness(overrides: Partial<Harness> = {}): Harness {
   return {
@@ -95,6 +102,86 @@ describe('Codex app runtime', () => {
 })
 
 describe('Codex app controller actions', () => {
+  it('formats safe VibeSense status only for controller lifecycle and successful presses', () => {
+    expect(guiControllerStatus({ kind: 'connected', controllerType: 'dualsense' })).toBe(
+      'vibesense: controller connected (dualsense)',
+    )
+    expect(guiControllerStatus({ kind: 'disconnected' })).toBe(
+      'vibesense: controller disconnected — waiting',
+    )
+    expect(guiActionStatus({ type: 'accept' }, true)).toBe('vibesense: controller → accept')
+    expect(guiActionStatus({ type: 'reject' }, true)).toBe('vibesense: controller → reject')
+    expect(guiActionStatus({ type: 'push_to_talk', pressed: true }, true)).toBe(
+      'vibesense: controller → push-to-talk',
+    )
+    expect(guiActionStatus({ type: 'focus_session', index: -1 }, true)).toBe(
+      'vibesense: controller → next chat',
+    )
+    expect(guiActionStatus({ type: 'herdr_space' }, true)).toBe(
+      'vibesense: controller → next project',
+    )
+    expect(guiActionStatus({ type: 'keys', bytes: 'sensitive-or-high-rate' }, true)).toBe(
+      'vibesense: controller → navigate',
+    )
+    expect(guiActionStatus({ type: 'keys', bytes: 'secret' }, false)).toBeNull()
+    expect(guiActionStatus({ type: 'push_to_talk', pressed: false }, true)).toBeNull()
+    expect(guiActionStatus({ type: 'prompt', text: 'secret prompt' }, true)).toBeNull()
+    expect(guiControllerStatus({ kind: 'button', button: 'south', pressed: true })).toBeNull()
+  })
+
+  it('keeps chat and project navigation global without weakening the mode guard', () => {
+    let now = GUARD_WINDOW_MS + 1
+    const router = new InputRouter(
+      () => now,
+      () => {},
+      new Set<ButtonId>(['touchpad', 'l2']),
+    )
+    const executed: string[] = []
+    const runtime = launchGuiHarness(
+      harness({
+        resolveAction: (action) => ({ bytes: `resolved:${action.type}` }),
+        execute: (bytes) => executed.push(bytes),
+      }),
+      [],
+      () => ({ on: vi.fn() }),
+    )
+    const route = (button: ButtonId, pressed: boolean): void => {
+      const event: ControllerEvent = { kind: 'button', button, pressed }
+      const routed = router.route(event)
+      if (routed?.target !== 'terminal' || routed.event.kind !== 'button') return
+      const action = actionForButton(routed.event.button, routed.event.pressed)
+      if (action) runtime.perform(action)
+    }
+
+    router.setMode('game')
+    now += GUARD_WINDOW_MS + 1
+    for (const button of ['touchpad', 'l2'] as const) {
+      route(button, true)
+      route(button, false)
+      route(button, true)
+      route(button, false)
+    }
+
+    expect(executed).toEqual([
+      'resolved:focus_session',
+      'resolved:focus_session',
+      'resolved:herdr_space',
+      'resolved:herdr_space',
+    ])
+    expect(router.route({ kind: 'button', button: 'south', pressed: true })).toBeNull()
+    expect(router.route({ kind: 'button', button: 'east', pressed: true })).toBeNull()
+    expect(router.route({ kind: 'button', button: 'dpad_up', pressed: true })).toBeNull()
+    expect(router.route({ kind: 'button', button: 'r2', pressed: true })?.target).toBe('game')
+
+    router.setMode('terminal')
+    expect(router.route({ kind: 'button', button: 'south', pressed: true })).toBeNull()
+    now += GUARD_WINDOW_MS + 1
+    expect(router.route({ kind: 'button', button: 'south', pressed: false })).toBeNull()
+    expect(router.route({ kind: 'button', button: 'south', pressed: true })?.target).toBe(
+      'terminal',
+    )
+  })
+
   it('maps only the verified buttons and preserves push-to-talk edges', () => {
     expect(actionForButton('south', true)).toEqual({ type: 'accept' })
     expect(actionForButton('east', true)).toEqual({ type: 'reject' })

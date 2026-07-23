@@ -25,6 +25,7 @@ export class InputRouter {
   constructor(
     private readonly now: () => number = Date.now,
     private readonly releaseInput: () => void = () => {},
+    private readonly globalTerminalButtons: ReadonlySet<ButtonId> = new Set(),
   ) {}
 
   currentMode(): InputMode {
@@ -43,6 +44,9 @@ export class InputRouter {
 
   route(event: ControllerEvent): RoutedInput {
     if (event.kind === 'button') {
+      if (this.globalTerminalButtons.has(event.button)) {
+        return { target: 'terminal', event }
+      }
       if (event.pressed) {
         this.held.add(event.button)
       } else {
