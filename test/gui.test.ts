@@ -1,12 +1,10 @@
+import fs from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it, vi } from 'vitest'
 import type { ButtonId, ControllerEvent } from 'openmicro/controller'
 import type { Action, Harness } from 'openmicro/harness'
-import {
-  actionForButton,
-  guiActionStatus,
-  guiControllerStatus,
-  launchGuiHarness,
-} from '../src/gui.js'
+import { actionStatus, controllerStatus } from 'openmicro/logging'
+import { actionForButton, launchGuiHarness } from '../src/gui.js'
 import { GUARD_WINDOW_MS, InputRouter } from '../src/router.js'
 
 function harness(overrides: Partial<Harness> = {}): Harness {
@@ -102,31 +100,37 @@ describe('Codex app runtime', () => {
 })
 
 describe('Codex app controller actions', () => {
-  it('formats safe VibeSense status only for controller lifecycle and successful presses', () => {
-    expect(guiControllerStatus({ kind: 'connected', controllerType: 'dualsense' })).toBe(
-      'vibesense: controller connected (dualsense)',
-    )
-    expect(guiControllerStatus({ kind: 'disconnected' })).toBe(
-      'vibesense: controller disconnected — waiting',
-    )
-    expect(guiActionStatus({ type: 'accept' }, true)).toBe('vibesense: controller → accept')
-    expect(guiActionStatus({ type: 'reject' }, true)).toBe('vibesense: controller → reject')
-    expect(guiActionStatus({ type: 'push_to_talk', pressed: true }, true)).toBe(
-      'vibesense: controller → push-to-talk',
-    )
-    expect(guiActionStatus({ type: 'focus_session', index: -1 }, true)).toBe(
-      'vibesense: controller → next chat',
-    )
-    expect(guiActionStatus({ type: 'herdr_space' }, true)).toBe(
-      'vibesense: controller → next project',
-    )
-    expect(guiActionStatus({ type: 'keys', bytes: 'sensitive-or-high-rate' }, true)).toBe(
-      'vibesense: controller → navigate',
-    )
-    expect(guiActionStatus({ type: 'keys', bytes: 'secret' }, false)).toBeNull()
-    expect(guiActionStatus({ type: 'push_to_talk', pressed: false }, true)).toBeNull()
-    expect(guiActionStatus({ type: 'prompt', text: 'secret prompt' }, true)).toBeNull()
-    expect(guiControllerStatus({ kind: 'button', button: 'south', pressed: true })).toBeNull()
+  it('uses canonical OpenMicro statuses without exposing action payloads', () => {
+    expect(controllerStatus({ kind: 'connected', controllerType: 'dualsense' })).toEqual({
+      message: 'controller connected (dualsense) — buttons now drive the app',
+      tone: 'success',
+    })
+    expect(controllerStatus({ kind: 'disconnected' })).toEqual({
+      message: 'controller disconnected — waiting…',
+      tone: 'warning',
+    })
+    expect(actionStatus('north', 'dualsense', { type: 'push_to_talk', pressed: true })).toEqual({
+      message: '△ → push-to-talk',
+      tone: 'action',
+    })
+    const keys = actionStatus('dpad_up', 'dualsense', {
+      type: 'keys',
+      bytes: 'sensitive-or-high-rate',
+    })
+    expect(keys).toEqual({ message: 'd-pad up → send keys', tone: 'action' })
+    expect(keys?.message).not.toContain('sensitive-or-high-rate')
+  })
+
+  it('consumes OpenMicro logging at the existing CLI routing seam', () => {
+    const cli = fs.readFileSync(fileURLToPath(new URL('../src/cli.ts', import.meta.url)), 'utf8')
+    const gui = fs.readFileSync(fileURLToPath(new URL('../src/gui.ts', import.meta.url)), 'utf8')
+
+    expect(cli).toContain("from 'openmicro/logging'")
+    expect(cli).toContain('controllerStatus(e)')
+    expect(cli).toContain('actionStatus(button, controllerType, action)')
+    expect(cli).toContain('STATUS_TINT[status.tone]')
+    expect(gui).not.toContain('guiControllerStatus')
+    expect(gui).not.toContain('guiActionStatus')
   })
 
   it('keeps chat and project navigation global without weakening the mode guard', () => {

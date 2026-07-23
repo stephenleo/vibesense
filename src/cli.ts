@@ -14,17 +14,17 @@
 import { execFile, spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { createRequire } from 'node:module'
-import type { ControllerEvent } from 'openmicro/controller'
+import type { ControllerEvent, ControllerType } from 'openmicro/controller'
+import {
+  actionStatus,
+  controllerStatus,
+  type GuiStatus,
+  type GuiStatusTone,
+} from 'openmicro/logging'
 import { isVibesenseHost, runAsClient } from './client.js'
 import { runSubcommand, SUBCOMMANDS } from './commands.js'
 import { startController } from './controller.js'
-import {
-  actionForButton,
-  GLOBAL_GUI_BUTTONS,
-  guiActionStatus,
-  guiControllerStatus,
-  launchGuiHarness,
-} from './gui.js'
+import { actionForButton, GLOBAL_GUI_BUTTONS, launchGuiHarness } from './gui.js'
 import { harnessFor } from './harness.js'
 import { parseInvocation, USAGE } from './invocation.js'
 import { KeyRepeater, REPEATING_BUTTONS, TERMINAL_KEYS } from './keymap.js'
@@ -46,6 +46,24 @@ import { PauseGate } from './state.js'
 import type { Aggregate } from './state.js'
 
 const args = process.argv.slice(2)
+const STATUS_TINT: Record<GuiStatusTone, number> = {
+  success: 32,
+  warning: 33,
+  action: 35,
+  waiting: 33,
+  executing: 32,
+  complete: 36,
+  error: 31,
+  idle: 90,
+}
+
+/** Print an OpenMicro GUI status with its canonical tone. */
+function reportGuiStatus(status: GuiStatus | null): void {
+  if (!status) return
+  if (process.stderr.isTTY)
+    console.error(`\x1b[${STATUS_TINT[status.tone]}m●\x1b[0m ${status.message}`)
+  else console.error(status.message)
+}
 
 if (
   args[0] === '--help' ||
@@ -305,12 +323,13 @@ if (!isHost) {
     gui?.dispose()
   })
 
+  let controllerType: ControllerType = 'generic-hid'
   const handleControllerEvent = (e: ControllerEvent): void => {
     try {
-      const controllerStatus = gui && guiControllerStatus(e)
-      if (controllerStatus) console.error(controllerStatus)
+      if (gui) reportGuiStatus(controllerStatus(e))
 
       if (e.kind === 'connected') {
+        controllerType = e.controllerType
         logger.info(`Controller connected: ${e.controllerType}`)
         return
       }
@@ -397,14 +416,15 @@ if (!isHost) {
                 const performed = gui.perform(action)
                 if (!reported) {
                   reported = true
-                  const status = guiActionStatus(action, performed)
-                  if (status) console.error(status)
+                  reportGuiStatus(performed ? actionStatus(button, controllerType, action) : null)
                 }
               })
             } else repeater.release(button)
           } else {
-            const status = guiActionStatus(action, gui.perform(action))
-            if (status) console.error(status)
+            const performed = gui.perform(action)
+            reportGuiStatus(
+              performed && pressed ? actionStatus(button, controllerType, action) : null,
+            )
           }
           return
         }
