@@ -95,17 +95,17 @@ VibeSense installs its lifecycle hooks idempotently into `~/.claude/settings.jso
 
 ### Codex CLI
 
-Run Codex with `vibesense codex`. VibeSense installs hooks into `$CODEX_HOME/hooks.json`, or `~/.codex/hooks.json` when `CODEX_HOME` is unset. After the first install or a hook-definition change, open `/hooks` in Codex, inspect the commands, and trust the VibeSense hooks.
+Run Codex with `vibesense codex`. VibeSense installs hooks into `$CODEX_HOME/hooks.json`, or `~/.codex/hooks.json` when `CODEX_HOME` is unset. After the first install or a hook-definition change, run `codex` in a terminal, enter `/hooks`, inspect the commands, and trust the VibeSense hooks.
 
 Codex must permit hooks through its local or administrator policy. VibeSense does not edit `config.toml`, bypass trust, or override policy. Codex exposes no lifecycle event between approving a tool and that tool starting, so the game can remain paused until the following `PostToolUse` event.
 
 ### Codex desktop app
 
-Run `vibesense codex-app` on macOS. VibeSense launches Codex without a PTY and delegates app control to OpenMicro's exported `codex-app` harness. The south button accepts, east rejects or dismisses, north holds push-to-talk, and the D-pad sends arrow keys. Touchpad cycles chats in the current project; L2/LT cycles projects. Each action targets the session that Codex brings frontmost. Continuous right-stick scrolling is intentionally unavailable because the shared app harness has no verified equivalent.
+Run `vibesense codex-app` on macOS. VibeSense launches Codex without a PTY and delegates app control to OpenMicro's exported `codex-app` harness. The south button accepts, east rejects or dismisses, north holds push-to-talk, and the D-pad sends arrow keys. Touchpad cycles chats in the current project; L2/LT cycles projects even while the game is active. Each action targets the session that Codex brings frontmost. Continuous right-stick scrolling is intentionally unavailable because the shared app harness has no verified equivalent. The terminal prints concise `vibesense:` status when a controller connects or disconnects and once for each successfully routed physical action; repeat ticks, releases, prompt text, URLs, and session IDs are omitted.
 
 On first use, allow the terminal running VibeSense under **System Settings → Privacy & Security → Accessibility** and **Automation** so it can control System Events and Codex. Codex's `Control+Shift+D` dictation shortcut must remain available for north-button push-to-talk; the other mapped controls use standard Enter, Escape, and arrow keys.
 
-Codex app mode installs both VibeSense's state hook and OpenMicro's shared harness hook in `$CODEX_HOME/hooks.json` (normally `~/.codex/hooks.json`). After the first install or any hook-definition change, open `/hooks` in Codex, inspect the VibeSense and OpenMicro commands, and trust them. Hooks are the state source for the shared Codex host: any headerless non-Claude Codex hook can pause the game when it needs attention, including Codex Desktop sessions in other projects and unwrapped Codex CLI sessions. Controller actions still target whichever Desktop session is frontmost. VibeSense does not copy OpenMicro's GUI or database automation.
+Codex app mode installs both VibeSense's state hook and OpenMicro's shared harness hook in `$CODEX_HOME/hooks.json` (normally `~/.codex/hooks.json`). After the first install or any hook-definition change, open **Codex Desktop → Settings → Hooks**, inspect the VibeSense and OpenMicro commands, and trust them. Alternatively, run `codex` in a terminal and then enter `/hooks`. Do not type `/hooks` into the Codex Desktop composer; Desktop sends it as ordinary prompt text. Hooks are the state source for the shared Codex host: any headerless non-Claude Codex hook can pause the game when it needs attention, including Codex Desktop sessions in other projects and unwrapped Codex CLI sessions. Controller actions still target whichever Desktop session is frontmost. VibeSense does not copy OpenMicro's GUI or database automation.
 
 ## Controller behavior
 

@@ -18,7 +18,13 @@ import type { ControllerEvent } from 'openmicro/controller'
 import { isVibesenseHost, runAsClient } from './client.js'
 import { runSubcommand, SUBCOMMANDS } from './commands.js'
 import { startController } from './controller.js'
-import { actionForButton, launchGuiHarness } from './gui.js'
+import {
+  actionForButton,
+  GLOBAL_GUI_BUTTONS,
+  guiActionStatus,
+  guiControllerStatus,
+  launchGuiHarness,
+} from './gui.js'
 import { harnessFor } from './harness.js'
 import { parseInvocation, USAGE } from './invocation.js'
 import { KeyRepeater, REPEATING_BUTTONS, TERMINAL_KEYS } from './keymap.js'
@@ -211,7 +217,11 @@ if (!isHost) {
   }
 } else {
   // ── Host: controller + game + state aggregation. ──────────────────────
-  const router = new InputRouter(Date.now, () => repeater.releaseAll())
+  const router = new InputRouter(
+    Date.now,
+    () => repeater.releaseAll(),
+    gui ? GLOBAL_GUI_BUTTONS : undefined,
+  )
   const externalGame =
     activeGame?.manifest.kind === 'external' ? new ExternalGame(activeGame) : null
   const scroller = new SmoothScroller()
@@ -297,6 +307,9 @@ if (!isHost) {
 
   const handleControllerEvent = (e: ControllerEvent): void => {
     try {
+      const controllerStatus = gui && guiControllerStatus(e)
+      if (controllerStatus) console.error(controllerStatus)
+
       if (e.kind === 'connected') {
         logger.info(`Controller connected: ${e.controllerType}`)
         return
@@ -378,10 +391,20 @@ if (!isHost) {
           const action = actionForButton(button, pressed)
           if (!action) return
           if (REPEATING_BUTTONS.has(button)) {
-            if (pressed) repeater.press(button, () => gui.perform(action))
-            else repeater.release(button)
+            if (pressed) {
+              let reported = false
+              repeater.press(button, () => {
+                const performed = gui.perform(action)
+                if (!reported) {
+                  reported = true
+                  const status = guiActionStatus(action, performed)
+                  if (status) console.error(status)
+                }
+              })
+            } else repeater.release(button)
           } else {
-            gui.perform(action)
+            const status = guiActionStatus(action, gui.perform(action))
+            if (status) console.error(status)
           }
           return
         }

@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import type { ButtonId } from 'openmicro/controller'
+import type { ButtonId, ControllerEvent } from 'openmicro/controller'
 import type { Action, Harness } from 'openmicro/harness'
 import { TERMINAL_KEYS } from './keymap.js'
 
@@ -9,6 +9,39 @@ interface LaunchResult {
 }
 
 type AppLauncher = (command: string, args: string[]) => LaunchResult
+
+/** GUI navigation controls that stay available while the game owns normal input. */
+export const GLOBAL_GUI_BUTTONS: ReadonlySet<ButtonId> = new Set(['touchpad', 'l2'])
+
+/** Format VibeSense-owned controller lifecycle status for GUI mode. */
+export function guiControllerStatus(event: ControllerEvent): string | null {
+  if (event.kind === 'connected') {
+    return `vibesense: controller connected (${event.controllerType})`
+  }
+  if (event.kind === 'disconnected') return 'vibesense: controller disconnected — waiting'
+  return null
+}
+
+/** Format a safe status line after a GUI action was successfully delegated. */
+export function guiActionStatus(action: Action, performed: boolean): string | null {
+  if (!performed) return null
+  switch (action.type) {
+    case 'accept':
+      return 'vibesense: controller → accept'
+    case 'reject':
+      return 'vibesense: controller → reject'
+    case 'push_to_talk':
+      return action.pressed === false ? null : 'vibesense: controller → push-to-talk'
+    case 'focus_session':
+      return 'vibesense: controller → next chat'
+    case 'herdr_space':
+      return 'vibesense: controller → next project'
+    case 'keys':
+      return 'vibesense: controller → navigate'
+    default:
+      return null
+  }
+}
 
 /** Convert verified Codex app buttons to OpenMicro actions. */
 export function actionForButton(button: ButtonId, pressed: boolean): Action | null {
